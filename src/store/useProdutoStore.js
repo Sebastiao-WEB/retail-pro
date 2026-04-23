@@ -1,6 +1,29 @@
 import { defineStore } from "pinia";
 import { obterProdutos } from "../services/dadosMockados";
 
+function normalizarIva(valor) {
+  const numero = Number(valor || 0);
+  if (!Number.isFinite(numero)) return 0;
+  return Math.max(0, Math.min(100, numero));
+}
+
+function calcularPrecoComIva(precoSemIva, ivaPercentual) {
+  const preco = Number(precoSemIva || 0);
+  if (!Number.isFinite(preco)) return 0;
+  return Number((preco * (1 + ivaPercentual / 100)).toFixed(2));
+}
+
+function normalizarProduto(produto) {
+  const precoVenda = Number(produto?.precoVenda || 0);
+  const ivaPercentual = normalizarIva(produto?.ivaPercentual);
+  return {
+    ...produto,
+    precoVenda: Number.isFinite(precoVenda) ? precoVenda : 0,
+    ivaPercentual,
+    precoVendaComIva: calcularPrecoComIva(precoVenda, ivaPercentual),
+  };
+}
+
 export const useProdutoStore = defineStore("produtos", {
   state: () => ({
     produtos: [],
@@ -15,20 +38,21 @@ export const useProdutoStore = defineStore("produtos", {
     async carregarProdutos() {
       if (this.carregado) return;
       this.emProcessamento = true;
-      this.produtos = await obterProdutos();
+      const produtos = await obterProdutos();
+      this.produtos = produtos.map((produto) => normalizarProduto(produto));
       this.carregado = true;
       this.emProcessamento = false;
     },
     adicionarProduto(produto) {
       this.produtos.unshift({
-        ...produto,
+        ...normalizarProduto(produto),
         id: Date.now(),
       });
     },
     atualizarProduto(produtoAtualizado) {
       const indice = this.produtos.findIndex((produto) => produto.id === produtoAtualizado.id);
       if (indice === -1) return;
-      this.produtos[indice] = { ...produtoAtualizado };
+      this.produtos[indice] = normalizarProduto(produtoAtualizado);
     },
     aplicarVenda(itensVenda) {
       itensVenda.forEach((item) => {

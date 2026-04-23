@@ -34,11 +34,13 @@ const justificativaDiferenca = ref("");
 const erroFecho = ref("");
 const erroFinalizacao = ref("");
 
-const produtosFiltrados = computed(() =>
-  produtoStore.produtos
+const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
+const produtosFiltrados = computed(() => {
+  if (!pesquisaAtiva.value) return [];
+  return produtoStore.produtos
     .filter((produto) => `${produto.nome} ${produto.codigoBarras}`.toLowerCase().includes(pesquisa.value.toLowerCase()))
-    .slice(0, 5)
-);
+    .slice(0, 5);
+});
 
 const clientesDisponiveis = computed(() => clienteStore.clientes);
 const clientesParaSelect = computed(() => {
@@ -86,6 +88,11 @@ function formatarMT(valor) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(valor)} MT`;
+}
+
+function formatarIva(valor) {
+  const numero = Number(valor || 0);
+  return `${Number.isFinite(numero) ? numero : 0}%`;
 }
 
 function quantidadeNoCarrinho(produtoId) {
@@ -171,6 +178,7 @@ function gerarHtmlTalao(venda) {
         <tr>
           <td>${escaparHtml(item.nome)}</td>
           <td style="text-align:center;">${item.quantidade}</td>
+          <td style="text-align:center;">${formatarIva(item.ivaPercentual)}</td>
           <td style="text-align:right;">${formatarMT(item.subtotal)}</td>
         </tr>
       `
@@ -218,7 +226,7 @@ function gerarHtmlTalao(venda) {
         <div class="sep"></div>
         <table>
           <thead>
-            <tr><th>Item</th><th>Qtd</th><th>Total</th></tr>
+            <tr><th>Item</th><th>Qtd</th><th>IVA</th><th>Total</th></tr>
           </thead>
           <tbody>
             ${linhasItens}
@@ -455,7 +463,7 @@ function confirmarFechoCaixa() {
             </div>
           </div>
         </div>
-        <div class="overflow-hidden rounded-lg border border-slate-200">
+        <div v-if="pesquisaAtiva" class="overflow-hidden rounded-lg border border-slate-200">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
@@ -473,7 +481,7 @@ function confirmarFechoCaixa() {
               <tr v-for="produto in produtosFiltrados" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
                 <td class="px-3 py-2 font-semibold text-slate-800">{{ produto.nome }}</td>
                 <td class="px-3 py-2 text-slate-600">{{ produto.codigoBarras }}</td>
-                <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(produto.precoVenda) }}</td>
+                <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(produto.precoVendaComIva ?? produto.precoVenda) }}</td>
                 <td class="px-3 py-2">
                   <span
                     class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
@@ -502,6 +510,9 @@ function confirmarFechoCaixa() {
               </tr>
             </tbody>
           </table>
+        </div>
+        <div v-else class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-xs text-slate-500">
+          Digite no campo de pesquisa para listar produtos.
         </div>
       </div>
     </div>

@@ -1,6 +1,8 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import BotaoBase from "./BotaoBase.vue";
+import ModalBase from "./ModalBase.vue";
 import { useSessaoStore } from "../store/useSessaoStore";
 
 const route = useRoute();
@@ -25,8 +27,13 @@ const dataAtual = computed(() =>
 const paginaAtual = computed(() => titulos[route.name] || { titulo: "RetailPro POS", subtitulo: "Sistema de caixa" });
 const utilizador = computed(() => sessaoStore.utilizador || "Operador Caixa");
 const caixa = computed(() => sessaoStore.caixaAtribuido || "Sem caixa");
+const modalSairAberto = ref(false);
 
 function sair() {
+  modalSairAberto.value = true;
+}
+
+function confirmarSaida() {
   sessaoStore.logout();
   router.push("/login");
 }
@@ -40,15 +47,6 @@ function sair() {
     </div>
 
     <div class="flex items-center gap-2">
-      <div class="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500 md:flex">
-        <span>⌕</span>
-        <span>Pesquisar...</span>
-      </div>
-
-      <button class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-50">◔</button>
-      <button class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-50">⇩</button>
-      <RouterLink to="/pos" class="rounded-lg bg-[var(--gold)] px-3 py-1.5 text-xs font-semibold text-black hover:brightness-95">+ Nova Venda</RouterLink>
-
       <div class="ml-2 text-right">
         <p class="text-xs font-semibold text-slate-800">{{ utilizador }}</p>
         <p class="text-[11px] text-slate-500">{{ caixa }} · {{ dataAtual }}</p>
@@ -59,4 +57,26 @@ function sair() {
       </button>
     </div>
   </header>
+
+  <ModalBase :aberto="modalSairAberto" titulo="Confirmar saída" @fechar="modalSairAberto = false">
+    <div class="space-y-4">
+      <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
+        <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        </span>
+        <div>
+          <p class="font-semibold text-slate-900">Realmente deseja terminar a sessão?</p>
+          <p class="text-xs text-slate-600">A sessão do operador será encerrada e voltará para o login.</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <BotaoBase variante="secundario" @click="modalSairAberto = false">Cancelar</BotaoBase>
+        <BotaoBase variante="perigo" @click="confirmarSaida">Terminar sessão</BotaoBase>
+      </div>
+    </div>
+  </ModalBase>
 </template>

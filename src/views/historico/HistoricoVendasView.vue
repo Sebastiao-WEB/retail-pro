@@ -47,6 +47,11 @@ function formatarMT(valor) {
   }).format(Number(valor || 0))} MT`;
 }
 
+function formatarIva(valor) {
+  const numero = Number(valor || 0);
+  return `${Number.isFinite(numero) ? numero : 0}%`;
+}
+
 function formatarData(valor) {
   return new Date(valor).toLocaleString("pt-MZ");
 }
@@ -72,6 +77,7 @@ function gerarHtmlTalao(venda) {
         <tr>
           <td>${escaparHtml(item.nome)}</td>
           <td style="text-align:center;">${item.quantidade}</td>
+          <td style="text-align:center;">${formatarIva(item.ivaPercentual)}</td>
           <td style="text-align:right;">${formatarMT(item.subtotal)}</td>
         </tr>
       `
@@ -113,7 +119,7 @@ function gerarHtmlTalao(venda) {
         <div class="sep"></div>
         <table>
           <thead>
-            <tr><th>Item</th><th>Qtd</th><th>Total</th></tr>
+            <tr><th>Item</th><th>Qtd</th><th>IVA</th><th>Total</th></tr>
           </thead>
           <tbody>
             ${linhasItens}

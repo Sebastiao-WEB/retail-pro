@@ -1,14 +1,14 @@
 const atraso = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const produtosMock = [
-  { id: 1, nome: "Pão francês", codigoBarras: "5601000000012", categoria: "Padaria", precoVenda: 8, stock: 120 },
-  { id: 2, nome: "Leite integral 1L", codigoBarras: "5601000000029", categoria: "Laticínios", precoVenda: 95, stock: 34 },
-  { id: 3, nome: "Água mineral 1.5L", codigoBarras: "5601000000036", categoria: "Bebidas", precoVenda: 45, stock: 60 },
-  { id: 4, nome: "Cimento 50kg", codigoBarras: "5601000000043", categoria: "Ferragens", precoVenda: 540, stock: 9 },
-  { id: 5, nome: "Bolacha Maria", codigoBarras: "5601000000050", categoria: "Mercearia", precoVenda: 70, stock: 48 },
-  { id: 6, nome: "Refrigerante Cola 2L", codigoBarras: "5601000000067", categoria: "Bebidas", precoVenda: 120, stock: 27 },
-  { id: 7, nome: "Açúcar branco 1kg", codigoBarras: "5601000000074", categoria: "Mercearia", precoVenda: 88, stock: 14 },
-  { id: 8, nome: "Parafuso 8mm (un)", codigoBarras: "5601000000081", categoria: "Ferragens", precoVenda: 6, stock: 200 },
+  { id: 1, nome: "Pão francês", codigoBarras: "5601000000012", categoria: "Padaria", precoVenda: 8, ivaPercentual: 0, stock: 120 },
+  { id: 2, nome: "Leite integral 1L", codigoBarras: "5601000000029", categoria: "Laticínios", precoVenda: 95, ivaPercentual: 16, stock: 34 },
+  { id: 3, nome: "Água mineral 1.5L", codigoBarras: "5601000000036", categoria: "Bebidas", precoVenda: 45, ivaPercentual: 16, stock: 60 },
+  { id: 4, nome: "Cimento 50kg", codigoBarras: "5601000000043", categoria: "Ferragens", precoVenda: 540, ivaPercentual: 16, stock: 9 },
+  { id: 5, nome: "Bolacha Maria", codigoBarras: "5601000000050", categoria: "Mercearia", precoVenda: 70, ivaPercentual: 0, stock: 48 },
+  { id: 6, nome: "Refrigerante Cola 2L", codigoBarras: "5601000000067", categoria: "Bebidas", precoVenda: 120, ivaPercentual: 16, stock: 27 },
+  { id: 7, nome: "Açúcar branco 1kg", codigoBarras: "5601000000074", categoria: "Mercearia", precoVenda: 88, ivaPercentual: 0, stock: 14 },
+  { id: 8, nome: "Parafuso 8mm (un)", codigoBarras: "5601000000081", categoria: "Ferragens", precoVenda: 6, ivaPercentual: 16, stock: 200 },
 ];
 
 const clientesMock = [

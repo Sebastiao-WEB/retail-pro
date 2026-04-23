@@ -33,6 +33,9 @@ export const useCarrinhoStore = defineStore("carrinho", {
   },
   actions: {
     adicionarProduto(produto) {
+      const ivaPercentual = Number(produto.ivaPercentual || 0);
+      const precoUnitario = Number(produto.precoVendaComIva ?? produto.precoVenda ?? 0);
+      const valorIvaUnitario = Number((precoUnitario - Number(produto.precoVenda || 0)).toFixed(2));
       const itemExistente = this.itens.find((item) => item.produtoId === produto.id);
       if (itemExistente) {
         itemExistente.quantidade += 1;
@@ -43,9 +46,12 @@ export const useCarrinhoStore = defineStore("carrinho", {
       this.itens.push({
         produtoId: produto.id,
         nome: produto.nome,
-        precoVenda: produto.precoVenda,
+        precoVenda: precoUnitario,
+        precoSemIva: Number(produto.precoVenda || 0),
+        ivaPercentual: Number.isFinite(ivaPercentual) ? ivaPercentual : 0,
+        valorIvaUnitario: Number.isFinite(valorIvaUnitario) ? valorIvaUnitario : 0,
         quantidade: 1,
-        subtotal: produto.precoVenda,
+        subtotal: precoUnitario,
       });
     },
     removerProduto(produtoId) {

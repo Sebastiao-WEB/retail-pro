@@ -17,6 +17,7 @@ const formulario = reactive({
   codigoBarras: "",
   categoria: "",
   precoVenda: 0,
+  ivaPercentual: 0,
   stock: 0,
 });
 
@@ -24,7 +25,7 @@ const colunas = [
   { chave: "nome", rotulo: "Produto" },
   { chave: "codigoBarras", rotulo: "Código" },
   { chave: "categoria", rotulo: "Categoria" },
-  { chave: "precoVenda", rotulo: "Preço" },
+  { chave: "precoVendaComIva", rotulo: "Preço + IVA" },
   { chave: "stock", rotulo: "Stock" },
 ];
 
@@ -36,7 +37,7 @@ const linhas = computed(() =>
 
 function abrirNovo() {
   emEdicao.value = false;
-  Object.assign(formulario, { id: null, nome: "", codigoBarras: "", categoria: "", precoVenda: 0, stock: 0 });
+  Object.assign(formulario, { id: null, nome: "", codigoBarras: "", categoria: "", precoVenda: 0, ivaPercentual: 0, stock: 0 });
   modalAberto.value = true;
 }
 
@@ -47,13 +48,21 @@ function abrirEdicao(produto) {
 }
 
 function guardarProduto() {
+  const precoBase = Number(formulario.precoVenda || 0);
+  const iva = Math.max(0, Math.min(100, Number(formulario.ivaPercentual || 0)));
   if (emEdicao.value) {
-    produtoStore.atualizarProduto({ ...formulario });
+    produtoStore.atualizarProduto({ ...formulario, precoVenda: precoBase, ivaPercentual: iva });
   } else {
-    produtoStore.adicionarProduto({ ...formulario });
+    produtoStore.adicionarProduto({ ...formulario, precoVenda: precoBase, ivaPercentual: iva });
   }
   modalAberto.value = false;
 }
+
+const precoComIvaFormulario = computed(() => {
+  const precoBase = Number(formulario.precoVenda || 0);
+  const iva = Math.max(0, Math.min(100, Number(formulario.ivaPercentual || 0)));
+  return precoBase * (1 + iva / 100);
+});
 </script>
 
 <template>
@@ -67,7 +76,12 @@ function guardarProduto() {
           <BotaoBase @click="abrirNovo">Adicionar Produto</BotaoBase>
         </span>
       </template>
-      <template #coluna-precoVenda="{ linha }">{{ formatarMoeda(linha.precoVenda) }}</template>
+      <template #coluna-precoVendaComIva="{ linha }">
+        <div class="leading-tight">
+          <p class="font-semibold">{{ formatarMoeda(linha.precoVendaComIva ?? linha.precoVenda) }}</p>
+          <p class="text-[10px] text-slate-500">IVA: {{ Number(linha.ivaPercentual || 0) }}%</p>
+        </div>
+      </template>
       <template #coluna-stock="{ linha }">
         <span :class="linha.stock <= 10 ? 'font-bold text-red-600' : 'text-slate-700'">{{ linha.stock }}</span>
       </template>
@@ -87,8 +101,14 @@ function guardarProduto() {
       <input v-model="formulario.codigoBarras" required class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Código de barras" />
       <input v-model="formulario.categoria" required class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Categoria" />
       <div class="grid grid-cols-2 gap-3">
-        <input v-model.number="formulario.precoVenda" type="number" min="0" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Preço de venda" />
+        <input v-model.number="formulario.precoVenda" type="number" min="0" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Preço de venda (sem IVA)" />
+        <input v-model.number="formulario.ivaPercentual" type="number" min="0" max="100" step="0.01" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="IVA (%)" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
         <input v-model.number="formulario.stock" type="number" min="0" class="rounded-lg border border-slate-300 px-3 py-2" placeholder="Stock" />
+        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          Preço final (+ IVA): <strong>{{ formatarMoeda(precoComIvaFormulario) }}</strong>
+        </div>
       </div>
       <BotaoBase tipo="submit" bloco>Guardar</BotaoBase>
     </form>
