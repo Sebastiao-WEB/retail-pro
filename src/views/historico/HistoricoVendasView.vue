@@ -52,6 +52,20 @@ function formatarIva(valor) {
   return `${Number.isFinite(numero) ? numero : 0}%`;
 }
 
+function obterIvaItem(item) {
+  const subtotal = Number(item?.subtotal || 0);
+  const ivaPercentual = Number(item?.ivaPercentual || 0);
+  if (Number.isFinite(item?.valorIvaUnitario)) {
+    return Number(item.valorIvaUnitario || 0) * Number(item?.quantidade || 0);
+  }
+  if (ivaPercentual <= 0 || subtotal <= 0) return 0;
+  return subtotal - subtotal / (1 + ivaPercentual / 100);
+}
+
+function obterTotalIvaVenda(venda) {
+  return (venda?.itens || []).reduce((acc, item) => acc + obterIvaItem(item), 0);
+}
+
 function formatarData(valor) {
   return new Date(valor).toLocaleString("pt-MZ");
 }
@@ -78,6 +92,7 @@ function gerarHtmlTalao(venda) {
           <td>${escaparHtml(item.nome)}</td>
           <td style="text-align:center;">${item.quantidade}</td>
           <td style="text-align:center;">${formatarIva(item.ivaPercentual)}</td>
+          <td style="text-align:right;">${formatarMT(obterIvaItem(item))}</td>
           <td style="text-align:right;">${formatarMT(item.subtotal)}</td>
         </tr>
       `
@@ -119,7 +134,7 @@ function gerarHtmlTalao(venda) {
         <div class="sep"></div>
         <table>
           <thead>
-            <tr><th>Item</th><th>Qtd</th><th>IVA</th><th>Total</th></tr>
+            <tr><th>Item</th><th>Qtd</th><th>IVA %</th><th>IVA MT</th><th>Total</th></tr>
           </thead>
           <tbody>
             ${linhasItens}
@@ -129,6 +144,7 @@ function gerarHtmlTalao(venda) {
         <table>
           <tbody>
             <tr><td>Subtotal</td><td style="text-align:right">${formatarMT(venda.subtotal ?? venda.total)}</td></tr>
+            <tr><td>Total IVA</td><td style="text-align:right">${formatarMT(obterTotalIvaVenda(venda))}</td></tr>
             <tr><td>Desconto</td><td style="text-align:right">- ${formatarMT(venda.descontoAplicado || 0)}</td></tr>
             <tr><td>Total</td><td style="text-align:right" class="tot">${formatarMT(venda.total)}</td></tr>
             <tr><td>Valor Pago</td><td style="text-align:right">${venda.metodoPagamento === "Dinheiro" ? formatarMT(venda.valorPago) : "--"}</td></tr>
@@ -329,6 +345,8 @@ function solicitarReversao() {
             <tr>
               <th class="px-3 py-2">Item</th>
               <th class="px-3 py-2">Qtd</th>
+              <th class="px-3 py-2">IVA %</th>
+              <th class="px-3 py-2">IVA MT</th>
               <th class="px-3 py-2">Subtotal</th>
             </tr>
           </thead>
@@ -336,6 +354,8 @@ function solicitarReversao() {
             <tr v-for="(item, idx) in vendaSelecionada.itens || []" :key="idx" class="border-t border-slate-100">
               <td class="px-3 py-2">{{ item.nome }}</td>
               <td class="px-3 py-2">{{ item.quantidade }}</td>
+              <td class="px-3 py-2">{{ formatarIva(item.ivaPercentual) }}</td>
+              <td class="px-3 py-2">{{ formatarMT(obterIvaItem(item)) }}</td>
               <td class="px-3 py-2">{{ formatarMT(item.subtotal) }}</td>
             </tr>
           </tbody>
@@ -344,6 +364,7 @@ function solicitarReversao() {
 
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
         <p><strong>Subtotal:</strong> {{ formatarMT(vendaSelecionada.subtotal || vendaSelecionada.total) }}</p>
+        <p><strong>Total IVA:</strong> {{ formatarMT(obterTotalIvaVenda(vendaSelecionada)) }}</p>
         <p><strong>Desconto:</strong> - {{ formatarMT(vendaSelecionada.descontoAplicado || 0) }}</p>
         <p><strong>Total:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
       </div>

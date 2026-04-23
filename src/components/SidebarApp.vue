@@ -1,9 +1,15 @@
 <script setup>
+import { computed } from "vue";
+import { useRoute } from "vue-router";
+import { useSessaoStore } from "../store/useSessaoStore";
+
+const route = useRoute();
+const sessaoStore = useSessaoStore();
+
 const secoes = [
   {
     titulo: "Principal",
     itens: [
-      { nome: "Ponto de Venda", rota: "/pos", ico: "✚" },
       { nome: "Histórico de Vendas", rota: "/historico-vendas", ico: "◷" },
     ],
   },
@@ -12,6 +18,22 @@ const secoes = [
     itens: [{ nome: "Configurações", rota: "/configuracoes", ico: "◌" }],
   },
 ];
+
+const turnoStatus = computed(() => (sessaoStore.turnoAberto ? "Turno aberto" : "Turno fechado"));
+
+const posItens = [
+  { nome: "Ponto de venda", rota: { path: "/pos", query: { secao: "venda" } }, ico: "✚", secao: "venda" },
+  { nome: "Caixa", rota: { path: "/pos", query: { secao: "caixa" } }, ico: "▣", secao: "caixa" },
+];
+
+function classeItemPos(secao) {
+  const rotaAtualPos = route.path === "/pos";
+  const secaoAtual = route.query?.secao === "caixa" ? "caixa" : "venda";
+  const ativo = rotaAtualPos && secaoAtual === secao;
+  return ativo
+    ? "mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition"
+    : "mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white";
+}
 </script>
 
 <template>
@@ -27,6 +49,18 @@ const secoes = [
     </div>
 
     <nav class="flex-1 overflow-auto px-3 py-4">
+      <div class="mb-5">
+        <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">POS</p>
+        <RouterLink v-for="item in posItens" :key="item.secao" :to="item.rota" :class="classeItemPos(item.secao)">
+          <span class="w-4 text-center text-xs">{{ item.ico }}</span>
+          <span>{{ item.nome }}</span>
+        </RouterLink>
+        <div class="mt-2 rounded-lg border border-white/10 bg-[var(--dark-soft)] px-2.5 py-2 text-[12px]">
+          <p class="text-slate-400">Estado do turno</p>
+          <p class="font-semibold" :class="sessaoStore.turnoAberto ? 'text-emerald-300' : 'text-red-300'">{{ turnoStatus }}</p>
+        </div>
+      </div>
+
       <div v-for="secao in secoes" :key="secao.titulo" class="mb-5">
         <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ secao.titulo }}</p>
         <RouterLink

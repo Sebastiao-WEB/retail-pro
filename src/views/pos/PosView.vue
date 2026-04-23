@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
@@ -15,6 +16,7 @@ const clienteStore = useClienteStore();
 const vendaStore = useVendaStore();
 const configuracaoStore = useConfiguracaoStore();
 const sessaoStore = useSessaoStore();
+const route = useRoute();
 
 const pesquisa = ref("");
 const cliente = ref("Cliente Geral");
@@ -33,6 +35,10 @@ const dinheiroRealFecho = ref(0);
 const justificativaDiferenca = ref("");
 const erroFecho = ref("");
 const erroFinalizacao = ref("");
+const modalSolicitarReversaoAberto = ref(false);
+const vendaParaReversao = ref(null);
+const motivoReversao = ref("");
+const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 const produtosFiltrados = computed(() => {
@@ -67,6 +73,16 @@ const vendasTurno = computed(() => {
   const inicio = new Date(sessaoStore.aberturaEm).getTime();
   return vendaStore.vendas.filter((venda) => new Date(venda.data).getTime() >= inicio);
 });
+const ultimasVendasTurno = computed(() =>
+  [...vendasTurno.value].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()).slice(0, 5)
+);
+const solicitacoesPendentesPorVenda = computed(() => {
+  const mapa = new Map();
+  vendaStore.solicitacoesPendentes.forEach((item) => {
+    mapa.set(item.vendaId, item);
+  });
+  return mapa;
+});
 const totalVendidoTurno = computed(() => vendasTurno.value.reduce((acc, venda) => acc + venda.total, 0));
 const totalTransacoesTurno = computed(() => vendasTurno.value.length);
 const ticketMedioTurno = computed(() => (totalTransacoesTurno.value ? totalVendidoTurno.value / totalTransacoesTurno.value : 0));
@@ -93,6 +109,10 @@ function formatarMT(valor) {
 function formatarIva(valor) {
   const numero = Number(valor || 0);
   return `${Number.isFinite(numero) ? numero : 0}%`;
+}
+
+function formatarData(valor) {
+  return new Date(valor).toLocaleString("pt-MZ");
 }
 
 function quantidadeNoCarrinho(produtoId) {
@@ -341,6 +361,71 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   setTimeout(() => (mensagem.value = ""), 2500);
 }
 
+async function reimprimirVenda(venda) {
+  if (!window.api?.imprimirTalao) {
+    tipoMensagem.value = "erro";
+    mensagem.value = "Reimpressão disponível apenas na versão desktop (Electron).";
+    return;
+  }
+  if (!configuracaoStore.impressoraPadrao) {
+    tipoMensagem.value = "erro";
+    mensagem.value = "Defina a impressora padrão em Configurações para reimprimir.";
+    return;
+  }
+  imprimindoAgora.value = true;
+  const resultado = await window.api.imprimirTalao({
+    html: gerarHtmlTalao(venda),
+    deviceName: configuracaoStore.impressoraPadrao,
+    copies: 1,
+    larguraTalao: configuracaoStore.larguraTalao || "80mm",
+    corteAutomatico: !!configuracaoStore.corteAutomatico,
+  });
+  imprimindoAgora.value = false;
+  if (!resultado?.ok) {
+    tipoMensagem.value = "erro";
+    mensagem.value = resultado?.error || "Falha ao reimprimir talão.";
+    return;
+  }
+  tipoMensagem.value = "sucesso";
+  mensagem.value = `Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`;
+}
+
+function abrirSolicitacaoReversao(venda) {
+  if (venda.estado === "Revertida") {
+    tipoMensagem.value = "erro";
+    mensagem.value = "Venda já foi revertida.";
+    return;
+  }
+  if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
+    tipoMensagem.value = "erro";
+    mensagem.value = "Já existe solicitação de reversão pendente para esta venda.";
+    return;
+  }
+  vendaParaReversao.value = venda;
+  motivoReversao.value = "";
+  modalSolicitarReversaoAberto.value = true;
+}
+
+function confirmarSolicitacaoReversao() {
+  if (!vendaParaReversao.value) return;
+  const venda = vendaParaReversao.value;
+  const resultado = vendaStore.solicitarReversao({
+    vendaId: venda.id,
+    referencia: venda.referencia || String(venda.id),
+    solicitadoPor: sessaoStore.utilizador || "Operador",
+    motivo: motivoReversao.value.trim(),
+  });
+  if (!resultado.ok) {
+    tipoMensagem.value = "erro";
+    mensagem.value = resultado.erro || "Não foi possível solicitar reversão.";
+    return;
+  }
+  modalSolicitarReversaoAberto.value = false;
+  vendaParaReversao.value = null;
+  tipoMensagem.value = "sucesso";
+  mensagem.value = "Solicitação de reversão enviada ao gerente para aprovação.";
+}
+
 onMounted(() => {
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
@@ -398,33 +483,8 @@ function confirmarFechoCaixa() {
 </script>
 
 <template>
-  <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr]">
-    <div class="space-y-4">
-      <div class="rp-card p-4">
-        <div class="mb-4 flex items-start justify-between gap-4 border-b border-slate-200 pb-3">
-          <div>
-            <h3 class="text-base font-bold text-slate-900">Nova Venda</h3>
-            <p class="text-xs text-slate-500">Registo rápido de venda de balcão</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <span
-              class="rounded-full px-3 py-1 text-[11px] font-semibold"
-              :class="sessaoStore.turnoAberto ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'"
-            >
-              {{ sessaoStore.turnoAberto ? "Turno aberto" : "Turno fechado" }}
-            </span>
-            <button
-              v-if="sessaoStore.turnoAberto"
-              class="rounded-md bg-red-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-700"
-              @click="abrirFechoCaixa"
-            >
-              Fechar caixa
-            </button>
-            <button v-else class="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600" @click="modalAberturaCaixa = true">Abrir caixa</button>
-          </div>
-        </div>
-      </div>
-
+  <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr] xl:items-center">
+    <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
       <div class="rp-card p-4">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
@@ -498,7 +558,7 @@ function confirmarFechoCaixa() {
       </div>
     </div>
 
-    <div class="space-y-4">
+    <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
       <div class="rp-card overflow-hidden">
         <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-semibold text-slate-900">Pré-visualização</h3>
@@ -588,6 +648,129 @@ function confirmarFechoCaixa() {
               </BotaoBase>
             </div>
           </div>
+        </div>
+      </div>
+
+      <p v-if="mensagem" class="text-sm font-semibold" :class="tipoMensagem === 'erro' ? 'text-red-600' : 'text-emerald-700'">
+        {{ mensagem }}
+      </p>
+    </div>
+
+    <div v-if="menuPosAtivo === 'caixa'" class="space-y-4 xl:col-span-2">
+      <div class="rp-card p-4">
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Dashboard de Caixa</h3>
+            <p class="text-xs text-slate-500">Resumo financeiro e operacional do turno atual</p>
+          </div>
+          <button
+            v-if="sessaoStore.turnoAberto"
+            class="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
+            @click="abrirFechoCaixa"
+          >
+            Fechar caixa
+          </button>
+          <button v-else class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" @click="modalAberturaCaixa = true">
+            Abrir caixa
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Vendido no turno</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ formatarMT(totalVendidoTurno) }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Dinheiro esperado</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ formatarMT(dinheiroEsperadoFecho) }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Transações</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ totalTransacoesTurno }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ticket médio</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ formatarMT(ticketMedioTurno) }}</p>
+          </div>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+            <p class="text-xs font-semibold text-emerald-800">Vendas em Dinheiro</p>
+            <p class="mt-1 text-base font-bold text-emerald-900">{{ formatarMT(totalDinheiroTurno) }}</p>
+          </div>
+          <div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p class="text-xs font-semibold text-blue-800">Vendas por Transferência</p>
+            <p class="mt-1 text-base font-bold text-blue-900">{{ formatarMT(totalTransferenciaTurno) }}</p>
+          </div>
+        </div>
+
+        <div class="mt-3 rounded-lg border p-3 text-sm" :class="diferencaFecho >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'">
+          Diferença projetada (contado - esperado): <strong>{{ formatarMT(diferencaFecho) }}</strong>
+        </div>
+      </div>
+
+      <div class="rp-card p-4">
+        <div class="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Últimas 5 vendas</h3>
+            <p class="text-xs text-slate-500">Atalhos para reimpressão e solicitação de reversão</p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-lg border border-slate-200">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-3 py-2">Referência</th>
+                <th class="px-3 py-2">Data</th>
+                <th class="px-3 py-2">Cliente</th>
+                <th class="px-3 py-2">Pagamento</th>
+                <th class="px-3 py-2">Total</th>
+                <th class="px-3 py-2 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!ultimasVendasTurno.length">
+                <td colspan="6" class="px-3 py-7 text-center text-xs text-slate-500">Sem vendas no turno atual.</td>
+              </tr>
+              <tr v-for="venda in ultimasVendasTurno" :key="venda.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
+                <td class="px-3 py-2 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
+                <td class="px-3 py-2 text-slate-600">{{ formatarData(venda.data) }}</td>
+                <td class="px-3 py-2 font-semibold text-slate-800">{{ venda.cliente }}</td>
+                <td class="px-3 py-2 text-slate-600">{{ venda.metodoPagamento }}</td>
+                <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(venda.total) }}</td>
+                <td class="px-3 py-2">
+                  <div class="flex justify-end gap-2">
+                    <button
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
+                      title="Reimprimir"
+                      aria-label="Reimprimir"
+                      @click="reimprimirVenda(venda)"
+                    >
+                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="6 9 6 2 18 2 18 9" />
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                        <rect x="6" y="14" width="12" height="8" />
+                      </svg>
+                    </button>
+                    <button
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="Solicitar reversão"
+                      aria-label="Solicitar reversão"
+                      :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                      @click="abrirSolicitacaoReversao(venda)"
+                    >
+                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 .49-9" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -776,6 +959,32 @@ function confirmarFechoCaixa() {
             <rect x="6" y="14" width="12" height="8" />
           </svg>
         </BotaoBase>
+      </div>
+    </div>
+  </ModalBase>
+
+  <ModalBase :aberto="modalSolicitarReversaoAberto" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
+    <div class="space-y-4">
+      <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
+        <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        </span>
+        <div>
+          <p class="font-semibold text-slate-900">Deseja realmente solicitar a reversão desta venda?</p>
+          <p class="text-xs text-slate-600">Referência: {{ vendaParaReversao?.referencia || vendaParaReversao?.id }}</p>
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</label>
+        <textarea v-model="motivoReversao" rows="2" class="rp-input" placeholder="Ex: item lançado por engano, cliente desistiu..." />
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">Cancelar</BotaoBase>
+        <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">Confirmar solicitação</BotaoBase>
       </div>
     </div>
   </ModalBase>
