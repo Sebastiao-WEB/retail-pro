@@ -25,9 +25,6 @@ const valorPagoInteiro = ref("0");
 const valorPagoDecimal = ref("00");
 const modalImpressaoAberto = ref(false);
 const vendaPendente = ref(null);
-const copias = ref(1);
-const larguraTalao = ref("80mm");
-const corteAutomatico = ref(true);
 const imprimindoAgora = ref(false);
 const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
@@ -166,7 +163,7 @@ function escaparHtml(valor) {
 }
 
 function gerarHtmlTalao(venda) {
-  const largura = larguraTalao.value === "58mm" ? "58mm" : "80mm";
+  const largura = configuracaoStore.larguraTalao === "58mm" ? "58mm" : "80mm";
   const linhasItens = venda.itens
     .map(
       (item) => `
@@ -294,9 +291,9 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     const resultado = await window.api.imprimirTalao({
       html: gerarHtmlTalao(venda),
       deviceName: configuracaoStore.impressoraPadrao,
-      copies: copias.value,
-      larguraTalao: larguraTalao.value,
-      corteAutomatico: corteAutomatico.value,
+      copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
+      larguraTalao: configuracaoStore.larguraTalao || "80mm",
+      corteAutomatico: !!configuracaoStore.corteAutomatico,
     });
     imprimindoAgora.value = false;
     if (!resultado?.ok) {
@@ -725,34 +722,6 @@ function confirmarFechoCaixa() {
         <p><strong>Desconto:</strong> - {{ formatarMT(vendaPendente.descontoAplicado || 0) }}</p>
         <p><strong>Total:</strong> {{ formatarMT(vendaPendente.total) }}</p>
         <p v-if="vendaPendente.metodoPagamento === 'Dinheiro'"><strong>Troco:</strong> {{ formatarMT(vendaPendente.troco) }}</p>
-      </div>
-
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Impressora configurada</label>
-          <div class="rp-input flex items-center justify-between bg-slate-50 text-sm">
-            <span class="truncate">{{ configuracaoStore.impressoraPadrao || "Não definida" }}</span>
-          </div>
-          <p class="mt-1 text-[11px] text-slate-500">Altere em Configurações &gt; Impressão do POS.</p>
-        </div>
-        <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Cópias</label>
-          <input v-model.number="copias" type="number" min="1" max="5" class="rp-input" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Largura do talão</label>
-          <select v-model="larguraTalao" class="rp-input">
-            <option value="80mm">80mm (padrão)</option>
-            <option value="58mm">58mm</option>
-          </select>
-        </div>
-        <label class="flex items-center gap-2 pt-6 text-sm text-slate-700">
-          <input v-model="corteAutomatico" type="checkbox" class="h-4 w-4 accent-amber-500" />
-          Corte automático do papel
-        </label>
       </div>
 
       <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">

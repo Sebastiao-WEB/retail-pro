@@ -23,6 +23,9 @@ const configuracoesPadrao = {
   idiomaFacturas: "Português (Moçambique)",
   rodapeFacturas: "Obrigado pela sua preferência. Para reclamações contacte: geral@empresa.co.mz",
   impressoraPadrao: "",
+  copiasImpressao: 1,
+  larguraTalao: "80mm",
+  corteAutomatico: true,
 };
 
 export const useConfiguracaoStore = defineStore("configuracoes", {
@@ -50,6 +53,19 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
     },
     definirImpressoraPadrao(impressora) {
       this.impressoraPadrao = String(impressora || "");
+      this.salvar();
+    },
+    definirCopiasImpressao(valor) {
+      const numero = Number(valor || 1);
+      this.copiasImpressao = Math.max(1, Math.min(5, Number.isFinite(numero) ? Math.floor(numero) : 1));
+      this.salvar();
+    },
+    definirLarguraTalao(valor) {
+      this.larguraTalao = valor === "58mm" ? "58mm" : "80mm";
+      this.salvar();
+    },
+    definirCorteAutomatico(valor) {
+      this.corteAutomatico = !!valor;
       this.salvar();
     },
   },

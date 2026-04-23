@@ -223,6 +223,35 @@ async function carregarImpressoras() {
             </select>
             <p v-if="erroImpressoras" class="mt-1 text-[11px] text-red-600">{{ erroImpressoras }}</p>
           </div>
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-slate-600">Número de cópias</label>
+              <input
+                :value="configuracoes.copiasImpressao"
+                type="number"
+                min="1"
+                max="5"
+                class="rp-input"
+                @input="configuracoes.definirCopiasImpressao($event.target.value)"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-semibold text-slate-600">Largura do talão</label>
+              <select :value="configuracoes.larguraTalao" class="rp-input" @change="configuracoes.definirLarguraTalao($event.target.value)">
+                <option value="80mm">80mm (padrão)</option>
+                <option value="58mm">58mm</option>
+              </select>
+            </div>
+          </div>
+          <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+            <span>Corte automático</span>
+            <input
+              :checked="configuracoes.corteAutomatico"
+              type="checkbox"
+              class="h-4 w-4 accent-amber-500"
+              @change="configuracoes.definirCorteAutomatico($event.target.checked)"
+            />
+          </label>
           <div class="flex justify-end gap-2">
             <BotaoBase variante="secundario" @click="carregarImpressoras">Atualizar lista</BotaoBase>
             <BotaoBase variante="aviso" @click="guardarConfiguracoes">Guardar Impressão</BotaoBase>
