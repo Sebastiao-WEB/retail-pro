@@ -27,6 +27,8 @@ VITE_API_TIMEOUT_MS=15000
 - O `httpClient` envia automaticamente `Authorization: Bearer <token>`.
 - Em `401`, tenta refresh em `/auth/refresh` (se refresh token existir).
 - Se refresh falhar, limpa sessao/token e redireciona para login.
+- Backend recomendado: `php-open-source-saver/jwt-auth`.
+- Rotas protegidas devem usar middleware JWT no grupo da API.
 
 ---
 
