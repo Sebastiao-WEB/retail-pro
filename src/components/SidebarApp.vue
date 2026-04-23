@@ -20,6 +20,16 @@ const secoes = [
 ];
 
 const turnoStatus = computed(() => (sessaoStore.turnoAberto ? "Turno aberto" : "Turno fechado"));
+const nomeOperador = computed(() => sessaoStore.utilizador || "Operador");
+const caixaOperador = computed(() => sessaoStore.caixaAtribuido || "Sem caixa");
+const iniciaisOperador = computed(() =>
+  nomeOperador.value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() || "")
+    .join("")
+);
 
 const posItens = [
   { nome: "Ponto de venda", rota: { path: "/pos", query: { secao: "venda" } }, ico: "✚", secao: "venda" },
@@ -78,10 +88,10 @@ function classeItemPos(secao) {
 
     <div class="border-t border-white/10 px-4 py-3">
       <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-[var(--dark-soft)]">
-        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-[10px] font-bold text-black">CA</div>
+        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-[10px] font-bold text-black">{{ iniciaisOperador }}</div>
         <div class="min-w-0">
-          <p class="truncate text-xs font-semibold text-slate-200">Carlos Abreu</p>
-          <p class="truncate text-[10px] text-slate-400">Administrador</p>
+          <p class="truncate text-xs font-semibold text-slate-200">{{ nomeOperador }}</p>
+          <p class="truncate text-[10px] text-slate-400">{{ caixaOperador }} · Operador de Caixa</p>
         </div>
       </div>
     </div>

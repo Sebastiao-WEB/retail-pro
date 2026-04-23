@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
@@ -9,6 +9,7 @@ import { useClienteStore } from "../../store/useClienteStore";
 import { useVendaStore } from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
+import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 
 const produtoStore = useProdutoStore();
 const carrinhoStore = useCarrinhoStore();
@@ -31,7 +32,7 @@ const imprimindoAgora = ref(false);
 const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
-const dinheiroRealFecho = ref(0);
+const dinheiroRealFecho = ref(null);
 const justificativaDiferenca = ref("");
 const erroFecho = ref("");
 const erroFinalizacao = ref("");
@@ -39,6 +40,8 @@ const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
+const dataRelogio = ref(new Date());
+let temporizadorRelogio = null;
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 const produtosFiltrados = computed(() => {
@@ -97,7 +100,37 @@ const totalTransferenciaTurno = computed(() =>
     .reduce((acc, venda) => acc + venda.total, 0)
 );
 const dinheiroEsperadoFecho = computed(() => Number(sessaoStore.fundoInicial || 0) + totalDinheiroTurno.value);
-const diferencaFecho = computed(() => Number(dinheiroRealFecho.value || 0) - dinheiroEsperadoFecho.value);
+const diferencaFecho = computed(() =>
+  calcularDiferencaProjetada({
+    dinheiroReal: dinheiroRealFecho.value,
+    dinheiroEsperado: dinheiroEsperadoFecho.value,
+  })
+);
+const diferencaFechoTemValor = computed(() => diferencaFecho.value !== null);
+const segundosRelogio = computed(() => dataRelogio.value.getSeconds() * 6);
+const minutosRelogio = computed(() => dataRelogio.value.getMinutes() * 6 + dataRelogio.value.getSeconds() * 0.1);
+const horasRelogio = computed(() => (dataRelogio.value.getHours() % 12) * 30 + dataRelogio.value.getMinutes() * 0.5);
+const diaSemanaRelogio = computed(() =>
+  dataRelogio.value.toLocaleDateString("pt-MZ", { weekday: "short" }).replace(".", "").toUpperCase()
+);
+const mesRelogio = computed(() =>
+  dataRelogio.value.toLocaleDateString("pt-MZ", { month: "short" }).replace(".", "").toUpperCase()
+);
+const diaMesRelogio = computed(() => String(dataRelogio.value.getDate()).padStart(2, "0"));
+const numerosRelogio = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+function estiloNumeroRelogio(numero) {
+  const indice = numero % 12;
+  const angulo = ((indice / 12) * Math.PI * 2) - Math.PI / 2;
+  const raio = 40;
+  const x = 50 + Math.cos(angulo) * raio;
+  const y = 50 + Math.sin(angulo) * raio;
+  return {
+    left: `${x}%`,
+    top: `${y}%`,
+    transform: "translate(-50%, -50%)",
+  };
+}
 
 function formatarMT(valor) {
   return `${new Intl.NumberFormat("pt-MZ", {
@@ -429,9 +462,16 @@ function confirmarSolicitacaoReversao() {
 onMounted(() => {
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
+  temporizadorRelogio = setInterval(() => {
+    dataRelogio.value = new Date();
+  }, 1000);
   if (!sessaoStore.turnoAberto) {
     modalAberturaCaixa.value = true;
   }
+});
+
+onBeforeUnmount(() => {
+  if (temporizadorRelogio) clearInterval(temporizadorRelogio);
 });
 
 function abrirTurnoCaixa() {
@@ -450,6 +490,10 @@ function abrirFechoCaixa() {
 }
 
 function confirmarFechoCaixa() {
+  if (diferencaFecho.value === null) {
+    erroFecho.value = "Informe o dinheiro real contado no caixa.";
+    return;
+  }
   if (diferencaFecho.value !== 0 && !justificativaDiferenca.value.trim()) {
     erroFecho.value = "Informe a justificativa da diferença para concluir o fecho.";
     return;
@@ -485,6 +529,46 @@ function confirmarFechoCaixa() {
 <template>
   <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr] xl:items-center">
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
+      <div class="flex justify-center py-1">
+        <div class="relative h-44 w-44 overflow-hidden rounded-full border-4 border-white bg-black shadow-[0_8px_30px_rgba(2,6,23,0.35)]">
+          <div
+            v-for="marcador in 60"
+            :key="`dot-${marcador}`"
+            class="absolute left-1/2 top-1/2 rounded-full bg-white"
+            :class="marcador % 5 === 0 ? 'h-1.5 w-1.5 opacity-95' : 'h-1 w-1 opacity-70'"
+            :style="{ transform: `translate(-50%, -50%) rotate(${marcador * 6}deg) translateY(-80px)` }"
+          />
+
+          <span
+            v-for="numero in numerosRelogio"
+            :key="`num-${numero}`"
+            class="absolute text-[9px] font-semibold text-white"
+            :style="estiloNumeroRelogio(numero)"
+          >
+            {{ numero }}
+          </span>
+
+          <div class="absolute left-1/2 top-1/2 h-6 w-[58px] -translate-y-1/2 rounded-sm border border-slate-400/80 bg-black/85 text-center text-[9px] font-semibold leading-[1.1] text-white">
+            <p>{{ diaSemanaRelogio }}</p>
+            <p>{{ mesRelogio }} {{ diaMesRelogio }}</p>
+          </div>
+
+          <div
+            class="absolute left-1/2 top-1/2 h-[42px] w-1.5 rounded-full bg-white"
+            :style="{ transform: `translate(-50%, -100%) rotate(${horasRelogio}deg)`, transformOrigin: '50% 100%' }"
+          />
+          <div
+            class="absolute left-1/2 top-1/2 h-[58px] w-1 rounded-full bg-cyan-400"
+            :style="{ transform: `translate(-50%, -100%) rotate(${minutosRelogio}deg)`, transformOrigin: '50% 100%' }"
+          />
+          <div
+            class="absolute left-1/2 top-1/2 h-[66px] w-0.5 rounded-full bg-cyan-300"
+            :style="{ transform: `translate(-50%, -100%) rotate(${segundosRelogio}deg)`, transformOrigin: '50% 100%' }"
+          />
+          <span class="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cyan-300 bg-black" />
+        </div>
+      </div>
+
       <div class="rp-card p-4">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
@@ -572,7 +656,6 @@ function confirmarFechoCaixa() {
               </div>
               <div class="text-right">
                 <p class="font-semibold">VENDA</p>
-                <p class="text-[11px] text-slate-500">#{{ Date.now().toString().slice(-6) }}</p>
               </div>
             </div>
             <div class="mb-2 border-t-2 border-[var(--gold)] pt-2 text-[11px]">
@@ -705,8 +788,18 @@ function confirmarFechoCaixa() {
           </div>
         </div>
 
-        <div class="mt-3 rounded-lg border p-3 text-sm" :class="diferencaFecho >= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'">
-          Diferença projetada (contado - esperado): <strong>{{ formatarMT(diferencaFecho) }}</strong>
+        <div
+          class="mt-3 rounded-lg border p-3 text-sm"
+          :class="
+            !diferencaFechoTemValor
+              ? 'border-slate-200 bg-slate-50 text-slate-700'
+              : diferencaFecho >= 0
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                : 'border-red-200 bg-red-50 text-red-800'
+          "
+        >
+          Diferença projetada (contado - esperado):
+          <strong>{{ diferencaFechoTemValor ? formatarMT(diferencaFecho) : "Aguardando contagem" }}</strong>
         </div>
       </div>
 
@@ -818,7 +911,7 @@ function confirmarFechoCaixa() {
         Diferença (sobra/falta): <strong>{{ formatarMT(diferencaFecho) }}</strong>
       </div>
 
-      <div v-if="diferencaFecho !== 0">
+      <div v-if="diferencaFechoTemValor && diferencaFecho !== 0">
         <label class="mb-1 block text-xs font-semibold text-slate-600">Justificativa da diferença (obrigatório)</label>
         <textarea
           v-model="justificativaDiferenca"
