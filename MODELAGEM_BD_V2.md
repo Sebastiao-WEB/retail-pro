@@ -34,6 +34,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** representa cada unidade/filial da empresa.
+**Uso no fluxo:** toda operacao (venda, compra, stock, caixa) deve estar vinculada a uma loja para garantir segregacao e relatorios corretos por unidade.
+
 ### Tabela: `registers` (caixa fisico)
 - id
 - store_id (fk -> stores.id)
@@ -42,6 +45,37 @@ Esta versao 2 foi desenhada para:
 - is_active (boolean)
 - created_at
 - updated_at
+
+**Finalidade:** cadastra os caixas fisicos/terminais de atendimento existentes na loja.
+**Uso no fluxo:** identifica em qual posto a venda ocorreu e qual sessao de caixa deve receber os movimentos financeiros.
+
+### Tabela: `warehouses` (armazens)
+- id
+- store_id (fk -> stores.id)
+- code (unique por loja)              // ex.: ARM-CENTRAL
+- name                                // ex.: Armazem Central
+- is_active (boolean)
+- created_at
+- updated_at
+
+**Finalidade:** cadastra armazens fisicos ligados a cada loja.
+**Uso no fluxo:** permite separar stock de loja (ponto de venda) e stock de retaguarda (armazem), incluindo transferencias internas.
+
+### Tabela: `stock_locations` (localizacoes de stock)
+- id
+- store_id (fk -> stores.id)
+- warehouse_id (fk -> warehouses.id, nullable)
+- register_id (fk -> registers.id, nullable)
+- code (unique por loja)              // ex.: LOC-CX01, LOC-ARM-CENTRAL
+- name
+- type (STORE_FLOOR, WAREHOUSE, DAMAGE, RETURN_AREA, TRANSIT)
+- is_saleable (boolean)
+- is_active (boolean)
+- created_at
+- updated_at
+
+**Finalidade:** tabela unica para representar qualquer local onde existe stock.
+**Uso no fluxo:** viabiliza controle granular de entrada/saida por local, sem limitar o sistema a apenas `store_id`.
 
 ---
 
@@ -58,6 +92,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** guarda operadores e gestores que acessam o sistema.
+**Uso no fluxo:** define quem executou cada acao (abertura, venda, reversao, fecho) e qual permissao cada perfil possui.
+
 ---
 
 ## 3) Catalogo de produtos
@@ -67,6 +104,9 @@ Esta versao 2 foi desenhada para:
 - name
 - created_at
 - updated_at
+
+**Finalidade:** organiza os produtos em grupos logicos.
+**Uso no fluxo:** facilita busca, filtros, relatorios e manutencao do catalogo.
 
 ### Tabela: `products`
 - id
@@ -79,11 +119,15 @@ Esta versao 2 foi desenhada para:
 - sale_price               // preco base (sem desconto de venda)
 - tax_rate                 // iva padrao do produto
 - min_stock
-- stock_quantity           // cache rapido (fonte oficial = movements)
+- stock_quantity           // cache global por loja (opcional)
 - is_active (boolean)
 - created_at
 - updated_at
 - deleted_at (nullable)
+
+**Finalidade:** catalogo mestre de itens vendidos/comprados.
+**Uso no fluxo:** fornece preco, IVA, unidade e parametros de stock para POS, compras e historico.
+**Nota:** com multi-localizacao, o saldo oficial por local deve ficar em `stock_balances`.
 
 ---
 
@@ -100,6 +144,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** cadastro de clientes para faturacao e historico.
+**Uso no fluxo:** vincula vendas a um cliente (inclusive "Cliente Geral") e permite consultas/reimpressao por cliente.
+
 ### Tabela: `suppliers`
 - id
 - name
@@ -111,6 +158,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** cadastro de fornecedores de mercadoria.
+**Uso no fluxo:** suporta processo de compras, reposicao de stock e rastreio de origem de custos.
+
 ---
 
 ## 5) Compras
@@ -120,6 +170,7 @@ Esta versao 2 foi desenhada para:
 - store_id (fk -> stores.id)
 - supplier_id (fk -> suppliers.id)
 - user_id (fk -> users.id)
+- destination_location_id (fk -> stock_locations.id) // destino da entrada
 - status (DRAFT, RECEIVED, CANCELLED)
 - subtotal_amount
 - discount_amount
@@ -128,6 +179,9 @@ Esta versao 2 foi desenhada para:
 - note (nullable)
 - created_at
 - updated_at
+
+**Finalidade:** cabecalho da compra (entrada de mercadoria).
+**Uso no fluxo:** controla status da compra, totais financeiros, relacionamento com fornecedor/operador e local de entrada do stock.
 
 ### Tabela: `purchase_items`
 - id
@@ -141,6 +195,9 @@ Esta versao 2 foi desenhada para:
 - line_total
 - created_at
 - updated_at
+
+**Finalidade:** itens detalhados de cada compra.
+**Uso no fluxo:** registra quantidade/custo/IVA por produto e alimenta movimentacao de stock de entrada.
 
 ---
 
@@ -164,6 +221,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** representa o turno de caixa do operador.
+**Uso no fluxo:** centraliza abertura, fecho, saldo esperado/real e bloqueia vendas fora de sessao ativa.
+
 ### Tabela: `cash_movements`
 - id
 - cash_session_id (fk -> cash_sessions.id)
@@ -176,6 +236,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** razao detalhado de entradas/saidas de dinheiro da sessao.
+**Uso no fluxo:** permite conciliacao e auditoria do caixa (venda, sangria, reforco, ajuste manual, etc.).
+
 ---
 
 ## 7) Vendas
@@ -187,6 +250,7 @@ Esta versao 2 foi desenhada para:
 - store_id (fk -> stores.id)
 - register_id (fk -> registers.id)
 - cash_session_id (fk -> cash_sessions.id)
+- source_location_id (fk -> stock_locations.id) // de onde o stock sai
 - customer_id (fk -> customers.id, nullable)
 - user_id (fk -> users.id)              // operador
 - status (DRAFT, COMPLETED, CANCELLED, REVERSED)
@@ -197,6 +261,9 @@ Esta versao 2 foi desenhada para:
 - note (nullable)
 - created_at
 - updated_at
+
+**Finalidade:** cabecalho da venda.
+**Uso no fluxo:** guarda referencia publica, valores consolidados e vinculos de auditoria (loja, caixa, sessao, operador, cliente).
 
 ### Tabela: `sale_items`
 - id
@@ -215,6 +282,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** detalhamento item a item da venda.
+**Uso no fluxo:** preserva snapshot de produto/preco/IVA no momento da venda para historico fiel, mesmo que cadastro mude depois.
+
 ### Tabela: `payment_methods`
 - id
 - code (CASH, TRANSFER, MPESA, CARD, CREDIT...)
@@ -222,6 +292,9 @@ Esta versao 2 foi desenhada para:
 - is_active (boolean)
 - created_at
 - updated_at
+
+**Finalidade:** lista de formas de pagamento aceitas.
+**Uso no fluxo:** padroniza recebimentos no POS e consolida relatorios por metodo (dinheiro, transferencia, M-Pesa, cartao, etc.).
 
 ### Tabela: `sale_payments`
 - id
@@ -232,6 +305,9 @@ Esta versao 2 foi desenhada para:
 - metadata_json (nullable)
 - created_at
 - updated_at
+
+**Finalidade:** pagamentos registrados para cada venda.
+**Uso no fluxo:** suporta venda com um ou varios metodos e guarda referencia de transacoes externas quando necessario.
 
 ---
 
@@ -249,6 +325,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** fila de solicitacoes de estorno/reversao.
+**Uso no fluxo:** implementa controle de aprovacao gerencial antes de reverter uma venda concluida.
+
 ### Tabela: `sale_reversals` (opcional, mas recomendado)
 - id
 - sale_id (fk -> sales.id)
@@ -259,23 +338,106 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** registro oficial das reversoes executadas.
+**Uso no fluxo:** cria trilha de auditoria separada da solicitacao, com quem reverteu, motivo e impacto no stock.
+
 ---
 
-## 9) Stock (fonte oficial de movimentacao)
+## 9) Stock (fonte oficial por localizacao)
+
+### Tabela: `stock_balances` (cache por local/produto)
+- id
+- store_id (fk -> stores.id)
+- location_id (fk -> stock_locations.id)
+- product_id (fk -> products.id)
+- quantity
+- min_stock (nullable)
+- max_stock (nullable)
+- updated_at
+
+**Finalidade:** cache rapido do saldo atual por produto em cada localizacao.
+**Uso no fluxo:** evita somar historico inteiro de movimentos em consultas operacionais (POS, reposicao, dashboard de stock).
 
 ### Tabela: `stock_movements`
 - id
 - store_id (fk -> stores.id)
 - product_id (fk -> products.id)
-- type (IN, OUT, ADJUSTMENT, RETURN)
+- from_location_id (fk -> stock_locations.id, nullable)
+- to_location_id (fk -> stock_locations.id, nullable)
+- type (IN, OUT, TRANSFER, ADJUSTMENT, RETURN)
 - quantity
 - unit_cost (nullable)
-- reference_type                        // PURCHASE_ITEM, SALE_ITEM, REVERSAL, MANUAL
+- reference_type                        // PURCHASE_ITEM, SALE_ITEM, TRANSFER_ITEM, REVERSAL, COUNT, MANUAL
 - reference_id
 - note (nullable)
 - performed_by (fk -> users.id, nullable)
 - created_at
 - updated_at
+
+**Finalidade:** livro razao oficial de inventario.
+**Uso no fluxo:** toda entrada/saida/transferencia/ajuste gera movimento aqui, sempre indicando origem e destino quando aplicavel.
+
+### Tabela: `stock_transfers`
+- id
+- store_id (fk -> stores.id)
+- from_location_id (fk -> stock_locations.id)
+- to_location_id (fk -> stock_locations.id)
+- requested_by (fk -> users.id)
+- approved_by (fk -> users.id, nullable)
+- status (DRAFT, PENDING, APPROVED, IN_TRANSIT, RECEIVED, CANCELLED)
+- note (nullable)
+- requested_at
+- approved_at (nullable)
+- completed_at (nullable)
+- created_at
+- updated_at
+
+**Finalidade:** cabecalho das transferencias entre locais (armazem <-> loja, loja <-> loja).
+**Uso no fluxo:** controla aprovacao, expedicao e recebimento da transferencia, garantindo rastreabilidade operacional.
+
+### Tabela: `stock_transfer_items`
+- id
+- stock_transfer_id (fk -> stock_transfers.id)
+- product_id (fk -> products.id)
+- product_name_snapshot
+- quantity_requested
+- quantity_sent (nullable)
+- quantity_received (nullable)
+- created_at
+- updated_at
+
+**Finalidade:** itens de cada transferencia de stock.
+**Uso no fluxo:** permite diferenciar solicitado, enviado e recebido, cobrindo perdas/divergencias no trajeto.
+
+### Tabela: `stock_counts` (inventario)
+- id
+- store_id (fk -> stores.id)
+- location_id (fk -> stock_locations.id)
+- performed_by (fk -> users.id)
+- status (DRAFT, IN_PROGRESS, POSTED, CANCELLED)
+- note (nullable)
+- counted_at (nullable)
+- posted_at (nullable)
+- created_at
+- updated_at
+
+**Finalidade:** cabecalho de contagens fisicas de inventario.
+**Uso no fluxo:** sustenta auditoria periodica do stock e ajustes oficiais com rastreabilidade.
+
+### Tabela: `stock_count_items`
+- id
+- stock_count_id (fk -> stock_counts.id)
+- product_id (fk -> products.id)
+- expected_quantity
+- counted_quantity
+- difference_quantity
+- unit_cost (nullable)
+- difference_value (nullable)
+- created_at
+- updated_at
+
+**Finalidade:** itens contados em cada inventario.
+**Uso no fluxo:** identifica divergencias por produto e alimenta ajustes em `stock_movements` (tipo `ADJUSTMENT`/`COUNT`).
 
 ---
 
@@ -291,6 +453,9 @@ Esta versao 2 foi desenhada para:
 - created_at
 - updated_at
 
+**Finalidade:** preferencias operacionais por caixa fisico.
+**Uso no fluxo:** permite configurar impressora e parametros de talao por terminal, mantendo consistencia no atendimento.
+
 ---
 
 ## Indices essenciais
@@ -303,8 +468,14 @@ Esta versao 2 foi desenhada para:
 - `sale_payments(sale_id)`.
 - `cash_sessions(register_id, status, opened_at)`.
 - `cash_movements(cash_session_id, created_at)`.
+- `stock_balances(location_id, product_id)` unique.
 - `stock_movements(product_id, created_at)`.
+- `stock_movements(from_location_id, created_at)`.
+- `stock_movements(to_location_id, created_at)`.
 - `stock_movements(reference_type, reference_id)`.
+- `stock_transfers(from_location_id, to_location_id, status)`.
+- `stock_transfer_items(stock_transfer_id)`.
+- `stock_counts(location_id, status, created_at)`.
 - `sale_reversal_requests(sale_id, status)`.
 
 ---
@@ -315,18 +486,25 @@ Esta versao 2 foi desenhada para:
 1. Criar `sales`.
 2. Criar `sale_items`.
 3. Criar `sale_payments`.
-4. Criar `stock_movements` tipo OUT por item.
-5. Atualizar `products.stock_quantity` (cache).
+4. Criar `stock_movements` (origem = `source_location_id`, tipo OUT) por item.
+5. Atualizar `stock_balances` da localizacao de origem.
 6. Criar `cash_movements` tipo IN quando pagamento em dinheiro.
 7. Commit unico.
 
 ### Reverter venda aprovada
 1. Validar status da venda.
 2. Criar `sale_reversals`.
-3. Criar `stock_movements` tipo RETURN (ou IN) por item.
+3. Criar `stock_movements` tipo RETURN (destino = localizacao de venda) por item.
 4. Ajustar saldo/caixa (`cash_movements` OUT quando aplicavel).
 5. Atualizar `sales.status = REVERSED`.
 6. Commit unico.
+
+### Transferencia entre armazem e loja
+1. Criar `stock_transfers` e `stock_transfer_items`.
+2. Aprovar transferencia.
+3. Ao expedir, criar `stock_movements` tipo TRANSFER (from -> to) e baixar saldo da origem.
+4. Ao receber, confirmar quantidades e atualizar saldo destino.
+5. Em divergencia, registrar ajuste com justificativa.
 
 ### Fecho de caixa
 1. Calcular esperado = abertura + entradas - saidas.
@@ -340,22 +518,29 @@ Esta versao 2 foi desenhada para:
 1. stores
 2. users
 3. registers
-4. categories
-5. products
-6. customers
-7. suppliers
-8. payment_methods
-9. purchases
-10. purchase_items
-11. cash_sessions
-12. cash_movements
-13. sales
-14. sale_items
-15. sale_payments
-16. sale_reversal_requests
-17. sale_reversals
-18. stock_movements
-19. register_settings
+4. warehouses
+5. stock_locations
+6. categories
+7. products
+8. customers
+9. suppliers
+10. payment_methods
+11. purchases
+12. purchase_items
+13. cash_sessions
+14. cash_movements
+15. sales
+16. sale_items
+17. sale_payments
+18. sale_reversal_requests
+19. sale_reversals
+20. stock_balances
+21. stock_movements
+22. stock_transfers
+23. stock_transfer_items
+24. stock_counts
+25. stock_count_items
+26. register_settings
 
 ---
 
@@ -364,6 +549,7 @@ Para operacao multi-caixa real, o ponto mais critico e sempre amarrar toda venda
 - `store_id`
 - `register_id`
 - `cash_session_id`
+- `source_location_id`
 - `user_id`
 
 Sem isso, auditoria e conciliacao de caixa ficam inconsistentes.
