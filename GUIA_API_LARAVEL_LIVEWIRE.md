@@ -53,7 +53,7 @@ Resposta de login esperada:
   "token_type": "Bearer",
   "expires_in": 3600,
   "user": {
-    "id": 1,
+    "id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
     "name": "Operador 01",
     "role": "CASHIER"
   }
@@ -78,6 +78,21 @@ php artisan jwt:secret
 ```
 
 > O frontend desktop ja esta preparado para enviar `Authorization: Bearer <token>` e renovar sessao automaticamente em `401`.
+
+---
+
+## Identificadores UUID
+
+Padrao definido para o projeto:
+
+- PK `id` em todas as tabelas: UUID.
+- FK `*_id`: UUID.
+- Endpoints que recebem `{id}` em rota devem aceitar UUID.
+- Responses da API devem devolver UUID em `id`, `register_id`, `sale_id`, etc.
+
+Exemplo de rota com UUID:
+
+- `PUT /api/v1/products/d290f1ee-6c54-4b01-90e6-d701748f0851`
 
 ---
 

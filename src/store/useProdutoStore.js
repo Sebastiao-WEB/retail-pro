@@ -7,20 +7,46 @@ function normalizarIva(valor) {
   return Math.max(0, Math.min(100, numero));
 }
 
-function calcularPrecoComIva(precoSemIva, ivaPercentual) {
+function normalizarIvaTipo(valor) {
+  if (valor === "monetario") return "monetario";
+  if (valor === "isento") return "isento";
+  return "percentual";
+}
+
+function normalizarMonetario(valor) {
+  const numero = Number(valor || 0);
+  if (!Number.isFinite(numero)) return 0;
+  return Math.max(0, Number(numero.toFixed(2)));
+}
+
+function calcularValorIvaUnitario(precoSemIva, ivaTipo, ivaValor) {
   const preco = Number(precoSemIva || 0);
-  if (!Number.isFinite(preco)) return 0;
-  return Number((preco * (1 + ivaPercentual / 100)).toFixed(2));
+  if (!Number.isFinite(preco) || preco < 0) return 0;
+  if (ivaTipo === "isento") return 0;
+  if (ivaTipo === "monetario") return normalizarMonetario(ivaValor);
+  const percentual = normalizarIva(ivaValor);
+  return Number((preco * (percentual / 100)).toFixed(2));
 }
 
 function normalizarProduto(produto) {
+  const precoCompra = normalizarMonetario(produto?.precoCompra);
   const precoVenda = Number(produto?.precoVenda || 0);
-  const ivaPercentual = normalizarIva(produto?.ivaPercentual);
+  const ivaTipo = normalizarIvaTipo(produto?.ivaTipo);
+  const ivaValorEntrada = produto?.ivaValor ?? produto?.ivaPercentual ?? 0;
+  const ivaValor = ivaTipo === "percentual" ? normalizarIva(ivaValorEntrada) : normalizarMonetario(ivaValorEntrada);
+  const valorIvaUnitario = calcularValorIvaUnitario(precoVenda, ivaTipo, ivaValor);
+  const precoVendaComIva = Number((Math.max(0, Number(precoVenda || 0)) + valorIvaUnitario).toFixed(2));
+  const ivaPercentual = ivaTipo === "percentual" ? ivaValor : 0;
+
   return {
     ...produto,
+    precoCompra,
     precoVenda: Number.isFinite(precoVenda) ? precoVenda : 0,
+    ivaTipo,
+    ivaValor,
     ivaPercentual,
-    precoVendaComIva: calcularPrecoComIva(precoVenda, ivaPercentual),
+    valorIvaUnitario,
+    precoVendaComIva,
   };
 }
 

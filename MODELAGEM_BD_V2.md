@@ -10,13 +10,23 @@ Esta versao 2 foi desenhada para:
 ---
 
 ## Convencoes recomendadas
-- PK: `id` bigint unsigned auto increment.
-- FK: `*_id` bigint unsigned.
+- PK: `id` UUID (string), sem auto increment.
+- FK: `*_id` UUID (referenciando PK UUID).
 - Datas padrao Laravel: `created_at`, `updated_at`.
 - Soft delete onde fizer sentido: `deleted_at`.
 - Valores monetarios: `decimal(14,2)`.
 - Taxas: `decimal(5,2)` (ex.: IVA 16.00).
 - Campos de estado com `enum` ou `check` conforme banco.
+
+### Padrao de identificadores (obrigatorio)
+
+- Todas as tabelas devem usar `id` UUID como chave primaria.
+- Todas as relacoes (`*_id`) devem ser UUID.
+- Nao usar id incremental em tabelas operacionais.
+- Em Laravel migrations, preferir:
+  - `$table->uuid('id')->primary();`
+  - `$table->foreignUuid('store_id')->constrained('stores');`
+  - ou `$table->uuid('store_id');` + `foreign(...)` conforme necessidade.
 
 ---
 
@@ -115,9 +125,11 @@ Esta versao 2 foi desenhada para:
 - sku (nullable)
 - barcode (unique, nullable)
 - unit                     // un, kg, lt...
-- cost_price               // custo atual
-- sale_price               // preco base (sem desconto de venda)
-- tax_rate                 // iva padrao do produto
+- purchase_price           // preco de compra/custo atual
+- sale_price               // preco de venda base (antes do IVA)
+- tax_type                 // PERCENTUAL, MONETARIO, ISENTO
+- tax_value                // valor do IVA (percentual ou monetario)
+- tax_rate                 // percentual efetivo (cache; 0 quando nao percentual)
 - min_stock
 - stock_quantity           // cache global por loja (opcional)
 - is_active (boolean)
@@ -126,8 +138,9 @@ Esta versao 2 foi desenhada para:
 - deleted_at (nullable)
 
 **Finalidade:** catalogo mestre de itens vendidos/comprados.
-**Uso no fluxo:** fornece preco, IVA, unidade e parametros de stock para POS, compras e historico.
+**Uso no fluxo:** fornece preco de compra, preco de venda, regra de IVA, unidade e parametros de stock para POS, compras e historico.
 **Nota:** com multi-localizacao, o saldo oficial por local deve ficar em `stock_balances`.
+**Regra IVA recomendada:** quando `tax_type = ISENTO`, persistir `tax_value = 0` e `tax_rate = 0`.
 
 ---
 
