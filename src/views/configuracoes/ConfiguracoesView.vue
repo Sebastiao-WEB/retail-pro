@@ -10,6 +10,7 @@ const carregandoImpressoras = ref(false);
 const erroImpressoras = ref("");
 const modalSucessoAberto = ref(false);
 const mensagemSucesso = ref("");
+const bloqueadoAdministrador = true;
 
 onMounted(() => {
   configuracoes.hidratar();
@@ -65,45 +66,46 @@ async function carregarImpressoras() {
         <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-bold text-slate-900">Dados da Empresa</h3>
           <p class="text-xs text-slate-500">Informações para as facturas</p>
+          <p class="mt-1 text-[11px] font-semibold text-amber-700">Edição exclusiva do administrador</p>
         </div>
         <div class="space-y-3 p-4">
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label class="mb-1 block text-xs font-semibold text-slate-600">Nome da Empresa</label>
-              <input v-model="configuracoes.nomeEmpresa" class="rp-input" />
+              <input v-model="configuracoes.nomeEmpresa" class="rp-input" :disabled="bloqueadoAdministrador" />
             </div>
             <div>
               <label class="mb-1 block text-xs font-semibold text-slate-600">NUIT</label>
-              <input v-model="configuracoes.nif" class="rp-input" />
+              <input v-model="configuracoes.nif" class="rp-input" :disabled="bloqueadoAdministrador" />
             </div>
           </div>
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label class="mb-1 block text-xs font-semibold text-slate-600">Email Comercial</label>
-              <input v-model="configuracoes.email" class="rp-input" />
+              <input v-model="configuracoes.email" class="rp-input" :disabled="bloqueadoAdministrador" />
             </div>
             <div>
               <label class="mb-1 block text-xs font-semibold text-slate-600">Telefone</label>
-              <input v-model="configuracoes.telefone" class="rp-input" />
+              <input v-model="configuracoes.telefone" class="rp-input" :disabled="bloqueadoAdministrador" />
             </div>
           </div>
           <div>
             <label class="mb-1 block text-xs font-semibold text-slate-600">Endereço</label>
-            <input v-model="configuracoes.endereco" class="rp-input" />
+            <input v-model="configuracoes.endereco" class="rp-input" :disabled="bloqueadoAdministrador" />
           </div>
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
               <label class="mb-1 block text-xs font-semibold text-slate-600">Banco</label>
-              <input v-model="configuracoes.banco" class="rp-input" />
+              <input v-model="configuracoes.banco" class="rp-input" :disabled="bloqueadoAdministrador" />
             </div>
             <div>
               <label class="mb-1 block text-xs font-semibold text-slate-600">IBAN / Nº Conta</label>
-              <input v-model="configuracoes.iban" class="rp-input" />
+              <input v-model="configuracoes.iban" class="rp-input" :disabled="bloqueadoAdministrador" />
             </div>
           </div>
           <div class="flex justify-end gap-2 border-t border-slate-100 pt-3">
-            <BotaoBase variante="secundario">Cancelar</BotaoBase>
-            <BotaoBase variante="aviso" @click="guardarConfiguracoes">Guardar Alterações</BotaoBase>
+            <BotaoBase variante="secundario" :disabled="bloqueadoAdministrador">Cancelar</BotaoBase>
+            <BotaoBase variante="aviso" :disabled="bloqueadoAdministrador" @click="guardarConfiguracoes">Guardar Alterações</BotaoBase>
           </div>
         </div>
       </article>
@@ -114,6 +116,7 @@ async function carregarImpressoras() {
       <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-bold text-slate-900">Aparência das Facturas</h3>
+          <p class="mt-1 text-[11px] font-semibold text-amber-700">Edição exclusiva do administrador</p>
         </div>
         <div class="space-y-3 p-4">
           <div>
@@ -128,7 +131,7 @@ async function carregarImpressoras() {
           </div>
           <div>
             <label class="mb-1 block text-xs font-semibold text-slate-600">Idioma das Facturas</label>
-            <select v-model="configuracoes.idiomaFacturas" class="rp-input">
+            <select v-model="configuracoes.idiomaFacturas" class="rp-input" :disabled="bloqueadoAdministrador">
               <option>Português (Moçambique)</option>
               <option>Português (Portugal)</option>
               <option>English</option>
@@ -136,10 +139,10 @@ async function carregarImpressoras() {
           </div>
           <div>
             <label class="mb-1 block text-xs font-semibold text-slate-600">Rodapé das Facturas</label>
-            <textarea v-model="configuracoes.rodapeFacturas" rows="3" class="rp-input" />
+            <textarea v-model="configuracoes.rodapeFacturas" rows="3" class="rp-input" :disabled="bloqueadoAdministrador" />
           </div>
           <div class="flex justify-end">
-            <BotaoBase variante="aviso" @click="guardarConfiguracoes">Guardar Aparência</BotaoBase>
+            <BotaoBase variante="aviso" :disabled="bloqueadoAdministrador" @click="guardarConfiguracoes">Guardar Aparência</BotaoBase>
           </div>
         </div>
       </article>
