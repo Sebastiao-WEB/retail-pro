@@ -73,7 +73,7 @@ async function carregarImpressoras() {
               <input v-model="configuracoes.nomeEmpresa" class="rp-input" />
             </div>
             <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">NUIT / NIF</label>
+              <label class="mb-1 block text-xs font-semibold text-slate-600">NUIT</label>
               <input v-model="configuracoes.nif" class="rp-input" />
             </div>
           </div>
@@ -108,75 +108,9 @@ async function carregarImpressoras() {
         </div>
       </article>
 
-      <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-4 py-3">
-          <h3 class="text-sm font-bold text-slate-900">Numeração de Documentos</h3>
-          <p class="text-xs text-slate-500">Séries e prefixos</p>
-        </div>
-        <div class="space-y-3 p-4">
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Prefixo Factura</label>
-              <input v-model="configuracoes.prefixoFactura" class="rp-input" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Próximo Número</label>
-              <input v-model="configuracoes.proximoNumero" type="number" class="rp-input" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Ano</label>
-              <input v-model="configuracoes.ano" class="rp-input" />
-            </div>
-          </div>
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Prefixo Nota Crédito</label>
-              <input v-model="configuracoes.prefixoNotaCredito" class="rp-input" />
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Prefixo Recibo</label>
-              <input v-model="configuracoes.prefixoRecibo" class="rp-input" />
-            </div>
-          </div>
-          <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-slate-600">
-            Pré-visualização: <strong class="text-slate-900">{{ configuracoes.prefixoFactura }} {{ configuracoes.ano }}/{{ String(configuracoes.proximoNumero).padStart(4, "0") }}</strong>
-          </div>
-          <div class="flex justify-end">
-            <BotaoBase variante="aviso" @click="guardarConfiguracoes">Guardar</BotaoBase>
-          </div>
-        </div>
-      </article>
     </div>
 
     <div class="space-y-4">
-      <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-4 py-3">
-          <h3 class="text-sm font-bold text-slate-900">Notificações Automáticas</h3>
-        </div>
-        <div class="space-y-3 p-4">
-          <label class="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span class="text-xs text-slate-700">Lembrete de Vencimento</span>
-            <input v-model="configuracoes.lembreteVencimento" type="checkbox" class="h-4 w-4 accent-amber-500" />
-          </label>
-          <label class="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span class="text-xs text-slate-700">Confirmação de Emissão</span>
-            <input v-model="configuracoes.confirmacaoEmissao" type="checkbox" class="h-4 w-4 accent-amber-500" />
-          </label>
-          <label class="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span class="text-xs text-slate-700">Alerta de Pagamento</span>
-            <input v-model="configuracoes.alertaPagamento" type="checkbox" class="h-4 w-4 accent-amber-500" />
-          </label>
-          <label class="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span class="text-xs text-slate-700">Relatório Semanal</span>
-            <input v-model="configuracoes.relatorioSemanal" type="checkbox" class="h-4 w-4 accent-amber-500" />
-          </label>
-          <label class="flex items-center justify-between">
-            <span class="text-xs text-slate-700">Alertas de Obrigações Fiscais</span>
-            <input v-model="configuracoes.alertasFiscais" type="checkbox" class="h-4 w-4 accent-amber-500" />
-          </label>
-        </div>
-      </article>
-
       <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-bold text-slate-900">Aparência das Facturas</h3>

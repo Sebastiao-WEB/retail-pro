@@ -207,7 +207,7 @@ function gerarHtmlTalao(venda) {
         <div class="center">
           <div class="title">${nomeEmpresa}</div>
           <div class="muted">Talão de Venda</div>
-          <div class="muted">NIF: ${nifEmpresa}</div>
+          <div class="muted">NUIT: ${nifEmpresa}</div>
           <div class="muted">${enderecoEmpresa}</div>
           <div class="muted">${telefoneEmpresa}</div>
           <div class="muted">Data: ${escaparHtml(new Date(venda.data).toLocaleString("pt-MZ"))}</div>
@@ -516,7 +516,7 @@ function confirmarFechoCaixa() {
             <div class="mb-3 flex items-start justify-between">
               <div>
                 <p class="font-serif text-lg font-bold text-slate-900">RetailPro</p>
-                <p class="text-[11px] text-slate-500">NIF: 400000099</p>
+                <p class="text-[11px] text-slate-500">NUIT: 400000099</p>
               </div>
               <div class="text-right">
                 <p class="font-semibold">VENDA</p>

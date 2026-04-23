@@ -102,7 +102,7 @@ function gerarHtmlTalao(venda) {
         <div class="center">
           <div class="title">${escaparHtml(configuracaoStore.nomeEmpresa || "RetailPro POS")}</div>
           <div class="muted">2a via do Talão</div>
-          <div class="muted">NIF: ${escaparHtml(configuracaoStore.nif || "")}</div>
+          <div class="muted">NUIT: ${escaparHtml(configuracaoStore.nif || "")}</div>
           <div class="muted">${escaparHtml(configuracaoStore.endereco || "")}</div>
           <div class="muted">${escaparHtml(configuracaoStore.telefone || "")}</div>
           <div class="muted">Data: ${escaparHtml(new Date(venda.data).toLocaleString("pt-MZ"))}</div>
