@@ -25,6 +25,14 @@ body {
   color: var(--text);
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: #c8ced8 transparent;

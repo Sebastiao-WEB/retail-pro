@@ -40,8 +40,12 @@ const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
+const toastAberto = ref(false);
+const toastMensagem = ref("");
+const toastTipo = ref("erro");
 const dataRelogio = ref(new Date());
 let temporizadorRelogio = null;
+let temporizadorToast = null;
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 const produtosFiltrados = computed(() => {
@@ -162,6 +166,16 @@ function mostrarErroStock(texto = "Stock insuficiente para esta quantidade.") {
   setTimeout(() => {
     if (tipoMensagem.value === "erro") mensagem.value = "";
   }, 2500);
+}
+
+function mostrarToast(texto, tipo = "erro") {
+  toastMensagem.value = texto;
+  toastTipo.value = tipo;
+  toastAberto.value = true;
+  if (temporizadorToast) clearTimeout(temporizadorToast);
+  temporizadorToast = setTimeout(() => {
+    toastAberto.value = false;
+  }, 2200);
 }
 
 function adicionarAoCarrinho(produto) {
@@ -304,8 +318,7 @@ function gerarHtmlTalao(venda) {
 
 function finalizarVenda() {
   if (!sessaoStore.turnoAberto) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Abra o caixa antes de finalizar vendas.";
+    mostrarToast("Abra o caixa antes de finalizar vendas.", "erro");
     return;
   }
   if (!carrinhoStore.itens.length) return;
@@ -472,6 +485,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (temporizadorRelogio) clearInterval(temporizadorRelogio);
+  if (temporizadorToast) clearTimeout(temporizadorToast);
 });
 
 function abrirTurnoCaixa() {
@@ -886,6 +900,15 @@ function confirmarFechoCaixa() {
         Utilizador: <strong>{{ sessaoStore.utilizador || "Operador" }}</strong> · Caixa: <strong>{{ sessaoStore.caixaAtribuido || "Caixa 01" }}</strong>
       </div>
       <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <BotaoBase variante="perigo" @click="modalAberturaCaixa = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
         <BotaoBase variante="aviso" @click="abrirTurnoCaixa">Confirmar abertura</BotaoBase>
       </div>
     </div>
@@ -1081,4 +1104,21 @@ function confirmarFechoCaixa() {
       </div>
     </div>
   </ModalBase>
+
+  <transition
+    enter-active-class="transition duration-200 ease-out"
+    enter-from-class="translate-y-2 opacity-0"
+    enter-to-class="translate-y-0 opacity-100"
+    leave-active-class="transition duration-150 ease-in"
+    leave-from-class="translate-y-0 opacity-100"
+    leave-to-class="translate-y-2 opacity-0"
+  >
+    <div
+      v-if="toastAberto"
+      class="pointer-events-none fixed bottom-5 right-5 z-[9999] max-w-sm rounded-lg border px-4 py-3 text-sm font-semibold shadow-xl"
+      :class="toastTipo === 'erro' ? 'border-red-200 bg-red-600 text-white' : 'border-emerald-200 bg-emerald-600 text-white'"
+    >
+      {{ toastMensagem }}
+    </div>
+  </transition>
 </template>
