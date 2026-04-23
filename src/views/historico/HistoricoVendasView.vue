@@ -206,10 +206,10 @@ function abrirSolicitacaoReversao(venda) {
   modalSolicitarReversaoAberto.value = true;
 }
 
-function solicitarReversao() {
+async function solicitarReversao() {
   if (!vendaParaReversao.value) return;
   const venda = vendaParaReversao.value;
-  const resultado = vendaStore.solicitarReversao({
+  const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
     referencia: venda.referencia || String(venda.id),
     solicitadoPor: sessaoStore.utilizador || "Operador",

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { obterClientes } from "../services/dadosMockados";
+import { carregarClientesIntegrado } from "../services/integracaoApi";
 
 export const useClienteStore = defineStore("clientes", {
   state: () => ({
@@ -12,7 +12,7 @@ export const useClienteStore = defineStore("clientes", {
   actions: {
     async carregarClientes() {
       if (this.carregado) return;
-      this.clientes = await obterClientes();
+      this.clientes = await carregarClientesIntegrado();
       this.carregado = true;
     },
     adicionarCliente(novoCliente) {

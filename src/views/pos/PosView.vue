@@ -392,7 +392,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     }
   }
 
-  vendaStore.registarVenda(venda);
+  await vendaStore.registarVenda(venda);
   produtoStore.aplicarVenda(venda.itens);
   carrinhoStore.limparCarrinho();
   valorPagoInteiro.value = "0";
@@ -452,10 +452,10 @@ function abrirSolicitacaoReversao(venda) {
   modalSolicitarReversaoAberto.value = true;
 }
 
-function confirmarSolicitacaoReversao() {
+async function confirmarSolicitacaoReversao() {
   if (!vendaParaReversao.value) return;
   const venda = vendaParaReversao.value;
-  const resultado = vendaStore.solicitarReversao({
+  const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
     referencia: venda.referencia || String(venda.id),
     solicitadoPor: sessaoStore.utilizador || "Operador",

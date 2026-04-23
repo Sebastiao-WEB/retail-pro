@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { obterProdutos } from "../services/dadosMockados";
+import { carregarProdutosIntegrado } from "../services/integracaoApi";
 
 function normalizarIva(valor) {
   const numero = Number(valor || 0);
@@ -38,7 +38,7 @@ export const useProdutoStore = defineStore("produtos", {
     async carregarProdutos() {
       if (this.carregado) return;
       this.emProcessamento = true;
-      const produtos = await obterProdutos();
+      const produtos = await carregarProdutosIntegrado();
       this.produtos = produtos.map((produto) => normalizarProduto(produto));
       this.carregado = true;
       this.emProcessamento = false;

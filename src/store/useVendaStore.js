@@ -1,5 +1,9 @@
 import { defineStore } from "pinia";
-import { obterCompras, obterVendas } from "../services/dadosMockados";
+import {
+  carregarHistoricoIntegrado,
+  criarVendaIntegrada,
+  solicitarReversaoIntegrada,
+} from "../services/integracaoApi";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
 
@@ -45,7 +49,7 @@ export const useVendaStore = defineStore("vendas", {
     },
     async carregarHistorico() {
       if (this.carregado) return;
-      const [vendas, compras] = await Promise.all([obterVendas(), obterCompras()]);
+      const { vendas, compras } = await carregarHistoricoIntegrado();
       this.vendas = vendas.map((venda, indice) => ({
         ...venda,
         referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
@@ -55,19 +59,25 @@ export const useVendaStore = defineStore("vendas", {
       this.hidratarSolicitacoes();
       this.carregado = true;
     },
-    registarVenda(novaVenda) {
+    async registarVenda(novaVenda) {
       const id = Date.now();
-      this.vendas.unshift({
+      const vendaLocal = {
         ...novaVenda,
         id,
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
         estado: "Concluida",
-      });
+      };
+      this.vendas.unshift(vendaLocal);
+      await criarVendaIntegrada(vendaLocal);
     },
-    solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
+    async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
       const existePendente = this.solicitacoesReversao.some((item) => item.vendaId === vendaId && item.estado === "Pendente");
       if (existePendente) {
         return { ok: false, erro: "Já existe uma solicitação pendente para esta venda." };
+      }
+      const remoto = await solicitarReversaoIntegrada({ venda_id: vendaId, reason: motivo || "" });
+      if (remoto?.ok === false && remoto?.erro) {
+        return { ok: false, erro: remoto.erro };
       }
       this.solicitacoesReversao.unshift({
         id: Date.now(),

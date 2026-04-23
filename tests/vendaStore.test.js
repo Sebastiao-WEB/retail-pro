@@ -13,17 +13,17 @@ describe("useVendaStore", () => {
     });
   });
 
-  it("impede criar duas solicitações pendentes para a mesma venda", () => {
+  it("impede criar duas solicitações pendentes para a mesma venda", async () => {
     const vendaStore = useVendaStore();
     vendaStore.vendas = [{ id: 100, cliente: "Cliente", total: 100, data: new Date().toISOString(), metodoPagamento: "Dinheiro" }];
 
-    const primeira = vendaStore.solicitarReversao({
+    const primeira = await vendaStore.solicitarReversao({
       vendaId: 100,
       referencia: "VD-TESTE-1",
       solicitadoPor: "Operador",
       motivo: "",
     });
-    const segunda = vendaStore.solicitarReversao({
+    const segunda = await vendaStore.solicitarReversao({
       vendaId: 100,
       referencia: "VD-TESTE-1",
       solicitadoPor: "Operador",
