@@ -1,0 +1,55 @@
+<script setup>
+const secoes = [
+  {
+    titulo: "Principal",
+    itens: [
+      { nome: "Ponto de Venda", rota: "/pos", ico: "✚" },
+      { nome: "Histórico de Vendas", rota: "/historico-vendas", ico: "◷" },
+    ],
+  },
+  {
+    titulo: "Sistema",
+    itens: [{ nome: "Configurações", rota: "/configuracoes", ico: "◌" }],
+  },
+];
+</script>
+
+<template>
+  <aside class="flex h-full w-64 flex-col bg-[var(--dark)] text-slate-100">
+    <div class="border-b border-white/10 px-5 py-5">
+      <div class="flex items-center gap-3">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--gold)] text-sm font-black text-black">R</div>
+        <div>
+          <h1 class="text-sm font-bold leading-tight">RetailPro <span class="text-[var(--gold)]">POS</span></h1>
+          <p class="text-[10px] text-slate-400">Edição Caixa Pro</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-auto px-3 py-4">
+      <div v-for="secao in secoes" :key="secao.titulo" class="mb-5">
+        <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ secao.titulo }}</p>
+        <RouterLink
+          v-for="item in secao.itens"
+          :key="item.rota"
+          :to="item.rota"
+          class="mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white"
+          active-class="bg-[color:rgba(216,182,90,0.16)] text-[var(--gold)]"
+        >
+          <span class="w-4 text-center text-xs">{{ item.ico }}</span>
+          <span>{{ item.nome }}</span>
+        </RouterLink>
+      </div>
+    </nav>
+
+    <div class="border-t border-white/10 px-4 py-3">
+      <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-[var(--dark-soft)]">
+        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-[10px] font-bold text-black">CA</div>
+        <div class="min-w-0">
+          <p class="truncate text-xs font-semibold text-slate-200">Carlos Abreu</p>
+          <p class="truncate text-[10px] text-slate-400">Administrador</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+</template>
