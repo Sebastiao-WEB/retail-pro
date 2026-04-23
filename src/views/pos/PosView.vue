@@ -10,6 +10,7 @@ import { useVendaStore } from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
+import { temApiConfigurada } from "../../api";
 
 const produtoStore = useProdutoStore();
 const carrinhoStore = useCarrinhoStore();
@@ -109,6 +110,11 @@ const diferencaFecho = computed(() =>
   })
 );
 const diferencaFechoTemValor = computed(() => diferencaFecho.value !== null);
+const origemStockVenda = computed(() => ({
+  id: sessaoStore.sourceLocationId,
+  codigo: sessaoStore.sourceLocationCodigo || "",
+  nome: sessaoStore.sourceLocationNome || "",
+}));
 
 function formatarMT(valor) {
   return `${new Intl.NumberFormat("pt-MZ", {
@@ -290,6 +296,14 @@ function gerarHtmlTalao(venda) {
   `;
 }
 
+function validarOrigemStock() {
+  if (!temApiConfigurada()) return true;
+  if (origemStockVenda.value.id) return true;
+  const caixaAtual = sessaoStore.caixaAtribuido || "caixa atual";
+  erroFinalizacao.value = `A localização de stock não está vinculada ao ${caixaAtual}. Defina esta ligação no backend antes de concluir vendas.`;
+  return false;
+}
+
 function finalizarVenda() {
   if (!sessaoStore.turnoAberto) {
     mostrarToast("Abra o caixa antes de finalizar vendas.", "erro");
@@ -297,10 +311,19 @@ function finalizarVenda() {
   }
   if (!carrinhoStore.itens.length) return;
   erroFinalizacao.value = "";
+  if (!validarOrigemStock()) {
+    mostrarToast("Localização de stock não configurada para o caixa.", "erro");
+    return;
+  }
   vendaPendente.value = {
     cliente: cliente.value,
     itens: carrinhoStore.itens.map((item) => ({ ...item })),
     caixa: sessaoStore.caixaAtribuido,
+    registerId: sessaoStore.registerId,
+    registerCodigo: sessaoStore.registerCodigo,
+    sourceLocationId: origemStockVenda.value.id,
+    sourceLocationCodigo: origemStockVenda.value.codigo,
+    sourceLocationNome: origemStockVenda.value.nome,
     operador: sessaoStore.utilizador,
     turnoAbertura: sessaoStore.aberturaEm,
     subtotal: carrinhoStore.subtotal,
@@ -326,6 +349,7 @@ function limparCarrinhoAtual() {
 
 async function concluirVenda(opcoes = { imprimir: true }) {
   if (!vendaPendente.value) return;
+  if (!validarOrigemStock()) return;
   if (carrinhoStore.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < carrinhoStore.total) {
     erroFinalizacao.value = "Valor pago insuficiente para concluir a venda.";
     return;
@@ -338,6 +362,13 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     metodoPagamento: carrinhoStore.metodoPagamento,
     valorPago: valorPagoNumerico.value,
     troco: troco.value,
+    registerId: sessaoStore.registerId,
+    registerCodigo: sessaoStore.registerCodigo,
+    sourceLocationId: origemStockVenda.value.id,
+    sourceLocationCodigo: origemStockVenda.value.codigo,
+    sourceLocationNome: origemStockVenda.value.nome,
+    register_id: sessaoStore.registerId,
+    source_location_id: origemStockVenda.value.id,
   };
   if (opcoes.imprimir) {
     if (!window.api?.imprimirTalao) {
@@ -906,6 +937,16 @@ function confirmarFechoCaixa() {
       <div class="rounded-lg bg-slate-900 p-4 text-center">
         <p class="text-[11px] uppercase tracking-widest text-slate-300">Total a pagar</p>
         <p class="text-4xl font-black text-white">{{ formatarMT(carrinhoStore.total) }}</p>
+      </div>
+
+      <div class="rounded-lg border p-3 text-xs" :class="origemStockVenda.id ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'">
+        <p class="font-semibold">Origem do stock desta venda</p>
+        <p v-if="origemStockVenda.id">
+          {{ origemStockVenda.nome || origemStockVenda.codigo || `Localização #${origemStockVenda.id}` }}
+        </p>
+        <p v-else>
+          Não configurada para este caixa. Vincule a localização de venda ao caixa no backend.
+        </p>
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">

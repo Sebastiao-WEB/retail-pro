@@ -17,6 +17,22 @@ const form = reactive({
   caixa: "Caixa 01",
 });
 
+function extrairSourceLocation(user) {
+  const fonte =
+    user?.source_location ||
+    user?.stock_location ||
+    user?.default_stock_location ||
+    user?.register?.source_location ||
+    user?.register?.stock_location ||
+    null;
+
+  return {
+    id: fonte?.id ?? null,
+    codigo: fonte?.code || fonte?.codigo || "",
+    nome: fonte?.name || fonte?.nome || "",
+  };
+}
+
 async function entrar() {
   if (!form.username.trim()) return;
 
@@ -40,12 +56,18 @@ async function entrar() {
     const user = resposta?.user || {};
     const token = resposta?.access_token || "";
     if (!token) throw new Error("Token JWT não recebido da API.");
+    const sourceLocation = extrairSourceLocation(user);
     sessaoStore.login({
       username: user.name || form.username.trim(),
       caixa: user.register?.name || user.caixa_atribuido || form.caixa,
       perfil: user.role || "CASHIER",
       token,
       refreshToken: resposta?.refresh_token || "",
+      registerId: user.register?.id ?? null,
+      registerCodigo: user.register?.code || user.register?.codigo || "",
+      sourceLocationId: sourceLocation.id,
+      sourceLocationCodigo: sourceLocation.codigo,
+      sourceLocationNome: sourceLocation.nome,
     });
     router.push("/pos");
   } catch (erro) {

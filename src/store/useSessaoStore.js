@@ -9,6 +9,11 @@ export const useSessaoStore = defineStore("sessao", {
     utilizador: null,
     perfil: "CASHIER",
     caixaAtribuido: "",
+    registerId: null,
+    registerCodigo: "",
+    sourceLocationId: null,
+    sourceLocationCodigo: "",
+    sourceLocationNome: "",
     turnoAberto: false,
     fundoInicial: 0,
     aberturaEm: "",
@@ -35,6 +40,11 @@ export const useSessaoStore = defineStore("sessao", {
         utilizador: this.utilizador,
         perfil: this.perfil,
         caixaAtribuido: this.caixaAtribuido,
+        registerId: this.registerId,
+        registerCodigo: this.registerCodigo,
+        sourceLocationId: this.sourceLocationId,
+        sourceLocationCodigo: this.sourceLocationCodigo,
+        sourceLocationNome: this.sourceLocationNome,
         turnoAberto: this.turnoAberto,
         fundoInicial: this.fundoInicial,
         aberturaEm: this.aberturaEm,
@@ -42,10 +52,26 @@ export const useSessaoStore = defineStore("sessao", {
       };
       localStorage.setItem(CHAVE_SESSAO, JSON.stringify(payload));
     },
-    login({ username, caixa, perfil, token, refreshToken }) {
+    login({
+      username,
+      caixa,
+      perfil,
+      token,
+      refreshToken,
+      registerId,
+      registerCodigo,
+      sourceLocationId,
+      sourceLocationCodigo,
+      sourceLocationNome,
+    }) {
       this.utilizador = username;
       this.caixaAtribuido = caixa;
       this.perfil = perfil || "CASHIER";
+      this.registerId = Number.isFinite(Number(registerId)) ? Number(registerId) : null;
+      this.registerCodigo = String(registerCodigo || "");
+      this.sourceLocationId = Number.isFinite(Number(sourceLocationId)) ? Number(sourceLocationId) : null;
+      this.sourceLocationCodigo = String(sourceLocationCodigo || "");
+      this.sourceLocationNome = String(sourceLocationNome || "");
       if (token || refreshToken) {
         salvarTokens({
           accessToken: token || "",
@@ -58,6 +84,11 @@ export const useSessaoStore = defineStore("sessao", {
       this.utilizador = null;
       this.perfil = "CASHIER";
       this.caixaAtribuido = "";
+      this.registerId = null;
+      this.registerCodigo = "";
+      this.sourceLocationId = null;
+      this.sourceLocationCodigo = "";
+      this.sourceLocationNome = "";
       this.turnoAberto = false;
       this.fundoInicial = 0;
       this.aberturaEm = "";
