@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { limparTokens, salvarTokens } from "../services/authStorage";
 
 const CHAVE_SESSAO = "retailpro:sessao";
 
@@ -6,6 +7,7 @@ export const useSessaoStore = defineStore("sessao", {
   state: () => ({
     carregado: false,
     utilizador: null,
+    perfil: "CASHIER",
     caixaAtribuido: "",
     turnoAberto: false,
     fundoInicial: 0,
@@ -31,6 +33,7 @@ export const useSessaoStore = defineStore("sessao", {
     salvar() {
       const payload = {
         utilizador: this.utilizador,
+        perfil: this.perfil,
         caixaAtribuido: this.caixaAtribuido,
         turnoAberto: this.turnoAberto,
         fundoInicial: this.fundoInicial,
@@ -39,17 +42,26 @@ export const useSessaoStore = defineStore("sessao", {
       };
       localStorage.setItem(CHAVE_SESSAO, JSON.stringify(payload));
     },
-    login({ username, caixa }) {
+    login({ username, caixa, perfil, token, refreshToken }) {
       this.utilizador = username;
       this.caixaAtribuido = caixa;
+      this.perfil = perfil || "CASHIER";
+      if (token || refreshToken) {
+        salvarTokens({
+          accessToken: token || "",
+          refreshToken: refreshToken || "",
+        });
+      }
       this.salvar();
     },
     logout() {
       this.utilizador = null;
+      this.perfil = "CASHIER";
       this.caixaAtribuido = "";
       this.turnoAberto = false;
       this.fundoInicial = 0;
       this.aberturaEm = "";
+      limparTokens();
       this.salvar();
     },
     abrirTurno({ fundoInicial }) {

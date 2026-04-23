@@ -15,6 +15,19 @@ VITE_API_URL=http://localhost:8000/api
 VITE_API_TIMEOUT_MS=15000
 ```
 
+## Autenticacao JWT
+
+- Login via `POST /auth/login` deve retornar:
+  - `access_token`
+  - `refresh_token` (opcional, recomendado)
+  - `token_type` (`Bearer`)
+  - `expires_in` (opcional)
+  - `user`
+- O app salva token em `retailpro:token` e refresh em `retailpro:refresh_token`.
+- O `httpClient` envia automaticamente `Authorization: Bearer <token>`.
+- Em `401`, tenta refresh em `/auth/refresh` (se refresh token existir).
+- Se refresh falhar, limpa sessao/token e redireciona para login.
+
 ---
 
 ## Camada criada

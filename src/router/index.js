@@ -32,7 +32,9 @@ router.beforeEach((to) => {
   } catch {
     sessao = null;
   }
-  const estaLogado = !!sessao?.utilizador;
+  const modoApi = String(import.meta.env.VITE_API_MODE || "mock").toLowerCase() === "api";
+  const token = localStorage.getItem("retailpro:token");
+  const estaLogado = modoApi ? !!sessao?.utilizador && !!token : !!sessao?.utilizador;
   if (to.name !== "login" && !estaLogado) return { name: "login" };
   if (to.name === "login" && estaLogado) return { name: "pos" };
   return true;

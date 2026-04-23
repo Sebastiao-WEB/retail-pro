@@ -11,5 +11,14 @@ export const authApi = {
       },
     });
   },
+  async refresh(refreshToken) {
+    return httpRequest("/auth/refresh", {
+      method: "POST",
+      body: { refresh_token: refreshToken },
+    });
+  },
+  async logout() {
+    return httpRequest("/auth/logout", { method: "POST" });
+  },
 };
 

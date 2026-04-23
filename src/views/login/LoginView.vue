@@ -1,11 +1,14 @@
 <script setup>
-import { reactive } from "vue";
+import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
+import { authApi, temApiConfigurada } from "../../api";
+import { mostrarToastSwal } from "../../services/toast";
 
 const router = useRouter();
 const sessaoStore = useSessaoStore();
+const carregando = ref(false);
 
 const form = reactive({
   username: "",
@@ -14,13 +17,47 @@ const form = reactive({
   caixa: "Caixa 01",
 });
 
-function entrar() {
+async function entrar() {
   if (!form.username.trim()) return;
-  sessaoStore.login({
-    username: form.username.trim(),
-    caixa: form.caixa,
-  });
-  router.push("/pos");
+
+  if (!temApiConfigurada()) {
+    sessaoStore.login({
+      username: form.username.trim(),
+      caixa: form.caixa,
+      perfil: "CASHIER",
+    });
+    router.push("/pos");
+    return;
+  }
+
+  carregando.value = true;
+  try {
+    const resposta = await authApi.login({
+      username: form.username.trim(),
+      password: form.senha,
+      registerCode: form.codigo || form.caixa,
+    });
+    const user = resposta?.user || {};
+    const token = resposta?.access_token || "";
+    if (!token) throw new Error("Token JWT não recebido da API.");
+    sessaoStore.login({
+      username: user.name || form.username.trim(),
+      caixa: user.register?.name || user.caixa_atribuido || form.caixa,
+      perfil: user.role || "CASHIER",
+      token,
+      refreshToken: resposta?.refresh_token || "",
+    });
+    router.push("/pos");
+  } catch (erro) {
+    const mensagemOriginal = String(erro?.message || "");
+    const mensagem =
+      mensagemOriginal.toLowerCase().includes("failed to fetch")
+        ? "Falha de conexão com o servidor."
+        : mensagemOriginal || "Falha ao autenticar com o backend.";
+    mostrarToastSwal(mensagem, "error");
+  } finally {
+    carregando.value = false;
+  }
 }
 </script>
 
@@ -53,7 +90,9 @@ function entrar() {
             <option>Caixa 03</option>
           </select>
         </div>
-        <BotaoBase tipo="submit" bloco variante="aviso">Entrar no sistema</BotaoBase>
+        <BotaoBase tipo="submit" bloco variante="aviso" :disabled="carregando">
+          {{ carregando ? "A autenticar..." : "Entrar no sistema" }}
+        </BotaoBase>
       </form>
     </div>
   </section>
