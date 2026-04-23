@@ -294,6 +294,8 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
   const venda = {
     ...vendaPendente.value,
+    cliente: cliente.value,
+    metodoPagamento: carrinhoStore.metodoPagamento,
     valorPago: valorPagoNumerico.value,
     troco: troco.value,
   };
@@ -419,27 +421,6 @@ function confirmarFechoCaixa() {
               Fechar caixa
             </button>
             <button v-else class="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600" @click="modalAberturaCaixa = true">Abrir caixa</button>
-          </div>
-        </div>
-
-        <div class="space-y-4">
-          <p class="rp-section-title">Dados do cliente e pagamento</p>
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Cliente</label>
-              <select v-model="cliente" class="rp-input">
-                <option v-for="clienteItem in clientesParaSelect" :key="clienteItem.id + clienteItem.nome" :value="clienteItem.nome">
-                  {{ clienteItem.nome }}
-                </option>
-              </select>
-            </div>
-            <div>
-              <label class="mb-1 block text-xs font-semibold text-slate-600">Método de pagamento</label>
-              <select v-model="carrinhoStore.metodoPagamento" class="rp-input">
-                <option>Dinheiro</option>
-                <option>Transferência</option>
-              </select>
-            </div>
           </div>
         </div>
       </div>
@@ -675,6 +656,24 @@ function confirmarFechoCaixa() {
 
   <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" titulo="Impressão do talão" @fechar="modalImpressaoAberto = false">
     <div v-if="vendaPendente" class="space-y-4">
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">Cliente</label>
+          <select v-model="cliente" class="rp-input">
+            <option v-for="clienteItem in clientesParaSelect" :key="clienteItem.id + clienteItem.nome" :value="clienteItem.nome">
+              {{ clienteItem.nome }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">Método de pagamento</label>
+          <select v-model="carrinhoStore.metodoPagamento" class="rp-input">
+            <option>Dinheiro</option>
+            <option>Transferência</option>
+          </select>
+        </div>
+      </div>
+
       <div class="rounded-lg bg-slate-900 p-4 text-center">
         <p class="text-[11px] uppercase tracking-widest text-slate-300">Total a pagar</p>
         <p class="text-4xl font-black text-white">{{ formatarMT(carrinhoStore.total) }}</p>
