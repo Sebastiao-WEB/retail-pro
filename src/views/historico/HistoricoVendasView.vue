@@ -14,6 +14,9 @@ const vendaSelecionada = ref(null);
 const modalDetalhesAberto = ref(false);
 const mensagem = ref("");
 const tipoMensagem = ref("sucesso");
+const modalSolicitarReversaoAberto = ref(false);
+const vendaParaReversao = ref(null);
+const motivoReversao = ref("");
 
 onMounted(() => {
   configuracaoStore.hidratar();
@@ -28,6 +31,13 @@ const vendasDoTurnoCaixa = computed(() => {
     const mesmaCaixa = venda.caixa ? venda.caixa === caixaAtual : true;
     return mesmaCaixa && dataVenda >= abertura;
   });
+});
+const solicitacoesPendentesPorVenda = computed(() => {
+  const mapa = new Map();
+  vendaStore.solicitacoesPendentes.forEach((item) => {
+    mapa.set(item.vendaId, item);
+  });
+  return mapa;
 });
 
 function formatarMT(valor) {
@@ -157,6 +167,42 @@ async function reimprimirVenda(venda) {
     mensagem.value = "Falha ao reimprimir recibo.";
   }
 }
+
+function abrirSolicitacaoReversao(venda) {
+  if (venda.estado === "Revertida") {
+    tipoMensagem.value = "erro";
+    mensagem.value = "Venda já foi revertida.";
+    return;
+  }
+  if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
+    tipoMensagem.value = "erro";
+    mensagem.value = "Já existe solicitação de reversão pendente para esta venda.";
+    return;
+  }
+  vendaParaReversao.value = venda;
+  motivoReversao.value = "";
+  modalSolicitarReversaoAberto.value = true;
+}
+
+function solicitarReversao() {
+  if (!vendaParaReversao.value) return;
+  const venda = vendaParaReversao.value;
+  const resultado = vendaStore.solicitarReversao({
+    vendaId: venda.id,
+    referencia: venda.referencia || String(venda.id),
+    solicitadoPor: sessaoStore.utilizador || "Operador",
+    motivo: motivoReversao.value.trim(),
+  });
+  if (!resultado.ok) {
+    tipoMensagem.value = "erro";
+    mensagem.value = resultado.erro || "Não foi possível solicitar reversão.";
+    return;
+  }
+  modalSolicitarReversaoAberto.value = false;
+  vendaParaReversao.value = null;
+  tipoMensagem.value = "sucesso";
+  mensagem.value = "Solicitação de reversão enviada ao gerente para aprovação.";
+}
 </script>
 
 <template>
@@ -176,28 +222,78 @@ async function reimprimirVenda(venda) {
         <table class="min-w-full text-sm">
           <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             <tr>
+              <th class="px-3 py-2">Referência</th>
               <th class="px-3 py-2">Data</th>
               <th class="px-3 py-2">Cliente</th>
               <th class="px-3 py-2">Pagamento</th>
+              <th class="px-3 py-2">Estado</th>
               <th class="px-3 py-2">Total</th>
               <th class="px-3 py-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!vendasDoTurnoCaixa.length">
-              <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">
+              <td colspan="7" class="px-3 py-8 text-center text-xs text-slate-500">
                 Sem vendas no turno atual deste caixa.
               </td>
             </tr>
             <tr v-for="venda in vendasDoTurnoCaixa" :key="venda.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
+              <td class="px-3 py-2 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
               <td class="px-3 py-2 text-slate-600">{{ formatarData(venda.data) }}</td>
               <td class="px-3 py-2 font-semibold text-slate-800">{{ venda.cliente }}</td>
               <td class="px-3 py-2 text-slate-600">{{ venda.metodoPagamento }}</td>
+              <td class="px-3 py-2">
+                <span
+                  class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                  :class="
+                    venda.estado === 'Revertida'
+                      ? 'bg-red-100 text-red-700'
+                      : solicitacoesPendentesPorVenda.has(venda.id)
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                  "
+                >
+                  {{ venda.estado === "Revertida" ? "Revertida" : solicitacoesPendentesPorVenda.has(venda.id) ? "Reversão pendente" : "Concluída" }}
+                </span>
+              </td>
               <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(venda.total) }}</td>
               <td class="px-3 py-2">
                 <div class="flex justify-end gap-2">
-                  <BotaoBase variante="secundario" @click="abrirDetalhes(venda)">Detalhes</BotaoBase>
-                  <BotaoBase variante="aviso" @click="reimprimirVenda(venda)">Reimprimir</BotaoBase>
+                  <button
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    title="Detalhes"
+                    aria-label="Detalhes"
+                    @click="abrirDetalhes(venda)"
+                  >
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                  <button
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Solicitar reversão"
+                    aria-label="Solicitar reversão"
+                    :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                    @click="abrirSolicitacaoReversao(venda)"
+                  >
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24" aria-hidden="true">
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 1 0 .49-9" />
+                    </svg>
+                  </button>
+                  <button
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
+                    title="Reimprimir"
+                    aria-label="Reimprimir"
+                    @click="reimprimirVenda(venda)"
+                  >
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                      <polyline points="6 9 6 2 18 2 18 9" />
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                      <rect x="6" y="14" width="12" height="8" />
+                    </svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -244,6 +340,47 @@ async function reimprimirVenda(venda) {
         <p><strong>Subtotal:</strong> {{ formatarMT(vendaSelecionada.subtotal || vendaSelecionada.total) }}</p>
         <p><strong>Desconto:</strong> - {{ formatarMT(vendaSelecionada.descontoAplicado || 0) }}</p>
         <p><strong>Total:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
+      </div>
+    </div>
+  </ModalBase>
+
+  <ModalBase :aberto="modalSolicitarReversaoAberto" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
+    <div class="space-y-4">
+      <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
+        <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        </span>
+        <div>
+          <p class="font-semibold text-slate-900">Deseja realmente solicitar a reversão desta venda?</p>
+          <p class="text-xs text-slate-600">Referência: {{ vendaParaReversao?.referencia || vendaParaReversao?.id }}</p>
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</label>
+        <textarea v-model="motivoReversao" rows="2" class="rp-input" placeholder="Ex: item lançado por engano, cliente desistiu..." />
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase variante="sucesso" @click="solicitarReversao">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Confirmar solicitação</span>
+          </span>
+        </BotaoBase>
       </div>
     </div>
   </ModalBase>

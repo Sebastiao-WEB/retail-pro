@@ -1,4 +1,41 @@
 <script setup>
+import { computed, onMounted, ref } from "vue";
+import ModalBase from "../../components/ModalBase.vue";
+import BotaoBase from "../../components/BotaoBase.vue";
+import { useVendaStore } from "../../store/useVendaStore";
+import { useSessaoStore } from "../../store/useSessaoStore";
+
+const vendaStore = useVendaStore();
+const sessaoStore = useSessaoStore();
+
+onMounted(() => {
+  vendaStore.carregarHistorico();
+});
+
+const solicitacoesPendentes = computed(() => vendaStore.solicitacoesPendentes);
+const modalDecisaoAberto = ref(false);
+const acaoPendente = ref(null);
+
+function formatarData(valor) {
+  return new Date(valor).toLocaleString("pt-MZ");
+}
+
+function abrirConfirmacao(idSolicitacao, tipo) {
+  acaoPendente.value = { idSolicitacao, tipo };
+  modalDecisaoAberto.value = true;
+}
+
+function confirmarDecisao() {
+  if (!acaoPendente.value) return;
+  if (acaoPendente.value.tipo === "aprovar") {
+    vendaStore.aprovarReversao(acaoPendente.value.idSolicitacao, sessaoStore.utilizador || "Gerente");
+  } else {
+    vendaStore.cancelarReversao(acaoPendente.value.idSolicitacao, sessaoStore.utilizador || "Gerente");
+  }
+  modalDecisaoAberto.value = false;
+  acaoPendente.value = null;
+}
+
 const cartoes = [
   { titulo: "Total Facturado", valor: "847.320 MT", detalhe: "+18.4% vs anterior", cor: "border-t-[3px] border-t-amber-500", texto: "text-emerald-600", ico: "◫" },
   { titulo: "Valor Recebido", valor: "612.800 MT", detalhe: "72% da meta mensal", cor: "border-t-[3px] border-t-emerald-500", texto: "text-emerald-600", ico: "$" },
@@ -35,6 +72,49 @@ const actividades = [
 
 <template>
   <section class="space-y-4">
+    <div class="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Solicitações de reversão</h3>
+          <p class="text-xs text-slate-500">Aprovação do gerente</p>
+        </div>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-4 py-2.5">Referência</th>
+              <th class="px-4 py-2.5">Solicitado por</th>
+              <th class="px-4 py-2.5">Data</th>
+              <th class="px-4 py-2.5">Motivo</th>
+              <th class="px-4 py-2.5 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!solicitacoesPendentes.length">
+              <td colspan="5" class="px-4 py-6 text-center text-xs text-slate-500">Sem solicitações pendentes.</td>
+            </tr>
+            <tr v-for="item in solicitacoesPendentes" :key="item.id" class="border-t border-slate-100">
+              <td class="px-4 py-2.5 text-xs font-semibold text-slate-700">{{ item.referencia }}</td>
+              <td class="px-4 py-2.5 text-xs text-slate-700">{{ item.solicitadoPor }}</td>
+              <td class="px-4 py-2.5 text-xs text-slate-600">{{ formatarData(item.dataSolicitacao) }}</td>
+              <td class="px-4 py-2.5 text-xs text-slate-600">{{ item.motivo || "-" }}</td>
+              <td class="px-4 py-2.5">
+                <div class="flex justify-end gap-2">
+                  <button class="rounded-md bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100" @click="abrirConfirmacao(item.id, 'cancelar')">
+                    Cancelar
+                  </button>
+                  <button class="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700" @click="abrirConfirmacao(item.id, 'aprovar')">
+                    Confirmar
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 gap-3 xl:grid-cols-4">
       <article
         v-for="cartao in cartoes"
@@ -156,4 +236,27 @@ const actividades = [
       </div>
     </div>
   </section>
+
+  <ModalBase :aberto="modalDecisaoAberto" titulo="Confirmar decisão" @fechar="modalDecisaoAberto = false">
+    <div class="space-y-4">
+      <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
+        <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+        </span>
+        <p>
+          {{ acaoPendente?.tipo === "aprovar" ? "Confirma a reversão desta venda?" : "Cancelar solicitação de reversão?" }}
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <BotaoBase variante="secundario" @click="modalDecisaoAberto = false">Fechar</BotaoBase>
+        <BotaoBase :variante="acaoPendente?.tipo === 'aprovar' ? 'sucesso' : 'perigo'" @click="confirmarDecisao">
+          Confirmar
+        </BotaoBase>
+      </div>
+    </div>
+  </ModalBase>
 </template>

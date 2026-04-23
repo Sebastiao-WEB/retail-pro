@@ -1,12 +1,15 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import BotaoBase from "../../components/BotaoBase.vue";
+import ModalBase from "../../components/ModalBase.vue";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 
 const configuracoes = useConfiguracaoStore();
 const impressorasDisponiveis = ref([]);
 const carregandoImpressoras = ref(false);
 const erroImpressoras = ref("");
+const modalSucessoAberto = ref(false);
+const mensagemSucesso = ref("");
 
 onMounted(() => {
   configuracoes.hidratar();
@@ -15,7 +18,8 @@ onMounted(() => {
 
 function guardarConfiguracoes() {
   configuracoes.salvar();
-  alert("Configurações guardadas com sucesso (simulação).");
+  mensagemSucesso.value = "Configurações guardadas com sucesso.";
+  modalSucessoAberto.value = true;
 }
 
 async function carregarImpressoras() {
@@ -260,4 +264,20 @@ async function carregarImpressoras() {
       </article>
     </div>
   </section>
+
+  <ModalBase :aberto="modalSucessoAberto" titulo="Alterações guardadas" @fechar="modalSucessoAberto = false">
+    <div class="space-y-4">
+      <div class="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </span>
+        <p>{{ mensagemSucesso }}</p>
+      </div>
+      <div class="flex justify-end">
+        <BotaoBase variante="sucesso" @click="modalSucessoAberto = false">OK</BotaoBase>
+      </div>
+    </div>
+  </ModalBase>
 </template>

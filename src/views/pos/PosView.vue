@@ -32,6 +32,7 @@ const fundoInicialInput = ref(1000);
 const dinheiroRealFecho = ref(0);
 const justificativaDiferenca = ref("");
 const erroFecho = ref("");
+const erroFinalizacao = ref("");
 
 const produtosFiltrados = computed(() =>
   produtoStore.produtos
@@ -247,12 +248,7 @@ function finalizarVenda() {
     return;
   }
   if (!carrinhoStore.itens.length) return;
-  if (carrinhoStore.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < carrinhoStore.total) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Valor pago insuficiente para concluir a venda.";
-    return;
-  }
-
+  erroFinalizacao.value = "";
   vendaPendente.value = {
     cliente: cliente.value,
     itens: carrinhoStore.itens.map((item) => ({ ...item })),
@@ -272,10 +268,27 @@ function finalizarVenda() {
   modalImpressaoAberto.value = true;
 }
 
+function limparCarrinhoAtual() {
+  carrinhoStore.limparCarrinho();
+  valorPagoInteiro.value = "0";
+  valorPagoDecimal.value = "00";
+  descontoAtivo.value = false;
+  mensagem.value = "";
+}
+
 async function concluirVenda(opcoes = { imprimir: true }) {
   if (!vendaPendente.value) return;
+  if (carrinhoStore.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < carrinhoStore.total) {
+    erroFinalizacao.value = "Valor pago insuficiente para concluir a venda.";
+    return;
+  }
+  erroFinalizacao.value = "";
 
-  const venda = { ...vendaPendente.value };
+  const venda = {
+    ...vendaPendente.value,
+    valorPago: valorPagoNumerico.value,
+    troco: troco.value,
+  };
   if (opcoes.imprimir) {
     if (!window.api?.imprimirTalao) {
       tipoMensagem.value = "erro";
@@ -565,93 +578,30 @@ function confirmarFechoCaixa() {
                 <span>{{ formatarMT(carrinhoStore.total) }}</span>
               </div>
             </div>
+            <div class="mt-3 flex items-center gap-2">
+              <button
+                class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="!carrinhoStore.itens.length"
+                title="Resetar carrinho"
+                aria-label="Resetar carrinho"
+                @click="limparCarrinhoAtual"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+                  <polyline points="1 4 1 10 7 10" />
+                  <path d="M3.51 15a9 9 0 1 0 .49-9" />
+                </svg>
+              </button>
+              <BotaoBase class="flex-1" variante="aviso" :disabled="!carrinhoStore.itens.length" @click="finalizarVenda">
+                Finalizar Venda
+              </BotaoBase>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="rp-card p-4">
-        <h4 class="mb-2 text-sm font-semibold text-slate-900">Finalização</h4>
-        <div class="mb-3 rounded-lg bg-slate-900 p-4 text-center">
-          <p class="text-[11px] uppercase tracking-widest text-slate-300">Total a pagar</p>
-          <p class="text-4xl font-black text-white">{{ formatarMT(carrinhoStore.total) }}</p>
-          <p class="mt-1 text-[11px] text-slate-300">
-            Subtotal: {{ formatarMT(carrinhoStore.subtotal) }} · Desconto: {{ formatarMT(descontoAplicado) }}
-          </p>
-        </div>
-        <div class="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <div class="mb-2 flex items-center justify-between">
-            <p class="text-xs font-semibold text-slate-700">Desconto (opcional)</p>
-            <button
-              class="rounded-md px-2 py-1 text-[11px] font-semibold"
-              :class="descontoAtivo ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'"
-              @click="alternarDesconto"
-            >
-              {{ descontoAtivo ? "Ativo" : "Inativo" }}
-            </button>
-          </div>
-          <div class="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr]">
-            <select
-              :value="carrinhoStore.descontoTipo"
-              class="rp-input"
-              :disabled="!descontoAtivo"
-              @change="carrinhoStore.definirDesconto({ tipo: $event.target.value, valor: carrinhoStore.descontoValor })"
-            >
-              <option value="valor">Valor (MT)</option>
-              <option value="percentual">Percentual (%)</option>
-            </select>
-            <input
-              :value="carrinhoStore.descontoValor"
-              type="number"
-              min="0"
-              class="rp-input"
-              :disabled="!descontoAtivo"
-              :placeholder="carrinhoStore.descontoTipo === 'percentual' ? 'Ex: 10' : 'Ex: 100'"
-              @input="atualizarDesconto($event.target.value)"
-            />
-          </div>
-        </div>
-        <div class="mb-3 space-y-2">
-          <div>
-            <label class="mb-1 block text-xs font-semibold text-slate-600">Valor pago</label>
-            <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
-              <div class="flex items-center border-r border-slate-300 px-3 text-slate-500">MT</div>
-              <input
-                :value="valorPagoInteiro"
-                type="text"
-                class="min-w-0 flex-1 px-3 py-2 text-right text-sm font-semibold text-slate-800 focus:outline-none disabled:bg-slate-50"
-                :disabled="!podeInformarPagamento"
-                @input="atualizarValorPagoInteiro($event.target.value)"
-              />
-              <div class="flex items-center border-l border-slate-300 px-2 text-slate-500">,</div>
-              <input
-                :value="valorPagoDecimal"
-                type="text"
-                maxlength="2"
-                class="w-10 px-1 py-2 text-sm font-semibold text-slate-700 focus:outline-none disabled:bg-slate-50"
-                :disabled="!podeInformarPagamento"
-                @input="atualizarValorPagoDecimal($event.target.value)"
-              />
-            </div>
-          </div>
-          <div class="rounded-lg bg-slate-50 p-3 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-slate-500">Troco</span>
-              <strong class="text-emerald-700">{{ formatarMT(troco) }}</strong>
-            </div>
-            <div class="mt-1 flex items-center justify-between">
-              <span class="text-slate-500">Falta</span>
-              <strong class="text-red-600">{{ formatarMT(falta) }}</strong>
-            </div>
-          </div>
-        </div>
-        <BotaoBase bloco variante="aviso" :disabled="!carrinhoStore.itens.length" @click="finalizarVenda">
-          Finalizar Venda
-        </BotaoBase>
-        <p v-if="mensagem" class="mt-2 text-sm font-semibold" :class="tipoMensagem === 'erro' ? 'text-red-600' : 'text-emerald-700'">
-          {{ mensagem }}
-        </p>
-        <p class="mt-2 text-xs text-slate-500">Pronto para impressão térmica após confirmação.</p>
-      </div>
+      <p v-if="mensagem" class="text-sm font-semibold" :class="tipoMensagem === 'erro' ? 'text-red-600' : 'text-emerald-700'">
+        {{ mensagem }}
+      </p>
     </div>
   </section>
 
@@ -714,21 +664,107 @@ function confirmarFechoCaixa() {
 
   <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" titulo="Impressão do talão" @fechar="modalImpressaoAberto = false">
     <div v-if="vendaPendente" class="space-y-4">
-      <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-        <p><strong>Cliente:</strong> {{ vendaPendente.cliente }}</p>
-        <p><strong>Itens:</strong> {{ vendaPendente.itens.length }}</p>
-        <p><strong>Método:</strong> {{ vendaPendente.metodoPagamento }}</p>
-        <p><strong>Subtotal:</strong> {{ formatarMT(vendaPendente.subtotal || vendaPendente.total) }}</p>
-        <p><strong>Desconto:</strong> - {{ formatarMT(vendaPendente.descontoAplicado || 0) }}</p>
-        <p><strong>Total:</strong> {{ formatarMT(vendaPendente.total) }}</p>
-        <p v-if="vendaPendente.metodoPagamento === 'Dinheiro'"><strong>Troco:</strong> {{ formatarMT(vendaPendente.troco) }}</p>
+      <div class="rounded-lg bg-slate-900 p-4 text-center">
+        <p class="text-[11px] uppercase tracking-widest text-slate-300">Total a pagar</p>
+        <p class="text-4xl font-black text-white">{{ formatarMT(carrinhoStore.total) }}</p>
       </div>
 
+      <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div class="mb-2 flex items-center justify-between">
+          <p class="text-xs font-semibold text-slate-700">Desconto (opcional)</p>
+          <button
+            class="rounded-md px-2 py-1 text-[11px] font-semibold"
+            :class="descontoAtivo ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'"
+            @click="alternarDesconto"
+          >
+            {{ descontoAtivo ? "Ativo" : "Inativo" }}
+          </button>
+        </div>
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr]">
+          <select
+            :value="carrinhoStore.descontoTipo"
+            class="rp-input"
+            :disabled="!descontoAtivo"
+            @change="carrinhoStore.definirDesconto({ tipo: $event.target.value, valor: carrinhoStore.descontoValor })"
+          >
+            <option value="valor">Valor (MT)</option>
+            <option value="percentual">Percentual (%)</option>
+          </select>
+          <input
+            :value="carrinhoStore.descontoValor"
+            type="number"
+            min="0"
+            class="rp-input"
+            :disabled="!descontoAtivo"
+            :placeholder="carrinhoStore.descontoTipo === 'percentual' ? 'Ex: 10' : 'Ex: 100'"
+            @input="atualizarDesconto($event.target.value)"
+          />
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">Valor pago</label>
+          <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
+            <div class="flex items-center border-r border-slate-300 px-3 text-slate-500">MT</div>
+            <input
+              :value="valorPagoInteiro"
+              type="text"
+              class="min-w-0 flex-1 px-3 py-2 text-right text-sm font-semibold text-slate-800 focus:outline-none disabled:bg-slate-50"
+              :disabled="!podeInformarPagamento"
+              @input="atualizarValorPagoInteiro($event.target.value)"
+            />
+            <div class="flex items-center border-l border-slate-300 px-2 text-slate-500">,</div>
+            <input
+              :value="valorPagoDecimal"
+              type="text"
+              maxlength="2"
+              class="w-10 px-1 py-2 text-sm font-semibold text-slate-700 focus:outline-none disabled:bg-slate-50"
+              :disabled="!podeInformarPagamento"
+              @input="atualizarValorPagoDecimal($event.target.value)"
+            />
+          </div>
+        </div>
+        <div class="rounded-lg bg-slate-50 p-3 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500">Troco</span>
+            <strong class="text-emerald-700">{{ formatarMT(troco) }}</strong>
+          </div>
+          <div class="mt-1 flex items-center justify-between">
+            <span class="text-slate-500">Falta</span>
+            <strong class="text-red-600">{{ formatarMT(falta) }}</strong>
+          </div>
+        </div>
+      </div>
+      <p v-if="erroFinalizacao" class="text-sm font-semibold text-red-600">{{ erroFinalizacao }}</p>
+
       <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <BotaoBase variante="perigo" @click="modalImpressaoAberto = false">Cancelar</BotaoBase>
-        <BotaoBase :disabled="imprimindoAgora" variante="aviso" @click="concluirVenda({ imprimir: false })">Concluir sem imprimir</BotaoBase>
-        <BotaoBase :disabled="!configuracaoStore.impressoraPadrao || imprimindoAgora" variante="sucesso" @click="concluirVenda({ imprimir: true })">
-          {{ imprimindoAgora ? "A imprimir..." : "Imprimir e concluir" }}
+        <BotaoBase variante="perigo" title="Cancelar" aria-label="Cancelar" @click="modalImpressaoAberto = false">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </BotaoBase>
+        <BotaoBase :disabled="imprimindoAgora" variante="aviso" title="Concluir sem imprimir" aria-label="Concluir sem imprimir" @click="concluirVenda({ imprimir: false })">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </BotaoBase>
+        <BotaoBase
+          :disabled="!configuracaoStore.impressoraPadrao || imprimindoAgora"
+          variante="sucesso"
+          :title="imprimindoAgora ? 'A imprimir...' : 'Imprimir e concluir'"
+          :aria-label="imprimindoAgora ? 'A imprimir...' : 'Imprimir e concluir'"
+          @click="concluirVenda({ imprimir: true })"
+        >
+          <svg v-if="imprimindoAgora" class="animate-spin" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-3-6.7" />
+          </svg>
+          <svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="6 9 6 2 18 2 18 9" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <rect x="6" y="14" width="12" height="8" />
+          </svg>
         </BotaoBase>
       </div>
     </div>
