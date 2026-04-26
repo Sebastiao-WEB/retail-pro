@@ -157,6 +157,18 @@ async function carregarImpressoras() {
             <BotaoBase variante="secundario" @click="carregarImpressoras">Atualizar lista</BotaoBase>
             <BotaoBase variante="aviso" @click="guardarConfiguracoes">Guardar Impressão</BotaoBase>
           </div>
+          <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+            <div>
+              <p class="font-semibold text-slate-700">Som dos alertas</p>
+              <p class="text-[11px] text-slate-500">Toca som em sucesso, aviso, erro e informação</p>
+            </div>
+            <input
+              :checked="configuracoes.somToastsAtivo"
+              type="checkbox"
+              class="h-4 w-4 accent-amber-500"
+              @change="configuracoes.definirSomToastsAtivo($event.target.checked)"
+            />
+          </label>
         </div>
       </article>
     </div>

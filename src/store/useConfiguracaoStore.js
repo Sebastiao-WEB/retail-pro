@@ -26,6 +26,7 @@ const configuracoesPadrao = {
   copiasImpressao: 1,
   larguraTalao: "80mm",
   corteAutomatico: true,
+  somToastsAtivo: true,
 };
 
 export const useConfiguracaoStore = defineStore("configuracoes", {
@@ -66,6 +67,10 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
     },
     definirCorteAutomatico(valor) {
       this.corteAutomatico = !!valor;
+      this.salvar();
+    },
+    definirSomToastsAtivo(valor) {
+      this.somToastsAtivo = !!valor;
       this.salvar();
     },
   },
