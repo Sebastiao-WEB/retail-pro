@@ -1,15 +1,12 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import BotaoBase from "../../components/BotaoBase.vue";
-import ModalBase from "../../components/ModalBase.vue";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
+import { mostrarToastSwal } from "../../services/toast";
 
 const configuracoes = useConfiguracaoStore();
 const impressorasDisponiveis = ref([]);
 const carregandoImpressoras = ref(false);
-const erroImpressoras = ref("");
-const modalSucessoAberto = ref(false);
-const mensagemSucesso = ref("");
 const bloqueadoAdministrador = true;
 
 onMounted(() => {
@@ -19,12 +16,10 @@ onMounted(() => {
 
 function guardarConfiguracoes() {
   configuracoes.salvar();
-  mensagemSucesso.value = "Configurações guardadas com sucesso.";
-  modalSucessoAberto.value = true;
+  mostrarToastSwal("Configurações guardadas com sucesso.", "success");
 }
 
 async function carregarImpressoras() {
-  erroImpressoras.value = "";
   const fallbackGlobal = Array.isArray(window.__IMPRESSORAS_INSTALADAS) ? window.__IMPRESSORAS_INSTALADAS : [];
   if (!window.api?.listarImpressoras && fallbackGlobal.length) {
     impressorasDisponiveis.value = fallbackGlobal.map((item) => item.displayName || item.name).filter(Boolean);
@@ -34,7 +29,7 @@ async function carregarImpressoras() {
     return;
   }
   if (!window.api?.listarImpressoras) {
-    erroImpressoras.value = "Listagem de impressoras disponível apenas no app desktop (Electron).";
+    mostrarToastSwal("Listagem de impressoras disponível apenas no app desktop (Electron).", "warning");
     impressorasDisponiveis.value = [];
     return;
   }
@@ -45,13 +40,13 @@ async function carregarImpressoras() {
     const lista = listaApi.length ? listaApi : fallbackGlobal;
     impressorasDisponiveis.value = lista.map((item) => item.displayName || item.name).filter(Boolean);
     if (!impressorasDisponiveis.value.length) {
-      erroImpressoras.value = "Nenhuma impressora instalada foi encontrada.";
+      mostrarToastSwal("Nenhuma impressora instalada foi encontrada.", "warning");
     }
     if (!configuracoes.impressoraPadrao && impressorasDisponiveis.value.length) {
       configuracoes.definirImpressoraPadrao(impressorasDisponiveis.value[0]);
     }
   } catch {
-    erroImpressoras.value = "Falha ao listar impressoras instaladas.";
+    mostrarToastSwal("Falha ao listar impressoras instaladas.", "error");
     impressorasDisponiveis.value = [];
   } finally {
     carregandoImpressoras.value = false;
@@ -115,40 +110,6 @@ async function carregarImpressoras() {
     <div class="space-y-4">
       <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div class="border-b border-slate-200 px-4 py-3">
-          <h3 class="text-sm font-bold text-slate-900">Aparência das Facturas</h3>
-          <p class="mt-1 text-[11px] font-semibold text-amber-700">Edição exclusiva do administrador</p>
-        </div>
-        <div class="space-y-3 p-4">
-          <div>
-            <p class="mb-2 text-xs font-semibold text-slate-600">Tema / Cor Principal</p>
-            <div class="flex gap-2">
-              <span class="h-6 w-6 rounded-md border-2 border-slate-900 bg-amber-400" />
-              <span class="h-6 w-6 rounded-md bg-blue-500" />
-              <span class="h-6 w-6 rounded-md bg-emerald-500" />
-              <span class="h-6 w-6 rounded-md bg-purple-500" />
-              <span class="h-6 w-6 rounded-md bg-slate-900" />
-            </div>
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-semibold text-slate-600">Idioma das Facturas</label>
-            <select v-model="configuracoes.idiomaFacturas" class="rp-input" :disabled="bloqueadoAdministrador">
-              <option>Português (Moçambique)</option>
-              <option>Português (Portugal)</option>
-              <option>English</option>
-            </select>
-          </div>
-          <div>
-            <label class="mb-1 block text-xs font-semibold text-slate-600">Rodapé das Facturas</label>
-            <textarea v-model="configuracoes.rodapeFacturas" rows="3" class="rp-input" :disabled="bloqueadoAdministrador" />
-          </div>
-          <div class="flex justify-end">
-            <BotaoBase variante="aviso" :disabled="bloqueadoAdministrador" @click="guardarConfiguracoes">Guardar Aparência</BotaoBase>
-          </div>
-        </div>
-      </article>
-
-      <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-bold text-slate-900">Impressão do POS</h3>
           <p class="text-xs text-slate-500">Defina a impressora padrão usada no talão</p>
         </div>
@@ -162,7 +123,6 @@ async function carregarImpressoras() {
                 {{ impressora }}
               </option>
             </select>
-            <p v-if="erroImpressoras" class="mt-1 text-[11px] text-red-600">{{ erroImpressoras }}</p>
           </div>
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
@@ -201,20 +161,4 @@ async function carregarImpressoras() {
       </article>
     </div>
   </section>
-
-  <ModalBase :aberto="modalSucessoAberto" titulo="Alterações guardadas" @fechar="modalSucessoAberto = false">
-    <div class="space-y-4">
-      <div class="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </span>
-        <p>{{ mensagemSucesso }}</p>
-      </div>
-      <div class="flex justify-end">
-        <BotaoBase variante="sucesso" @click="modalSucessoAberto = false">OK</BotaoBase>
-      </div>
-    </div>
-  </ModalBase>
 </template>

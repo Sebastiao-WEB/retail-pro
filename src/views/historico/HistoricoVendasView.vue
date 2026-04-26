@@ -5,6 +5,7 @@ import ModalBase from "../../components/ModalBase.vue";
 import { useVendaStore } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
+import { mostrarToastSwal } from "../../services/toast";
 
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
@@ -12,8 +13,6 @@ const configuracaoStore = useConfiguracaoStore();
 
 const vendaSelecionada = ref(null);
 const modalDetalhesAberto = ref(false);
-const mensagem = ref("");
-const tipoMensagem = ref("sucesso");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
@@ -160,13 +159,11 @@ function gerarHtmlTalao(venda) {
 
 async function reimprimirVenda(venda) {
   if (!window.api?.imprimirTalao) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Reimpressão disponível apenas na versão desktop (Electron).";
+    mostrarToastSwal("Reimpressão disponível apenas na versão desktop (Electron).", "error");
     return;
   }
   if (!configuracaoStore.impressoraPadrao) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Defina a impressora padrão em Configurações para reimprimir.";
+    mostrarToastSwal("Defina a impressora padrão em Configurações para reimprimir.", "error");
     return;
   }
   try {
@@ -178,27 +175,22 @@ async function reimprimirVenda(venda) {
       corteAutomatico: true,
     });
     if (!resultado?.ok) {
-      tipoMensagem.value = "erro";
-      mensagem.value = resultado?.error || "Falha ao reimprimir recibo.";
+      mostrarToastSwal(resultado?.error || "Falha ao reimprimir recibo.", "error");
       return;
     }
-    tipoMensagem.value = "sucesso";
-    mensagem.value = `Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`;
+    mostrarToastSwal(`Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`, "success");
   } catch {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Falha ao reimprimir recibo.";
+    mostrarToastSwal("Falha ao reimprimir recibo.", "error");
   }
 }
 
 function abrirSolicitacaoReversao(venda) {
   if (venda.estado === "Revertida") {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Venda já foi revertida.";
+    mostrarToastSwal("Venda já foi revertida.", "error");
     return;
   }
   if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Já existe solicitação de reversão pendente para esta venda.";
+    mostrarToastSwal("Já existe solicitação de reversão pendente para esta venda.", "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -216,14 +208,12 @@ async function solicitarReversao() {
     motivo: motivoReversao.value.trim(),
   });
   if (!resultado.ok) {
-    tipoMensagem.value = "erro";
-    mensagem.value = resultado.erro || "Não foi possível solicitar reversão.";
+    mostrarToastSwal(resultado.erro || "Não foi possível solicitar reversão.", "error");
     return;
   }
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
-  tipoMensagem.value = "sucesso";
-  mensagem.value = "Solicitação de reversão enviada ao gerente para aprovação.";
+  mostrarToastSwal("Solicitação de reversão enviada ao gerente para aprovação.", "success");
 }
 </script>
 
@@ -323,9 +313,6 @@ async function solicitarReversao() {
         </table>
       </div>
 
-      <p v-if="mensagem" class="mt-3 text-sm font-semibold" :class="tipoMensagem === 'erro' ? 'text-red-600' : 'text-emerald-700'">
-        {{ mensagem }}
-      </p>
     </div>
   </section>
 

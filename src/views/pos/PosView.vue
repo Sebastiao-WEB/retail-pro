@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
@@ -11,6 +11,7 @@ import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
+import { mostrarToastSwal } from "../../services/toast";
 
 const produtoStore = useProdutoStore();
 const carrinhoStore = useCarrinhoStore();
@@ -22,8 +23,6 @@ const route = useRoute();
 
 const pesquisa = ref("");
 const cliente = ref("Cliente Geral");
-const mensagem = ref("");
-const tipoMensagem = ref("sucesso");
 const descontoAtivo = ref(false);
 const valorPagoInteiro = ref("0");
 const valorPagoDecimal = ref("00");
@@ -35,17 +34,11 @@ const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
 const dinheiroRealFecho = ref(null);
 const justificativaDiferenca = ref("");
-const erroFecho = ref("");
-const erroFinalizacao = ref("");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 const listaPreVisualizacaoRef = ref(null);
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
-const toastAberto = ref(false);
-const toastMensagem = ref("");
-const toastTipo = ref("erro");
-let temporizadorToast = null;
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 const produtosFiltrados = computed(() => {
@@ -145,21 +138,12 @@ function podeAdicionarProduto(produto) {
 }
 
 function mostrarErroStock(texto = "Stock insuficiente para esta quantidade.") {
-  tipoMensagem.value = "erro";
-  mensagem.value = texto;
-  setTimeout(() => {
-    if (tipoMensagem.value === "erro") mensagem.value = "";
-  }, 2500);
+  mostrarToastSwal(texto, "error");
 }
 
 function mostrarToast(texto, tipo = "erro") {
-  toastMensagem.value = texto;
-  toastTipo.value = tipo;
-  toastAberto.value = true;
-  if (temporizadorToast) clearTimeout(temporizadorToast);
-  temporizadorToast = setTimeout(() => {
-    toastAberto.value = false;
-  }, 2200);
+  const tipoSwal = tipo === "sucesso" ? "success" : "error";
+  mostrarToastSwal(texto, tipoSwal);
 }
 
 async function adicionarAoCarrinho(produto) {
@@ -308,7 +292,7 @@ function validarOrigemStock() {
   if (!temApiConfigurada()) return true;
   if (origemStockVenda.value.id) return true;
   const caixaAtual = sessaoStore.caixaAtribuido || "caixa atual";
-  erroFinalizacao.value = `A localização de stock não está vinculada ao ${caixaAtual}. Defina esta ligação no backend antes de concluir vendas.`;
+  mostrarToastSwal(`A localização de stock não está vinculada ao ${caixaAtual}. Defina esta ligação no backend antes de concluir vendas.`, "error");
   return false;
 }
 
@@ -318,7 +302,6 @@ function finalizarVenda() {
     return;
   }
   if (!carrinhoStore.itens.length) return;
-  erroFinalizacao.value = "";
   if (!validarOrigemStock()) {
     mostrarToast("Localização de stock não configurada para o caixa.", "erro");
     return;
@@ -352,17 +335,15 @@ function limparCarrinhoAtual() {
   valorPagoInteiro.value = "0";
   valorPagoDecimal.value = "00";
   descontoAtivo.value = false;
-  mensagem.value = "";
 }
 
 async function concluirVenda(opcoes = { imprimir: true }) {
   if (!vendaPendente.value) return;
   if (!validarOrigemStock()) return;
   if (carrinhoStore.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < carrinhoStore.total) {
-    erroFinalizacao.value = "Valor pago insuficiente para concluir a venda.";
+    mostrarToastSwal("Valor pago insuficiente para concluir a venda.", "error");
     return;
   }
-  erroFinalizacao.value = "";
 
   const venda = {
     ...vendaPendente.value,
@@ -380,13 +361,11 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   };
   if (opcoes.imprimir) {
     if (!window.api?.imprimirTalao) {
-      tipoMensagem.value = "erro";
-      mensagem.value = "API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.";
+      mostrarToastSwal("API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.", "error");
       return;
     }
     if (!configuracaoStore.impressoraPadrao) {
-      tipoMensagem.value = "erro";
-      mensagem.value = "Defina a impressora padrão em Configurações para imprimir.";
+      mostrarToastSwal("Defina a impressora padrão em Configurações para imprimir.", "error");
       return;
     }
     imprimindoAgora.value = true;
@@ -399,8 +378,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     });
     imprimindoAgora.value = false;
     if (!resultado?.ok) {
-      tipoMensagem.value = "erro";
-      mensagem.value = resultado?.error || "Falha ao imprimir talão.";
+      mostrarToastSwal(resultado?.error || "Falha ao imprimir talão.", "error");
       return;
     }
   }
@@ -412,23 +390,22 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   valorPagoDecimal.value = "00";
   modalImpressaoAberto.value = false;
 
-  tipoMensagem.value = "sucesso";
-  mensagem.value = opcoes.imprimir
-    ? `Venda realizada e enviada para impressão em ${configuracaoStore.impressoraPadrao}.`
-    : "Venda realizada com sucesso.";
+  mostrarToastSwal(
+    opcoes.imprimir
+      ? `Venda realizada e enviada para impressão em ${configuracaoStore.impressoraPadrao}.`
+      : "Venda realizada com sucesso.",
+    "success"
+  );
   vendaPendente.value = null;
-  setTimeout(() => (mensagem.value = ""), 2500);
 }
 
 async function reimprimirVenda(venda) {
   if (!window.api?.imprimirTalao) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Reimpressão disponível apenas na versão desktop (Electron).";
+    mostrarToastSwal("Reimpressão disponível apenas na versão desktop (Electron).", "error");
     return;
   }
   if (!configuracaoStore.impressoraPadrao) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Defina a impressora padrão em Configurações para reimprimir.";
+    mostrarToastSwal("Defina a impressora padrão em Configurações para reimprimir.", "error");
     return;
   }
   imprimindoAgora.value = true;
@@ -441,23 +418,19 @@ async function reimprimirVenda(venda) {
   });
   imprimindoAgora.value = false;
   if (!resultado?.ok) {
-    tipoMensagem.value = "erro";
-    mensagem.value = resultado?.error || "Falha ao reimprimir talão.";
+    mostrarToastSwal(resultado?.error || "Falha ao reimprimir talão.", "error");
     return;
   }
-  tipoMensagem.value = "sucesso";
-  mensagem.value = `Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`;
+  mostrarToastSwal(`Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`, "success");
 }
 
 function abrirSolicitacaoReversao(venda) {
   if (venda.estado === "Revertida") {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Venda já foi revertida.";
+    mostrarToastSwal("Venda já foi revertida.", "error");
     return;
   }
   if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    tipoMensagem.value = "erro";
-    mensagem.value = "Já existe solicitação de reversão pendente para esta venda.";
+    mostrarToastSwal("Já existe solicitação de reversão pendente para esta venda.", "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -475,14 +448,12 @@ async function confirmarSolicitacaoReversao() {
     motivo: motivoReversao.value.trim(),
   });
   if (!resultado.ok) {
-    tipoMensagem.value = "erro";
-    mensagem.value = resultado.erro || "Não foi possível solicitar reversão.";
+    mostrarToastSwal(resultado.erro || "Não foi possível solicitar reversão.", "error");
     return;
   }
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
-  tipoMensagem.value = "sucesso";
-  mensagem.value = "Solicitação de reversão enviada ao gerente para aprovação.";
+  mostrarToastSwal("Solicitação de reversão enviada ao gerente para aprovação.", "success");
 }
 
 onMounted(() => {
@@ -493,35 +464,28 @@ onMounted(() => {
   }
 });
 
-onBeforeUnmount(() => {
-  if (temporizadorToast) clearTimeout(temporizadorToast);
-});
-
 function abrirTurnoCaixa() {
   const fundo = Number(fundoInicialInput.value || 0);
   sessaoStore.abrirTurno({ fundoInicial: fundo });
   modalAberturaCaixa.value = false;
-  tipoMensagem.value = "sucesso";
-  mensagem.value = `Caixa aberto com fundo inicial de ${formatarMT(fundo)}.`;
+  mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)}.`, "success");
 }
 
 function abrirFechoCaixa() {
   dinheiroRealFecho.value = dinheiroEsperadoFecho.value;
   justificativaDiferenca.value = "";
-  erroFecho.value = "";
   modalFechoCaixa.value = true;
 }
 
 function confirmarFechoCaixa() {
   if (diferencaFecho.value === null) {
-    erroFecho.value = "Informe o dinheiro real contado no caixa.";
+    mostrarToastSwal("Informe o dinheiro real contado no caixa.", "warning");
     return;
   }
   if (diferencaFecho.value !== 0 && !justificativaDiferenca.value.trim()) {
-    erroFecho.value = "Informe a justificativa da diferença para concluir o fecho.";
+    mostrarToastSwal("Informe a justificativa da diferença para concluir o fecho.", "warning");
     return;
   }
-  erroFecho.value = "";
   sessaoStore.fecharTurno({
     utilizador: sessaoStore.utilizador,
     caixa: sessaoStore.caixaAtribuido,
@@ -544,8 +508,7 @@ function confirmarFechoCaixa() {
     })),
   });
   modalFechoCaixa.value = false;
-  tipoMensagem.value = "sucesso";
-  mensagem.value = "Fecho de caixa concluído e relatório diário registado.";
+  mostrarToastSwal("Fecho de caixa concluído e relatório diário registado.", "success");
 }
 </script>
 
@@ -736,13 +699,10 @@ function confirmarFechoCaixa() {
         </div>
       </div>
 
-      <p v-if="mensagem" class="text-sm font-semibold" :class="tipoMensagem === 'erro' ? 'text-red-600' : 'text-emerald-700'">
-        {{ mensagem }}
-      </p>
     </div>
 
-    <div v-if="menuPosAtivo === 'caixa'" class="space-y-4 xl:col-span-2">
-      <div class="rp-card p-4">
+    <div v-if="menuPosAtivo === 'caixa'" class="space-y-4 xl:col-span-2 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+      <div class="rp-card overflow-hidden p-4">
         <div class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
             <h3 class="text-base font-bold text-slate-900">Dashboard de Caixa</h3>
@@ -790,22 +750,9 @@ function confirmarFechoCaixa() {
           </div>
         </div>
 
-        <div
-          class="mt-3 rounded-lg border p-3 text-sm"
-          :class="
-            !diferencaFechoTemValor
-              ? 'border-slate-200 bg-slate-50 text-slate-700'
-              : diferencaFecho >= 0
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border-red-200 bg-red-50 text-red-800'
-          "
-        >
-          Diferença projetada (contado - esperado):
-          <strong>{{ diferencaFechoTemValor ? formatarMT(diferencaFecho) : "Aguardando contagem" }}</strong>
-        </div>
       </div>
 
-      <div class="rp-card p-4">
+      <div class="rp-card overflow-hidden p-4 xl:flex-1 xl:min-h-0">
         <div class="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
           <div>
             <h3 class="text-sm font-bold text-slate-900">Últimas 5 vendas</h3>
@@ -813,65 +760,67 @@ function confirmarFechoCaixa() {
           </div>
         </div>
 
-        <div class="overflow-hidden rounded-lg border border-slate-200">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        <div class="overflow-hidden rounded-lg border border-slate-200 xl:flex xl:h-41 xl:min-h-0 xl:flex-col">
+          <table class="w-full table-fixed text-xs">
+            <thead class="bg-slate-50 text-left text-[9px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th class="px-3 py-2">Referência</th>
-                <th class="px-3 py-2">Data</th>
-                <th class="px-3 py-2">Cliente</th>
-                <th class="px-3 py-2">Pagamento</th>
-                <th class="px-3 py-2">Total</th>
-                <th class="px-3 py-2 text-right">Ações</th>
+                <th class="w-[22%] px-2 py-1.5">Referência</th>
+                <th class="w-[21%] px-2 py-1.5">Data</th>
+                <th class="w-[21%] px-2 py-1.5">Cliente</th>
+                <th class="w-[14%] px-2 py-1.5">Pagamento</th>
+                <th class="w-[12%] px-2 py-1.5">Total</th>
+                <th class="w-[10%] px-2 py-1.5 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-if="!ultimasVendasTurno.length">
-                <td colspan="6" class="px-3 py-7 text-center text-xs text-slate-500">Sem vendas no turno atual.</td>
-              </tr>
-              <tr v-for="venda in ultimasVendasTurno" :key="venda.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
-                <td class="px-3 py-2 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
-                <td class="px-3 py-2 text-slate-600">{{ formatarData(venda.data) }}</td>
-                <td class="px-3 py-2 font-semibold text-slate-800">{{ venda.cliente }}</td>
-                <td class="px-3 py-2 text-slate-600">{{ venda.metodoPagamento }}</td>
-                <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(venda.total) }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex justify-end gap-2">
-                    <button
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
-                      title="Reimprimir"
-                      aria-label="Reimprimir"
-                      @click="reimprimirVenda(venda)"
-                    >
-                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                        <polyline points="6 9 6 2 18 2 18 9" />
-                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                        <rect x="6" y="14" width="12" height="8" />
-                      </svg>
-                    </button>
-                    <button
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="Solicitar reversão"
-                      aria-label="Solicitar reversão"
-                      :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
-                      @click="abrirSolicitacaoReversao(venda)"
-                    >
-                      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24" aria-hidden="true">
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 .49-9" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
           </table>
+
+          <div class="max-h-28 overflow-y-auto overflow-x-hidden xl:max-h-28">
+            <table class="w-full table-fixed text-xs">
+              <tbody>
+                <tr v-if="!ultimasVendasTurno.length">
+                  <td colspan="6" class="px-2 py-5 text-center text-[11px] text-slate-500">Sem vendas no turno atual.</td>
+                </tr>
+                <tr v-for="venda in ultimasVendasTurno" :key="venda.id" class="border-t border-slate-100 text-[11px] hover:bg-slate-50">
+                  <td class="w-[22%] px-2 py-1.5 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
+                  <td class="w-[21%] px-2 py-1.5 text-slate-600">{{ formatarData(venda.data) }}</td>
+                  <td class="w-[21%] px-2 py-1.5 font-semibold text-slate-800">{{ venda.cliente }}</td>
+                  <td class="w-[14%] px-2 py-1.5 text-slate-600">{{ venda.metodoPagamento }}</td>
+                  <td class="w-[12%] px-2 py-1.5 font-semibold text-slate-800">{{ formatarMT(venda.total) }}</td>
+                  <td class="w-[10%] px-2 py-1.5">
+                    <div class="flex justify-end gap-1.5">
+                      <button
+                        class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
+                        title="Reimprimir"
+                        aria-label="Reimprimir"
+                        @click="reimprimirVenda(venda)"
+                      >
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                          <polyline points="6 9 6 2 18 2 18 9" />
+                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                          <rect x="6" y="14" width="12" height="8" />
+                        </svg>
+                      </button>
+                      <button
+                        class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Solicitar reversão"
+                        aria-label="Solicitar reversão"
+                        :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                        @click="abrirSolicitacaoReversao(venda)"
+                      >
+                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24" aria-hidden="true">
+                          <polyline points="1 4 1 10 7 10" />
+                          <path d="M3.51 15a9 9 0 1 0 .49-9" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <p v-if="mensagem" class="text-sm font-semibold" :class="tipoMensagem === 'erro' ? 'text-red-600' : 'text-emerald-700'">
-        {{ mensagem }}
-      </p>
     </div>
   </section>
 
@@ -932,8 +881,6 @@ function confirmarFechoCaixa() {
         />
       </div>
 
-      <p v-if="erroFecho" class="text-sm font-semibold text-red-600">{{ erroFecho }}</p>
-
       <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
         <BotaoBase variante="secundario" @click="modalFechoCaixa = false">Cancelar</BotaoBase>
         <BotaoBase variante="perigo" @click="confirmarFechoCaixa">Confirmar fecho</BotaoBase>
@@ -966,7 +913,11 @@ function confirmarFechoCaixa() {
         <p class="text-4xl font-black text-white">{{ formatarMT(carrinhoStore.total) }}</p>
       </div>
 
-      <div class="rounded-lg border p-3 text-xs" :class="origemStockVenda.id ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'">
+      <div
+        v-if="temApiConfigurada()"
+        class="rounded-lg border p-3 text-xs"
+        :class="origemStockVenda.id ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'"
+      >
         <p class="font-semibold">Origem do stock desta venda</p>
         <p v-if="origemStockVenda.id">
           {{ origemStockVenda.nome || origemStockVenda.codigo || `Localização #${origemStockVenda.id}` }}
@@ -1043,7 +994,6 @@ function confirmarFechoCaixa() {
           </div>
         </div>
       </div>
-      <p v-if="erroFinalizacao" class="text-sm font-semibold text-red-600">{{ erroFinalizacao }}</p>
     </div>
     <template #footer>
       <div class="flex justify-end gap-2">
@@ -1104,20 +1054,4 @@ function confirmarFechoCaixa() {
     </div>
   </ModalBase>
 
-  <transition
-    enter-active-class="transition duration-200 ease-out"
-    enter-from-class="translate-y-2 opacity-0"
-    enter-to-class="translate-y-0 opacity-100"
-    leave-active-class="transition duration-150 ease-in"
-    leave-from-class="translate-y-0 opacity-100"
-    leave-to-class="translate-y-2 opacity-0"
-  >
-    <div
-      v-if="toastAberto"
-      class="pointer-events-none fixed bottom-5 right-5 z-[9999] max-w-sm rounded-lg border px-4 py-3 text-sm font-semibold shadow-xl"
-      :class="toastTipo === 'erro' ? 'border-red-200 bg-red-600 text-white' : 'border-emerald-200 bg-emerald-600 text-white'"
-    >
-      {{ toastMensagem }}
-    </div>
-  </transition>
 </template>
