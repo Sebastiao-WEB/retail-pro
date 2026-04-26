@@ -12,7 +12,6 @@ const secoes = [
   {
     titulo: "Principal",
     itens: [
-      { nome: "Clientes", rota: "/clientes", ico: "◉" },
       { nome: "Histórico de Vendas", rota: "/historico-vendas", ico: "◷" },
     ],
   },
