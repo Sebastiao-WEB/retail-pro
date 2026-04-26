@@ -4,7 +4,7 @@ import { useClienteStore } from "../../store/useClienteStore";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import TabelaBase from "../../components/TabelaBase.vue";
-import { Pencil, Trash2, X } from "lucide-vue-next";
+import { Filter, Pencil, Plus, Save, Trash2, X } from "lucide-vue-next";
 
 const clienteStore = useClienteStore();
 const pesquisa = ref("");
@@ -52,9 +52,17 @@ function guardar() {
     <TabelaBase :colunas="colunas" :linhas="linhas" :resumo-rodape="`Mostrando ${linhas.length} clientes`">
       <template #filtros>
         <input v-model="pesquisa" class="rp-input !max-w-xs !py-1.5 !text-[11px]" placeholder="Pesquisar por nome ou telefone..." />
-        <button class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500">Filtrar</button>
+        <button class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50">
+          <Filter :size="12" />
+          <span>Filtrar</span>
+        </button>
         <span class="ml-auto">
-          <BotaoBase @click="novoCliente">Adicionar Cliente</BotaoBase>
+          <BotaoBase @click="novoCliente">
+            <span class="inline-flex items-center gap-1.5">
+              <Plus :size="14" />
+              <span>Adicionar Cliente</span>
+            </span>
+          </BotaoBase>
         </span>
       </template>
       <template #acoes="{ linha }">
@@ -83,7 +91,12 @@ function guardar() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase tipo="submit" form="form-cliente" variante="aviso">Guardar cliente</BotaoBase>
+        <BotaoBase tipo="submit" form="form-cliente" variante="aviso">
+          <span class="inline-flex items-center gap-1.5">
+            <Save :size="14" />
+            <span>Guardar cliente</span>
+          </span>
+        </BotaoBase>
       </div>
     </template>
   </ModalBase>

@@ -1,4 +1,6 @@
 <script setup>
+import { ChevronLeft, ChevronRight } from "lucide-vue-next";
+
 const props = defineProps({
   colunas: { type: Array, default: () => [] },
   linhas: { type: Array, default: () => [] },
@@ -57,7 +59,10 @@ const props = defineProps({
         {{ props.resumoRodape || `Mostrando ${props.linhas.length} registos` }}
       </span>
       <div class="flex items-center gap-1.5 text-[11px]">
-        <button class="rounded-md border border-slate-200 px-2 py-1 text-slate-500 hover:bg-slate-50">Anterior</button>
+        <button class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-500 hover:bg-slate-50">
+          <ChevronLeft :size="12" />
+          <span>Anterior</span>
+        </button>
         <button
           v-for="pagina in props.totalPaginas"
           :key="pagina"
@@ -66,7 +71,10 @@ const props = defineProps({
         >
           {{ pagina }}
         </button>
-        <button class="rounded-md border border-slate-200 px-2 py-1 text-slate-500 hover:bg-slate-50">Próximo</button>
+        <button class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-slate-500 hover:bg-slate-50">
+          <span>Próximo</span>
+          <ChevronRight :size="12" />
+        </button>
       </div>
     </div>
   </div>

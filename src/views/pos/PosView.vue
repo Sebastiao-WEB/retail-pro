@@ -15,6 +15,8 @@ import { mostrarToastSwal } from "../../services/toast";
 import {
   Barcode,
   Check,
+  DoorClosed,
+  DoorOpen,
   LoaderCircle,
   Printer,
   RotateCcw,
@@ -824,7 +826,12 @@ function confirmarFechoCaixa() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="aviso" @click="abrirTurnoCaixa">Confirmar abertura</BotaoBase>
+        <BotaoBase variante="aviso" @click="abrirTurnoCaixa">
+          <span class="inline-flex items-center gap-1.5">
+            <DoorOpen :size="14" />
+            <span>Confirmar abertura</span>
+          </span>
+        </BotaoBase>
       </div>
     </template>
   </ModalBase>
@@ -868,7 +875,12 @@ function confirmarFechoCaixa() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="aviso" @click="confirmarFechoCaixa">Confirmar fecho</BotaoBase>
+        <BotaoBase variante="aviso" @click="confirmarFechoCaixa">
+          <span class="inline-flex items-center gap-1.5">
+            <DoorClosed :size="14" />
+            <span>Confirmar fecho</span>
+          </span>
+        </BotaoBase>
       </div>
     </template>
   </ModalBase>

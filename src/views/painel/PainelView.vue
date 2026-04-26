@@ -4,7 +4,7 @@ import ModalBase from "../../components/ModalBase.vue";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { useVendaStore } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
-import { BadgeDollarSign, ChartNoAxesCombined, CircleDollarSign, TriangleAlert, Users, X } from "lucide-vue-next";
+import { BadgeDollarSign, ChartNoAxesCombined, Check, CircleDollarSign, List, TriangleAlert, Users, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
@@ -103,10 +103,16 @@ const actividades = [
               <td class="px-4 py-2.5">
                 <div class="flex justify-end gap-2">
                   <button class="rounded-md bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100" @click="abrirConfirmacao(item.id, 'cancelar')">
-                    Cancelar
+                    <span class="inline-flex items-center gap-1">
+                      <X :size="11" />
+                      <span>Cancelar</span>
+                    </span>
                   </button>
                   <button class="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700" @click="abrirConfirmacao(item.id, 'aprovar')">
-                    Confirmar
+                    <span class="inline-flex items-center gap-1">
+                      <Check :size="11" />
+                      <span>Confirmar</span>
+                    </span>
                   </button>
                 </div>
               </td>
@@ -141,7 +147,10 @@ const actividades = [
             <h3 class="text-sm font-bold text-slate-900">Últimas Facturas</h3>
             <p class="text-xs text-slate-500">Documentos recentes</p>
           </div>
-          <button class="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500 hover:bg-slate-50">Ver tudo</button>
+          <button class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50">
+            <List :size="12" />
+            <span>Ver tudo</span>
+          </button>
         </div>
 
         <div class="overflow-auto">
@@ -258,7 +267,10 @@ const actividades = [
           </span>
         </BotaoBase>
         <BotaoBase :variante="acaoPendente?.tipo === 'aprovar' ? 'sucesso' : 'aviso'" @click="confirmarDecisao">
-          Confirmar
+          <span class="inline-flex items-center gap-1.5">
+            <Check :size="14" />
+            <span>Confirmar</span>
+          </span>
         </BotaoBase>
       </div>
     </template>

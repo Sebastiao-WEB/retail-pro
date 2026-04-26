@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import TabelaBase from "../../components/TabelaBase.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
 import { formatarMoeda } from "../../services/formatadores";
+import { Download, Filter } from "lucide-vue-next";
 
 const produtoStore = useProdutoStore();
 const pesquisa = ref("");
@@ -29,8 +30,14 @@ const linhas = computed(() =>
     <TabelaBase :colunas="colunas" :linhas="linhas" :resumo-rodape="`Mostrando ${linhas.length} registos de produtos`">
       <template #filtros>
         <input v-model="pesquisa" class="rp-input !max-w-xs !py-1.5 !text-[11px]" placeholder="Pesquisar produto..." />
-        <button class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500">Filtrar</button>
-        <button class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500">Exportar</button>
+        <button class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50">
+          <Filter :size="12" />
+          <span>Filtrar</span>
+        </button>
+        <button class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50">
+          <Download :size="12" />
+          <span>Exportar</span>
+        </button>
       </template>
       <template #coluna-precoVendaComIva="{ linha }">
         <div class="leading-tight">

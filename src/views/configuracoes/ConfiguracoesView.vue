@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
+import { RefreshCcw, Save, X } from "lucide-vue-next";
 
 const configuracoes = useConfiguracaoStore();
 const impressorasDisponiveis = ref([]);
@@ -99,8 +100,18 @@ async function carregarImpressoras() {
             </div>
           </div>
           <div class="flex justify-end gap-2 border-t border-slate-100 pt-3">
-            <BotaoBase variante="secundario" :disabled="bloqueadoAdministrador">Cancelar</BotaoBase>
-            <BotaoBase variante="aviso" :disabled="bloqueadoAdministrador" @click="guardarConfiguracoes">Guardar Alterações</BotaoBase>
+            <BotaoBase variante="secundario" :disabled="bloqueadoAdministrador">
+              <span class="inline-flex items-center gap-1.5">
+                <X :size="14" />
+                <span>Cancelar</span>
+              </span>
+            </BotaoBase>
+            <BotaoBase variante="aviso" :disabled="bloqueadoAdministrador" @click="guardarConfiguracoes">
+              <span class="inline-flex items-center gap-1.5">
+                <Save :size="14" />
+                <span>Guardar Alterações</span>
+              </span>
+            </BotaoBase>
           </div>
         </div>
       </article>
@@ -154,8 +165,18 @@ async function carregarImpressoras() {
             />
           </label>
           <div class="flex justify-end gap-2">
-            <BotaoBase variante="secundario" @click="carregarImpressoras">Atualizar lista</BotaoBase>
-            <BotaoBase variante="aviso" @click="guardarConfiguracoes">Guardar Impressão</BotaoBase>
+            <BotaoBase variante="secundario" @click="carregarImpressoras">
+              <span class="inline-flex items-center gap-1.5">
+                <RefreshCcw :size="14" />
+                <span>Atualizar lista</span>
+              </span>
+            </BotaoBase>
+            <BotaoBase variante="aviso" @click="guardarConfiguracoes">
+              <span class="inline-flex items-center gap-1.5">
+                <Save :size="14" />
+                <span>Guardar Impressão</span>
+              </span>
+            </BotaoBase>
           </div>
           <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
             <div>

@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
 import TabelaBase from "../../components/TabelaBase.vue";
+import { AlertTriangle, Boxes, Clock3 } from "lucide-vue-next";
 
 const produtoStore = useProdutoStore();
 
@@ -27,9 +28,18 @@ const linhas = computed(() =>
     </div>
     <TabelaBase :colunas="colunas" :linhas="linhas" :resumo-rodape="`Mostrando ${linhas.length} produtos em stock`">
       <template #filtros>
-        <button class="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">Todos</button>
-        <button class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500">Stock baixo</button>
-        <button class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500">Reposição breve</button>
+        <button class="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+          <Boxes :size="11" />
+          <span>Todos</span>
+        </button>
+        <button class="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">
+          <AlertTriangle :size="11" />
+          <span>Stock baixo</span>
+        </button>
+        <button class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+          <Clock3 :size="11" />
+          <span>Reposição breve</span>
+        </button>
       </template>
       <template #coluna-stock="{ linha }">
         <span :class="linha.stock <= 10 ? 'font-bold text-red-600' : 'text-slate-700'">{{ linha.stock }}</span>

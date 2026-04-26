@@ -5,7 +5,7 @@ import BotaoBase from "./BotaoBase.vue";
 import ModalBase from "./ModalBase.vue";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { authApi, temApiConfigurada } from "../api";
-import { TriangleAlert, X } from "lucide-vue-next";
+import { LogOut, TriangleAlert, X } from "lucide-vue-next";
 
 const route = useRoute();
 const router = useRouter();
@@ -87,7 +87,12 @@ async function confirmarSaida() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="aviso" @click="confirmarSaida">Terminar sessão</BotaoBase>
+        <BotaoBase variante="aviso" @click="confirmarSaida">
+          <span class="inline-flex items-center gap-1.5">
+            <LogOut :size="14" />
+            <span>Terminar sessão</span>
+          </span>
+        </BotaoBase>
       </div>
     </template>
   </ModalBase>

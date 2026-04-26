@@ -5,7 +5,7 @@ import TabelaBase from "../../components/TabelaBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { formatarData, formatarMoeda } from "../../services/formatadores";
-import { ArrowDownToLine, Eye, Pencil, X } from "lucide-vue-next";
+import { ArrowDownToLine, CalendarDays, Eye, Filter, ListFilter, Pencil, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
 const filtroData = ref("");
@@ -29,21 +29,21 @@ const vendasFiltradas = computed(() => {
   <section class="space-y-4">
     <TabelaBase :colunas="colunas" :linhas="vendasFiltradas" resumo-rodape="Mostrando 6 de 12 registos">
       <template #tabs>
-        <button class="border-b-2 border-slate-900 pb-1 text-[11px] font-semibold text-slate-900">Todas (12)</button>
-        <button class="pb-1 text-[11px] text-slate-500 hover:text-slate-700">Pagas (7)</button>
-        <button class="pb-1 text-[11px] text-slate-500 hover:text-slate-700">Pendentes (2)</button>
-        <button class="pb-1 text-[11px] text-slate-500 hover:text-slate-700">Vencidas (3)</button>
-        <button class="pb-1 text-[11px] text-slate-500 hover:text-slate-700">Rascunhos (1)</button>
+        <button class="inline-flex items-center gap-1 border-b-2 border-slate-900 pb-1 text-[11px] font-semibold text-slate-900"><ListFilter :size="11" />Todas (12)</button>
+        <button class="inline-flex items-center gap-1 pb-1 text-[11px] text-slate-500 hover:text-slate-700"><CalendarDays :size="11" />Pagas (7)</button>
+        <button class="inline-flex items-center gap-1 pb-1 text-[11px] text-slate-500 hover:text-slate-700"><CalendarDays :size="11" />Pendentes (2)</button>
+        <button class="inline-flex items-center gap-1 pb-1 text-[11px] text-slate-500 hover:text-slate-700"><CalendarDays :size="11" />Vencidas (3)</button>
+        <button class="inline-flex items-center gap-1 pb-1 text-[11px] text-slate-500 hover:text-slate-700"><CalendarDays :size="11" />Rascunhos (1)</button>
       </template>
       <template #filtros>
-        <button class="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">Todos</button>
-        <button class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500">Este mês</button>
-        <button class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500">Último trimestre</button>
-        <button class="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500">2026</button>
+        <button class="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white"><ListFilter :size="11" />Todos</button>
+        <button class="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500"><CalendarDays :size="11" />Este mês</button>
+        <button class="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500"><CalendarDays :size="11" />Último trimestre</button>
+        <button class="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] text-slate-500"><CalendarDays :size="11" />2026</button>
         <span class="ml-auto flex items-center gap-2">
           <input v-model="filtroData" type="date" class="rp-input !w-[150px] !py-1.5 !text-[11px]" />
-          <button class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500">Filtrar</button>
-          <button class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500">Exportar</button>
+          <button class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500"><Filter :size="12" />Filtrar</button>
+          <button class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-500"><ArrowDownToLine :size="12" />Exportar</button>
         </span>
       </template>
       <template #coluna-data="{ linha }">{{ formatarData(linha.data) }}</template>

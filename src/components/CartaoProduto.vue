@@ -1,6 +1,7 @@
 <script setup>
 import BotaoBase from "./BotaoBase.vue";
 import { formatarMoeda } from "../services/formatadores";
+import { Plus } from "lucide-vue-next";
 
 const props = defineProps({
   produto: { type: Object, required: true },
@@ -25,6 +26,11 @@ const emit = defineEmits(["adicionar"]);
         Stock: {{ props.produto.stock }}
       </span>
     </div>
-    <BotaoBase bloco variante="aviso" @click="emit('adicionar', props.produto)">Adicionar</BotaoBase>
+    <BotaoBase bloco variante="aviso" @click="emit('adicionar', props.produto)">
+      <span class="inline-flex items-center gap-1.5">
+        <Plus :size="14" />
+        <span>Adicionar</span>
+      </span>
+    </BotaoBase>
   </div>
 </template>

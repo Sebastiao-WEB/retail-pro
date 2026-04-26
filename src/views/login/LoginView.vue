@@ -5,6 +5,7 @@ import BotaoBase from "../../components/BotaoBase.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { authApi, temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
+import { LogIn, LoaderCircle } from "lucide-vue-next";
 
 const router = useRouter();
 const sessaoStore = useSessaoStore();
@@ -113,7 +114,11 @@ async function entrar() {
           </select>
         </div>
         <BotaoBase tipo="submit" bloco variante="aviso" :disabled="carregando">
-          {{ carregando ? "A autenticar..." : "Entrar no sistema" }}
+          <span class="inline-flex items-center gap-1.5">
+            <LoaderCircle v-if="carregando" class="animate-spin" :size="14" />
+            <LogIn v-else :size="14" />
+            <span>{{ carregando ? "A autenticar..." : "Entrar no sistema" }}</span>
+          </span>
         </BotaoBase>
       </form>
     </div>
