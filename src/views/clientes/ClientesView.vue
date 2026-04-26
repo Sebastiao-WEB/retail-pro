@@ -69,11 +69,24 @@ function guardar() {
     </TabelaBase>
   </section>
 
-  <ModalBase :aberto="modalAberto" :titulo="editar ? 'Editar cliente' : 'Novo cliente'" @fechar="modalAberto = false">
-    <form class="space-y-3" @submit.prevent="guardar">
+  <ModalBase :aberto="modalAberto" :mostrar-fechar="false" :titulo="editar ? 'Editar cliente' : 'Novo cliente'" @fechar="modalAberto = false">
+    <form id="form-cliente" class="space-y-3" @submit.prevent="guardar">
       <input v-model="formulario.nome" required class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Nome do cliente" />
       <input v-model="formulario.telefone" required class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Telefone" />
-      <BotaoBase tipo="submit" bloco>Guardar cliente</BotaoBase>
     </form>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="perigo" @click="modalAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase tipo="submit" form="form-cliente" variante="aviso">Guardar cliente</BotaoBase>
+      </div>
+    </template>
   </ModalBase>
 </template>

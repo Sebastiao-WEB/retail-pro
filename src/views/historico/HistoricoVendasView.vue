@@ -316,7 +316,7 @@ async function solicitarReversao() {
     </div>
   </section>
 
-  <ModalBase :aberto="modalDetalhesAberto" titulo="Detalhes da venda" @fechar="modalDetalhesAberto = false">
+  <ModalBase :aberto="modalDetalhesAberto" :mostrar-fechar="false" titulo="Detalhes da venda" @fechar="modalDetalhesAberto = false">
     <div v-if="vendaSelecionada" class="space-y-3">
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
         <p><strong>Data:</strong> {{ formatarData(vendaSelecionada.data) }}</p>
@@ -356,9 +356,22 @@ async function solicitarReversao() {
         <p><strong>Total:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
       </div>
     </div>
+    <template #footer>
+      <div class="flex justify-end">
+        <BotaoBase variante="perigo" @click="modalDetalhesAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+      </div>
+    </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalSolicitarReversaoAberto" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
+  <ModalBase :aberto="modalSolicitarReversaoAberto" :mostrar-fechar="false" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
@@ -377,7 +390,9 @@ async function solicitarReversao() {
         <label class="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</label>
         <textarea v-model="motivoReversao" rows="2" class="rp-input" placeholder="Ex: item lançado por engano, cliente desistiu..." />
       </div>
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+    </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
@@ -396,6 +411,6 @@ async function solicitarReversao() {
           </span>
         </BotaoBase>
       </div>
-    </div>
+    </template>
   </ModalBase>
 </template>

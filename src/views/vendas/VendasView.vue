@@ -58,7 +58,7 @@ const vendasFiltradas = computed(() => {
     </TabelaBase>
   </section>
 
-  <ModalBase :aberto="!!vendaSelecionada" titulo="Detalhes da venda" @fechar="vendaSelecionada = null">
+  <ModalBase :aberto="!!vendaSelecionada" :mostrar-fechar="false" titulo="Detalhes da venda" @fechar="vendaSelecionada = null">
     <div v-if="vendaSelecionada" class="space-y-3">
       <p><strong>Cliente:</strong> {{ vendaSelecionada.cliente }}</p>
       <p><strong>Data:</strong> {{ formatarData(vendaSelecionada.data) }}</p>
@@ -74,5 +74,18 @@ const vendasFiltradas = computed(() => {
       </div>
       <p class="text-lg font-bold text-emerald-700">Total: {{ formatarMoeda(vendaSelecionada.total) }}</p>
     </div>
+    <template #footer>
+      <div class="flex justify-end">
+        <BotaoBase variante="perigo" @click="vendaSelecionada = null">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+      </div>
+    </template>
   </ModalBase>
 </template>

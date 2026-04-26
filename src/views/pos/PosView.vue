@@ -836,7 +836,9 @@ function confirmarFechoCaixa() {
       <div class="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
         Utilizador: <strong>{{ sessaoStore.utilizador || "Operador" }}</strong> · Caixa: <strong>{{ sessaoStore.caixaAtribuido || "Caixa 01" }}</strong>
       </div>
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+    </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalAberturaCaixa = false">
           <span class="inline-flex items-center gap-1.5">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
@@ -848,10 +850,10 @@ function confirmarFechoCaixa() {
         </BotaoBase>
         <BotaoBase variante="aviso" @click="abrirTurnoCaixa">Confirmar abertura</BotaoBase>
       </div>
-    </div>
+    </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalFechoCaixa" titulo="Fecho de caixa" @fechar="modalFechoCaixa = false">
+  <ModalBase :aberto="modalFechoCaixa" :mostrar-fechar="false" titulo="Fecho de caixa" @fechar="modalFechoCaixa = false">
     <div class="space-y-4">
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
         <p><strong>Total vendido no turno:</strong> {{ formatarMT(totalVendidoTurno) }}</p>
@@ -881,11 +883,21 @@ function confirmarFechoCaixa() {
         />
       </div>
 
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <BotaoBase variante="secundario" @click="modalFechoCaixa = false">Cancelar</BotaoBase>
-        <BotaoBase variante="perigo" @click="confirmarFechoCaixa">Confirmar fecho</BotaoBase>
-      </div>
     </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="perigo" @click="modalFechoCaixa = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase variante="aviso" @click="confirmarFechoCaixa">Confirmar fecho</BotaoBase>
+      </div>
+    </template>
   </ModalBase>
 
   <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" titulo="Concluir venda" @fechar="modalImpressaoAberto = false">
@@ -998,10 +1010,13 @@ function confirmarFechoCaixa() {
     <template #footer>
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" title="Cancelar" aria-label="Cancelar" @click="modalImpressaoAberto = false">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
         </BotaoBase>
         <BotaoBase :disabled="imprimindoAgora" variante="aviso" title="Concluir sem imprimir" aria-label="Concluir sem imprimir" @click="concluirVenda({ imprimir: false })">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
@@ -1028,7 +1043,7 @@ function confirmarFechoCaixa() {
     </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalSolicitarReversaoAberto" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
+  <ModalBase :aberto="modalSolicitarReversaoAberto" :mostrar-fechar="false" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
@@ -1047,11 +1062,21 @@ function confirmarFechoCaixa() {
         <label class="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</label>
         <textarea v-model="motivoReversao" rows="2" class="rp-input" placeholder="Ex: item lançado por engano, cliente desistiu..." />
       </div>
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">Cancelar</BotaoBase>
+    </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
         <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">Confirmar solicitação</BotaoBase>
       </div>
-    </div>
+    </template>
   </ModalBase>
 
 </template>

@@ -237,7 +237,7 @@ const actividades = [
     </div>
   </section>
 
-  <ModalBase :aberto="modalDecisaoAberto" titulo="Confirmar decisão" @fechar="modalDecisaoAberto = false">
+  <ModalBase :aberto="modalDecisaoAberto" :mostrar-fechar="false" titulo="Confirmar decisão" @fechar="modalDecisaoAberto = false">
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
@@ -251,12 +251,22 @@ const actividades = [
           {{ acaoPendente?.tipo === "aprovar" ? "Confirma a reversão desta venda?" : "Cancelar solicitação de reversão?" }}
         </p>
       </div>
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <BotaoBase variante="secundario" @click="modalDecisaoAberto = false">Fechar</BotaoBase>
-        <BotaoBase :variante="acaoPendente?.tipo === 'aprovar' ? 'sucesso' : 'perigo'" @click="confirmarDecisao">
+    </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="perigo" @click="modalDecisaoAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase :variante="acaoPendente?.tipo === 'aprovar' ? 'sucesso' : 'aviso'" @click="confirmarDecisao">
           Confirmar
         </BotaoBase>
       </div>
-    </div>
+    </template>
   </ModalBase>
 </template>

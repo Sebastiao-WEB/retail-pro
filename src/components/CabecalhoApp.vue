@@ -66,7 +66,7 @@ async function confirmarSaida() {
     </div>
   </header>
 
-  <ModalBase :aberto="modalSairAberto" titulo="Confirmar saída" @fechar="modalSairAberto = false">
+  <ModalBase :aberto="modalSairAberto" :mostrar-fechar="false" titulo="Confirmar saída" @fechar="modalSairAberto = false">
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
@@ -81,10 +81,20 @@ async function confirmarSaida() {
           <p class="text-xs text-slate-600">A sessão do operador será encerrada e voltará para o login.</p>
         </div>
       </div>
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <BotaoBase variante="secundario" @click="modalSairAberto = false">Cancelar</BotaoBase>
-        <BotaoBase variante="perigo" @click="confirmarSaida">Terminar sessão</BotaoBase>
-      </div>
     </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="perigo" @click="modalSairAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase variante="aviso" @click="confirmarSaida">Terminar sessão</BotaoBase>
+      </div>
+    </template>
   </ModalBase>
 </template>

@@ -70,8 +70,8 @@ function registarCompra() {
     </TabelaBase>
   </section>
 
-  <ModalBase :aberto="modalCadastroAberto" titulo="Nova compra" @fechar="modalCadastroAberto = false">
-    <form class="space-y-3" @submit.prevent="registarCompra">
+  <ModalBase :aberto="modalCadastroAberto" :mostrar-fechar="false" titulo="Nova compra" @fechar="modalCadastroAberto = false">
+    <form id="form-nova-compra" class="space-y-3" @submit.prevent="registarCompra">
       <input v-model="formulario.fornecedor" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Fornecedor" />
       <select v-model="formulario.produtoId" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
         <option :value="null">Selecionar produto</option>
@@ -81,7 +81,20 @@ function registarCompra() {
         <input v-model.number="formulario.quantidade" type="number" min="1" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Quantidade" />
         <input v-model.number="formulario.custoUnitario" type="number" min="0" class="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Custo unitário" />
       </div>
-      <BotaoBase tipo="submit" bloco>Adicionar produtos à compra</BotaoBase>
     </form>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="perigo" @click="modalCadastroAberto = false">
+          <span class="inline-flex items-center gap-1.5">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            <span>Cancelar</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase tipo="submit" form="form-nova-compra" variante="aviso">Adicionar produtos à compra</BotaoBase>
+      </div>
+    </template>
   </ModalBase>
 </template>
