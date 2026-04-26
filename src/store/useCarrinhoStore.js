@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 export const useCarrinhoStore = defineStore("carrinho", {
   state: () => ({
     itens: [],
+    sequenciaAdicao: 0,
     metodoPagamento: "Dinheiro",
     descontoTipo: "valor",
     descontoValor: 0,
@@ -40,16 +41,20 @@ export const useCarrinhoStore = defineStore("carrinho", {
       if (itemExistente) {
         itemExistente.quantidade += 1;
         itemExistente.subtotal = itemExistente.quantidade * itemExistente.precoVenda;
+        itemExistente.ordemAdicao = ++this.sequenciaAdicao;
+        // Mantém o item mais recentemente adicionado no topo da pré-visualização.
+        this.itens = [itemExistente, ...this.itens.filter((item) => item.produtoId !== produto.id)];
         return;
       }
 
-      this.itens.push({
+      this.itens.unshift({
         produtoId: produto.id,
         nome: produto.nome,
         precoVenda: precoUnitario,
         precoSemIva: Number(produto.precoVenda || 0),
         ivaPercentual: Number.isFinite(ivaPercentual) ? ivaPercentual : 0,
         valorIvaUnitario: Number.isFinite(valorIvaUnitario) ? valorIvaUnitario : 0,
+        ordemAdicao: ++this.sequenciaAdicao,
         quantidade: 1,
         subtotal: precoUnitario,
       });
@@ -94,6 +99,7 @@ export const useCarrinhoStore = defineStore("carrinho", {
     },
     limparCarrinho() {
       this.itens = [];
+      this.sequenciaAdicao = 0;
       this.metodoPagamento = "Dinheiro";
       this.descontoTipo = "valor";
       this.descontoValor = 0;

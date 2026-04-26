@@ -7,13 +7,31 @@ import {
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
 
+function gerarIdLocal() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `local-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
+function gerarSequenciaId(id, indice = 0) {
+  const texto = String(id || "").trim();
+  if (!texto) return String((Date.now() + indice) % 100000).padStart(5, "0");
+
+  if (/^\d+$/.test(texto)) {
+    return String(Number(texto) % 100000).padStart(5, "0");
+  }
+
+  const hash = [...texto].reduce((acc, char) => ((acc * 31 + char.charCodeAt(0)) >>> 0), 0);
+  return String(hash % 100000).padStart(5, "0");
+}
+
 function gerarReferenciaVenda(venda, indice = 0) {
   const data = new Date(venda?.data || Date.now());
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, "0");
   const dia = String(data.getDate()).padStart(2, "0");
-  const idBase = Number(venda?.id || Date.now() + indice);
-  const sequencia = String(Math.abs(idBase) % 100000).padStart(5, "0");
+  const sequencia = gerarSequenciaId(venda?.id, indice);
   return `VD-${ano}${mes}${dia}-${sequencia}`;
 }
 
@@ -60,7 +78,7 @@ export const useVendaStore = defineStore("vendas", {
       this.carregado = true;
     },
     async registarVenda(novaVenda) {
-      const id = Date.now();
+      const id = novaVenda?.id || gerarIdLocal();
       const vendaLocal = {
         ...novaVenda,
         id,

@@ -23,6 +23,11 @@ export const useSessaoStore = defineStore("sessao", {
     estaLogado: (state) => !!state.utilizador,
   },
   actions: {
+    normalizarUuid(valor) {
+      if (valor === null || valor === undefined) return null;
+      const texto = String(valor).trim();
+      return texto ? texto : null;
+    },
     hidratar() {
       if (this.carregado) return;
       this.carregado = true;
@@ -67,9 +72,9 @@ export const useSessaoStore = defineStore("sessao", {
       this.utilizador = username;
       this.caixaAtribuido = caixa;
       this.perfil = perfil || "CASHIER";
-      this.registerId = Number.isFinite(Number(registerId)) ? Number(registerId) : null;
+      this.registerId = this.normalizarUuid(registerId);
       this.registerCodigo = String(registerCodigo || "");
-      this.sourceLocationId = Number.isFinite(Number(sourceLocationId)) ? Number(sourceLocationId) : null;
+      this.sourceLocationId = this.normalizarUuid(sourceLocationId);
       this.sourceLocationCodigo = String(sourceLocationCodigo || "");
       this.sourceLocationNome = String(sourceLocationNome || "");
       if (token || refreshToken) {

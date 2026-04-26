@@ -141,10 +141,15 @@ async function obterDadosImpressoras(alvo) {
 
 function createWindow() {
   const window = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1200,
-    minHeight: 760,
+    width: 1280,
+    height: 735,
+    minWidth: 1280,
+    minHeight: 735,
+    maxWidth: 1280,
+    maxHeight: 735,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     backgroundColor: "#0f172a",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),

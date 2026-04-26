@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
@@ -40,6 +40,7 @@ const erroFinalizacao = ref("");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
+const listaPreVisualizacaoRef = ref(null);
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
 const toastAberto = ref(false);
 const toastMensagem = ref("");
@@ -65,6 +66,9 @@ const clientesParaSelect = computed(() => {
   });
 });
 const podeInformarPagamento = computed(() => carrinhoStore.itens.length > 0);
+const itensCarrinhoOrdenados = computed(() =>
+  [...carrinhoStore.itens].sort((a, b) => Number(b.ordemAdicao || 0) - Number(a.ordemAdicao || 0))
+);
 const descontoAplicado = computed(() => carrinhoStore.valorDesconto);
 const valorPagoNumerico = computed(() => {
   const inteiro = Number.parseInt((valorPagoInteiro.value || "0").replace(/\D/g, ""), 10) || 0;
@@ -158,12 +162,16 @@ function mostrarToast(texto, tipo = "erro") {
   }, 2200);
 }
 
-function adicionarAoCarrinho(produto) {
+async function adicionarAoCarrinho(produto) {
   if (!podeAdicionarProduto(produto)) {
     mostrarErroStock("Não é possível adicionar acima do stock disponível.");
     return;
   }
   carrinhoStore.adicionarProduto(produto);
+  await nextTick();
+  if (listaPreVisualizacaoRef.value) {
+    listaPreVisualizacaoRef.value.scrollTop = 0;
+  }
 }
 
 function atualizarQuantidade(produtoId, valor) {
@@ -544,7 +552,7 @@ function confirmarFechoCaixa() {
 <template>
   <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr] xl:items-center">
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
-      <div class="rp-card p-4">
+      <div class="rp-card p-4 h-[420px]">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="mb-1 text-xl font-bold text-slate-800">Catálogo rápido de venda</p>
@@ -611,14 +619,21 @@ function confirmarFechoCaixa() {
             </tbody>
           </table>
         </div>
-        <div v-else class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-xs text-slate-500">
-          Digite no campo de pesquisa para listar produtos.
+        <div
+          v-else
+          class="flex h-[290px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
+        >
+          <svg width="58" height="58" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <p class="text-sm font-medium text-slate-500">Digite no campo de pesquisa para listar produtos.</p>
         </div>
       </div>
     </div>
 
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
-      <div class="rp-card overflow-hidden">
+      <div class="rp-card h-[527px] overflow-hidden">
         <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-semibold text-slate-900">Pré-visualização</h3>
         </div>
@@ -637,9 +652,13 @@ function confirmarFechoCaixa() {
               <p class="text-slate-500">Cliente</p>
               <p class="font-semibold text-slate-800">{{ cliente }}</p>
             </div>
-            <div class="max-h-44 overflow-auto border-t border-slate-200 pt-2 text-xs">
+            <div
+              ref="listaPreVisualizacaoRef"
+              class="h-44 overflow-auto border-t border-slate-200 pt-2 text-xs"
+              :class="!carrinhoStore.itens.length ? 'flex items-center justify-center pt-0' : ''"
+            >
               <div
-                v-for="item in carrinhoStore.itens"
+                v-for="item in itensCarrinhoOrdenados"
                 :key="`pv-${item.produtoId}`"
                 class="border-b border-dashed border-slate-300 py-2 last:border-b-0"
               >
@@ -672,19 +691,27 @@ function confirmarFechoCaixa() {
                   <span class="font-semibold">{{ formatarMT(item.subtotal) }}</span>
                 </div>
               </div>
-              <p v-if="!carrinhoStore.itens.length" class="text-slate-400">Sem itens.</p>
+              <div v-if="!carrinhoStore.itens.length" class="flex flex-col items-center justify-center gap-2 text-slate-400">
+                <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="9" cy="20" r="1" />
+                  <circle cx="18" cy="20" r="1" />
+                  <path d="M2 3h2l2.2 10.2a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6L22 7H7" />
+                  <line x1="10" y1="10" x2="17" y2="10" />
+                </svg>
+                <p class="text-xs font-medium text-slate-500">Sem itens no carrinho</p>
+              </div>
             </div>
             <div class="mt-3 border-t border-slate-200 pt-2 text-sm font-bold">
               <div class="mb-1 flex items-center justify-between text-xs font-medium text-slate-500">
-                <span>Subtotal</span>
+                <span>Subtotal:</span>
                 <span>{{ formatarMT(carrinhoStore.subtotal) }}</span>
               </div>
               <div class="mb-1 flex items-center justify-between text-xs font-medium text-amber-700">
-                <span>Desconto</span>
+                <span>Desconto:</span>
                 <span>- {{ formatarMT(descontoAplicado) }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span>Total</span>
+                <span>Total:</span>
                 <span>{{ formatarMT(carrinhoStore.total) }}</span>
               </div>
             </div>

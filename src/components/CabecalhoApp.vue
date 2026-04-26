@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import BotaoBase from "./BotaoBase.vue";
 import ModalBase from "./ModalBase.vue";
 import { useSessaoStore } from "../store/useSessaoStore";
+import { authApi, temApiConfigurada } from "../api";
 
 const route = useRoute();
 const router = useRouter();
@@ -33,7 +34,14 @@ function sair() {
   modalSairAberto.value = true;
 }
 
-function confirmarSaida() {
+async function confirmarSaida() {
+  if (temApiConfigurada()) {
+    try {
+      await authApi.logout();
+    } catch {
+      // logout remoto é best effort; sessão local precisa encerrar sempre
+    }
+  }
   sessaoStore.logout();
   router.push("/login");
 }
