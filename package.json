@@ -2,6 +2,11 @@
   "name": "retailpro-pos",
   "private": true,
   "version": "0.0.0",
+  "description": "Aplicacao desktop POS para operacao de caixa RetailPro.",
+  "author": {
+    "name": "RetailPro",
+    "email": "suporte@retailpro.local"
+  },
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -9,10 +14,32 @@
     "dev:web": "vite --port 5173 --strictPort",
     "electron:dev": "concurrently \"npm run dev:web\" \"wait-on tcp:5173 && VITE_DEV_SERVER_URL=http://localhost:5173 electron electron/main.js\"",
     "build": "vite build",
+    "dist": "npm run build && electron-builder",
+    "dist:linux": "npm run build && electron-builder --linux AppImage",
+    "dist:linux:deb": "npm run build && electron-builder --linux deb",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
     "electron": "electron electron/main.js"
+  },
+  "build": {
+    "appId": "com.retailpro.pos",
+    "productName": "RetailPro POS",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office"
+    }
   },
   "dependencies": {
     "lucide-vue-next": "^1.0.0",
@@ -27,6 +54,7 @@
     "autoprefixer": "^10.5.0",
     "concurrently": "^9.2.1",
     "electron": "^41.3.0",
+    "electron-builder": "^26.8.1",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.4",
     "vite": "^8.0.10",
