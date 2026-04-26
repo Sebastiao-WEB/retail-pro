@@ -941,7 +941,7 @@ function confirmarFechoCaixa() {
     </div>
   </ModalBase>
 
-  <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" titulo="Impressão do talão" @fechar="modalImpressaoAberto = false">
+  <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" titulo="Concluir venda" @fechar="modalImpressaoAberto = false">
     <div v-if="vendaPendente" class="space-y-4">
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
@@ -1044,8 +1044,9 @@ function confirmarFechoCaixa() {
         </div>
       </div>
       <p v-if="erroFinalizacao" class="text-sm font-semibold text-red-600">{{ erroFinalizacao }}</p>
-
-      <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+    </div>
+    <template #footer>
+      <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" title="Cancelar" aria-label="Cancelar" @click="modalImpressaoAberto = false">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -1074,7 +1075,7 @@ function confirmarFechoCaixa() {
           </svg>
         </BotaoBase>
       </div>
-    </div>
+    </template>
   </ModalBase>
 
   <ModalBase :aberto="modalSolicitarReversaoAberto" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">

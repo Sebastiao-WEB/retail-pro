@@ -19,6 +19,9 @@ const emit = defineEmits(["fechar"]);
         <div class="max-h-[70vh] overflow-auto p-5">
           <slot />
         </div>
+        <div v-if="$slots.footer" class="border-t border-slate-200 px-5 py-3">
+          <slot name="footer" />
+        </div>
       </div>
     </div>
   </Teleport>
