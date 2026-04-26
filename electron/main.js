@@ -186,14 +186,28 @@ function createWindow() {
   });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
+  const indexLocal = path.join(__dirname, "../dist/index.html");
+  const forcarLocal = process.env.POS_DESKTOP_LOCAL === "1";
 
   if (!app.isPackaged) {
-    window.loadURL(devUrl);
-    window.webContents.openDevTools({ mode: "detach" });
+    if (forcarLocal) {
+      window.loadFile(indexLocal);
+      return;
+    }
+
+    window
+      .loadURL(devUrl)
+      .then(() => {
+        window.webContents.openDevTools({ mode: "detach" });
+      })
+      .catch(() => {
+        // Se o Vite não estiver no ar, usa o build local.
+        window.loadFile(indexLocal);
+      });
     return;
   }
 
-  window.loadFile(path.join(__dirname, "../dist/index.html"));
+  window.loadFile(indexLocal);
 }
 
 ipcMain.handle("pos:listar-impressoras", async () => {

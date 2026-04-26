@@ -20,7 +20,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "electron": "electron electron/main.js"
+    "electron": "POS_DESKTOP_LOCAL=1 electron electron/main.js",
+    "electron:local": "POS_DESKTOP_LOCAL=1 electron electron/main.js"
   },
   "build": {
     "appId": "com.retailpro.pos",
