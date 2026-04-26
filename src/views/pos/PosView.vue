@@ -18,12 +18,12 @@ import {
   DoorClosed,
   DoorOpen,
   LoaderCircle,
+  Plus,
   Printer,
   RotateCcw,
   Search,
   ShoppingCart,
   ShoppingCartIcon,
-  SquarePlus,
   Trash2,
   TriangleAlert,
   X,
@@ -578,7 +578,10 @@ function confirmarFechoCaixa() {
                     :class="!podeAdicionarProduto(produto) ? 'cursor-not-allowed opacity-40' : ''"
                     @click="adicionarAoCarrinho(produto)"
                   >
-                    <SquarePlus :size="14" />
+                    <span class="relative inline-flex h-4 w-4 items-center justify-center">
+                      <ShoppingCartIcon :size="14" />
+                      <Plus class="absolute -right-1 -top-1 rounded-full bg-[var(--gold)] text-black" :size="9" :stroke-width="2.4" />
+                    </span>
                   </button>
                 </td>
               </tr>
