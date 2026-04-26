@@ -12,6 +12,7 @@ const sessaoStore = useSessaoStore();
 
 const titulos = {
   pos: { titulo: "Ponto de Venda", subtitulo: "Venda rápida de balcão" },
+  clientes: { titulo: "Clientes", subtitulo: "Cadastro e gestão de clientes" },
   "historico-vendas": { titulo: "Histórico de Vendas", subtitulo: "Vendas do caixa e turno atual" },
   configuracoes: { titulo: "Configurações", subtitulo: "Preferências do sistema" },
 };
