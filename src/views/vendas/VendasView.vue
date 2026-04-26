@@ -3,7 +3,9 @@ import { computed, ref } from "vue";
 import { useVendaStore } from "../../store/useVendaStore";
 import TabelaBase from "../../components/TabelaBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
+import BotaoBase from "../../components/BotaoBase.vue";
 import { formatarData, formatarMoeda } from "../../services/formatadores";
+import { ArrowDownToLine, Eye, Pencil, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
 const filtroData = ref("");
@@ -49,10 +51,10 @@ const vendasFiltradas = computed(() => {
       <template #acoes="{ linha }">
         <div class="flex justify-end gap-1">
           <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-slate-500 hover:bg-slate-50" @click="vendaSelecionada = linha">
-            ◉
+            <Eye :size="12" />
           </button>
-          <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-slate-500 hover:bg-slate-50">✎</button>
-          <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-slate-500 hover:bg-slate-50">⇩</button>
+          <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-slate-500 hover:bg-slate-50"><Pencil :size="12" /></button>
+          <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-slate-500 hover:bg-slate-50"><ArrowDownToLine :size="12" /></button>
         </div>
       </template>
     </TabelaBase>
@@ -78,10 +80,7 @@ const vendasFiltradas = computed(() => {
       <div class="flex justify-end">
         <BotaoBase variante="perigo" @click="vendaSelecionada = null">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>

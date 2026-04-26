@@ -5,6 +5,7 @@ import BotaoBase from "./BotaoBase.vue";
 import ModalBase from "./ModalBase.vue";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { authApi, temApiConfigurada } from "../api";
+import { TriangleAlert, X } from "lucide-vue-next";
 
 const route = useRoute();
 const router = useRouter();
@@ -70,11 +71,7 @@ async function confirmarSaida() {
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          </svg>
+          <TriangleAlert :size="14" />
         </span>
         <div>
           <p class="font-semibold text-slate-900">Realmente deseja terminar a sessão?</p>
@@ -86,10 +83,7 @@ async function confirmarSaida() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalSairAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>

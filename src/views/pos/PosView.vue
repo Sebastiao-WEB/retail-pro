@@ -12,6 +12,20 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
+import {
+  Barcode,
+  Check,
+  LoaderCircle,
+  Printer,
+  RotateCcw,
+  Search,
+  ShoppingCart,
+  ShoppingCartIcon,
+  SquarePlus,
+  Trash2,
+  TriangleAlert,
+  X,
+} from "lucide-vue-next";
 
 const produtoStore = useProdutoStore();
 const carrinhoStore = useCarrinhoStore();
@@ -521,14 +535,7 @@ function confirmarFechoCaixa() {
             <p class="mb-1 text-xl font-bold text-slate-800">Catálogo rápido de venda</p>
             <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
               <div class="flex w-24 items-center justify-center border-r border-slate-300 px-3 text-black" title="Código de barras">
-                <svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                  <line x1="4" y1="5" x2="4" y2="19" />
-                  <line x1="7" y1="5" x2="7" y2="19" />
-                  <line x1="10" y1="5" x2="10" y2="19" />
-                  <line x1="14" y1="5" x2="14" y2="19" />
-                  <line x1="17" y1="5" x2="17" y2="19" />
-                  <line x1="20" y1="5" x2="20" y2="19" />
-                </svg>
+                <Barcode :size="42" :stroke-width="1.8" />
               </div>
               <input v-model="pesquisa" type="text" placeholder="Nome ou código de barras..." class="min-w-0 flex-1 px-3 py-4 text-sm focus:outline-none" />
             </div>
@@ -569,13 +576,7 @@ function confirmarFechoCaixa() {
                     :class="!podeAdicionarProduto(produto) ? 'cursor-not-allowed opacity-40' : ''"
                     @click="adicionarAoCarrinho(produto)"
                   >
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="9" cy="20" r="1" />
-                      <circle cx="17" cy="20" r="1" />
-                      <path d="M1 1h3l2.68 12.39a2 2 0 0 0 2 1.61h7.72a2 2 0 0 0 2-1.61L21 6H6" />
-                      <line x1="12" y1="8" x2="12" y2="13" />
-                      <line x1="9.5" y1="10.5" x2="14.5" y2="10.5" />
-                    </svg>
+                    <SquarePlus :size="14" />
                   </button>
                 </td>
               </tr>
@@ -586,10 +587,7 @@ function confirmarFechoCaixa() {
           v-else
           class="flex h-[290px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
         >
-          <svg width="58" height="58" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <Search :size="58" :stroke-width="1.8" />
           <p class="text-sm font-medium text-slate-500">Digite no campo de pesquisa para listar produtos.</p>
         </div>
       </div>
@@ -632,11 +630,7 @@ function confirmarFechoCaixa() {
                     title="Remover item"
                     @click="carrinhoStore.removerProduto(item.produtoId)"
                   >
-                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
+                    <Trash2 :size="12" />
                   </button>
                 </div>
                 <div class="flex items-center justify-between gap-2 px-1">
@@ -655,12 +649,7 @@ function confirmarFechoCaixa() {
                 </div>
               </div>
               <div v-if="!carrinhoStore.itens.length" class="flex flex-col items-center justify-center gap-2 text-slate-400">
-                <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="9" cy="20" r="1" />
-                  <circle cx="18" cy="20" r="1" />
-                  <path d="M2 3h2l2.2 10.2a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6L22 7H7" />
-                  <line x1="10" y1="10" x2="17" y2="10" />
-                </svg>
+                <ShoppingCart :size="40" :stroke-width="1.8" />
                 <p class="text-xs font-medium text-slate-500">Sem itens no carrinho</p>
               </div>
             </div>
@@ -686,10 +675,7 @@ function confirmarFechoCaixa() {
                 aria-label="Resetar carrinho"
                 @click="limparCarrinhoAtual"
               >
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-                  <polyline points="1 4 1 10 7 10" />
-                  <path d="M3.51 15a9 9 0 1 0 .49-9" />
-                </svg>
+                <RotateCcw :size="16" :stroke-width="2.2" />
               </button>
               <BotaoBase class="flex-1" variante="aviso" :disabled="!carrinhoStore.itens.length" @click="finalizarVenda">
                 Finalizar Venda
@@ -794,11 +780,7 @@ function confirmarFechoCaixa() {
                         aria-label="Reimprimir"
                         @click="reimprimirVenda(venda)"
                       >
-                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                          <polyline points="6 9 6 2 18 2 18 9" />
-                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                          <rect x="6" y="14" width="12" height="8" />
-                        </svg>
+                        <Printer :size="13" />
                       </button>
                       <button
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -807,10 +789,7 @@ function confirmarFechoCaixa() {
                         :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
                         @click="abrirSolicitacaoReversao(venda)"
                       >
-                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24" aria-hidden="true">
-                          <polyline points="1 4 1 10 7 10" />
-                          <path d="M3.51 15a9 9 0 1 0 .49-9" />
-                        </svg>
+                        <RotateCcw :size="13" :stroke-width="2.1" />
                       </button>
                     </div>
                   </td>
@@ -841,10 +820,7 @@ function confirmarFechoCaixa() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalAberturaCaixa = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
@@ -888,10 +864,7 @@ function confirmarFechoCaixa() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalFechoCaixa = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
@@ -1011,17 +984,12 @@ function confirmarFechoCaixa() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" title="Cancelar" aria-label="Cancelar" @click="modalImpressaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
         <BotaoBase :disabled="imprimindoAgora" variante="aviso" title="Concluir sem imprimir" aria-label="Concluir sem imprimir" @click="concluirVenda({ imprimir: false })">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <Check :size="16" :stroke-width="2.2" />
         </BotaoBase>
         <BotaoBase
           :disabled="!configuracaoStore.impressoraPadrao || imprimindoAgora"
@@ -1030,14 +998,8 @@ function confirmarFechoCaixa() {
           :aria-label="imprimindoAgora ? 'A imprimir...' : 'Imprimir e concluir'"
           @click="concluirVenda({ imprimir: true })"
         >
-          <svg v-if="imprimindoAgora" class="animate-spin" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M21 12a9 9 0 1 1-3-6.7" />
-          </svg>
-          <svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-            <polyline points="6 9 6 2 18 2 18 9" />
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-            <rect x="6" y="14" width="12" height="8" />
-          </svg>
+          <LoaderCircle v-if="imprimindoAgora" class="animate-spin" :size="16" :stroke-width="2.2" />
+          <Printer v-else :size="16" />
         </BotaoBase>
       </div>
     </template>
@@ -1047,11 +1009,7 @@ function confirmarFechoCaixa() {
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          </svg>
+          <TriangleAlert :size="14" />
         </span>
         <div>
           <p class="font-semibold text-slate-900">Deseja realmente solicitar a reversão desta venda?</p>
@@ -1067,14 +1025,16 @@ function confirmarFechoCaixa() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">Confirmar solicitação</BotaoBase>
+        <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">
+          <span class="inline-flex items-center gap-1.5">
+            <Check :size="14" />
+            <span>Confirmar solicitação</span>
+          </span>
+        </BotaoBase>
       </div>
     </template>
   </ModalBase>

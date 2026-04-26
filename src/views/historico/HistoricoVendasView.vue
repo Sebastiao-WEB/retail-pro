@@ -6,6 +6,7 @@ import { useVendaStore } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
+import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
@@ -277,10 +278,7 @@ async function solicitarReversao() {
                     aria-label="Detalhes"
                     @click="abrirDetalhes(venda)"
                   >
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    <Eye :size="15" />
                   </button>
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -289,10 +287,7 @@ async function solicitarReversao() {
                     :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
                     @click="abrirSolicitacaoReversao(venda)"
                   >
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24" aria-hidden="true">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 .49-9" />
-                    </svg>
+                    <RotateCcw :size="15" />
                   </button>
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
@@ -300,11 +295,7 @@ async function solicitarReversao() {
                     aria-label="Reimprimir"
                     @click="reimprimirVenda(venda)"
                   >
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                      <polyline points="6 9 6 2 18 2 18 9" />
-                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                      <rect x="6" y="14" width="12" height="8" />
-                    </svg>
+                    <Printer :size="15" />
                   </button>
                 </div>
               </td>
@@ -360,10 +351,7 @@ async function solicitarReversao() {
       <div class="flex justify-end">
         <BotaoBase variante="perigo" @click="modalDetalhesAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
@@ -375,11 +363,7 @@ async function solicitarReversao() {
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          </svg>
+          <TriangleAlert :size="14" />
         </span>
         <div>
           <p class="font-semibold text-slate-900">Deseja realmente solicitar a reversão desta venda?</p>
@@ -395,18 +379,13 @@ async function solicitarReversao() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
         <BotaoBase variante="sucesso" @click="solicitarReversao">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
+            <Check :size="14" />
             <span>Confirmar solicitação</span>
           </span>
         </BotaoBase>

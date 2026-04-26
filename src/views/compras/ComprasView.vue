@@ -6,6 +6,7 @@ import TabelaBase from "../../components/TabelaBase.vue";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import { formatarData, formatarMoeda } from "../../services/formatadores";
+import { X } from "lucide-vue-next";
 
 const produtoStore = useProdutoStore();
 const vendaStore = useVendaStore();
@@ -86,10 +87,7 @@ function registarCompra() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalCadastroAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>

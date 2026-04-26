@@ -15,6 +15,7 @@
     "electron": "electron electron/main.js"
   },
   "dependencies": {
+    "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "sweetalert2": "^11.26.24",
     "vue": "^3.5.32",

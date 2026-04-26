@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useSessaoStore } from "../store/useSessaoStore";
+import { Clock3, Cog, LayoutGrid, ShoppingCart, UserRound } from "lucide-vue-next";
 
 const route = useRoute();
 const sessaoStore = useSessaoStore();
@@ -11,13 +12,11 @@ let temporizadorRelogio = null;
 const secoes = [
   {
     titulo: "Principal",
-    itens: [
-      { nome: "Histórico de Vendas", rota: "/historico-vendas", ico: "◷" },
-    ],
+    itens: [{ nome: "Histórico de Vendas", rota: "/historico-vendas", icon: Clock3 }],
   },
   {
     titulo: "Sistema",
-    itens: [{ nome: "Configurações", rota: "/configuracoes", ico: "◌" }],
+    itens: [{ nome: "Configurações", rota: "/configuracoes", icon: Cog }],
   },
 ];
 
@@ -27,18 +26,9 @@ const horarioDigital = computed(() =>
 );
 const nomeOperador = computed(() => sessaoStore.utilizador || "Operador");
 const caixaOperador = computed(() => sessaoStore.caixaAtribuido || "Sem caixa");
-const iniciaisOperador = computed(() =>
-  nomeOperador.value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() || "")
-    .join("")
-);
-
 const posItens = [
-  { nome: "Ponto de venda", rota: { path: "/pos", query: { secao: "venda" } }, ico: "✚", secao: "venda" },
-  { nome: "Caixa", rota: { path: "/pos", query: { secao: "caixa" } }, ico: "▣", secao: "caixa" },
+  { nome: "Ponto de venda", rota: { path: "/pos", query: { secao: "venda" } }, icon: ShoppingCart, secao: "venda" },
+  { nome: "Caixa", rota: { path: "/pos", query: { secao: "caixa" } }, icon: LayoutGrid, secao: "caixa" },
 ];
 
 function classeItemPos(secao) {
@@ -77,7 +67,7 @@ onBeforeUnmount(() => {
       <div class="mb-5">
         <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">POS</p>
         <RouterLink v-for="item in posItens" :key="item.secao" :to="item.rota" :class="classeItemPos(item.secao)">
-          <span class="w-4 text-center text-xs">{{ item.ico }}</span>
+          <component :is="item.icon" :size="14" class="w-4" />
           <span>{{ item.nome }}</span>
         </RouterLink>
         <div class="mt-2 rounded-lg border border-white/10 bg-[var(--dark-soft)] px-2.5 py-2 text-[12px]">
@@ -95,7 +85,7 @@ onBeforeUnmount(() => {
           class="mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white"
           active-class="bg-[color:rgba(216,182,90,0.16)] text-[var(--gold)]"
         >
-          <span class="w-4 text-center text-xs">{{ item.ico }}</span>
+          <component :is="item.icon" :size="14" class="w-4" />
           <span>{{ item.nome }}</span>
         </RouterLink>
       </div>
@@ -104,11 +94,13 @@ onBeforeUnmount(() => {
     <div class="border-t border-white/10 px-4 py-3">
       <div class="rounded-lg px-2 py-2 hover:bg-[var(--dark-soft)]">
         <div class="flex items-center gap-2">
-        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-[10px] font-bold text-black">{{ iniciaisOperador }}</div>
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-xs font-semibold text-slate-200">{{ nomeOperador }}</p>
-          <p class="truncate text-[10px] text-slate-400">{{ caixaOperador }} · Operador de Caixa</p>
-        </div>
+          <div class="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-black">
+            <UserRound :size="13" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-xs font-semibold text-slate-200">{{ nomeOperador }}</p>
+            <p class="truncate text-[10px] text-slate-400">{{ caixaOperador }} · Operador de Caixa</p>
+          </div>
         </div>
         <div class="mt-2 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-center text-[11px] font-bold tracking-wide text-cyan-300">
           {{ horarioDigital }}

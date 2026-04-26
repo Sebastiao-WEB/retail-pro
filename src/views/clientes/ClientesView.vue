@@ -4,6 +4,7 @@ import { useClienteStore } from "../../store/useClienteStore";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import TabelaBase from "../../components/TabelaBase.vue";
+import { Pencil, Trash2, X } from "lucide-vue-next";
 
 const clienteStore = useClienteStore();
 const pesquisa = ref("");
@@ -59,10 +60,10 @@ function guardar() {
       <template #acoes="{ linha }">
         <div class="flex justify-end gap-1">
           <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-slate-500 hover:bg-slate-50" @click="editarCliente(linha)">
-            ✎
+            <Pencil :size="12" />
           </button>
           <button class="flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 text-[11px] text-red-500 hover:bg-red-50" @click="clienteStore.removerCliente(linha.id)">
-            ⌫
+            <Trash2 :size="12" />
           </button>
         </div>
       </template>
@@ -78,10 +79,7 @@ function guardar() {
       <div class="flex justify-end gap-2">
         <BotaoBase variante="perigo" @click="modalAberto = false">
           <span class="inline-flex items-center gap-1.5">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X :size="14" />
             <span>Cancelar</span>
           </span>
         </BotaoBase>
