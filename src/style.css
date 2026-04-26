@@ -68,3 +68,11 @@ button:disabled {
   text-transform: uppercase;
   color: #8992a3;
 }
+
+.retailpro-toast-container-top {
+  z-index: 20000 !important;
+}
+
+.retailpro-toast-top {
+  z-index: 20001 !important;
+}

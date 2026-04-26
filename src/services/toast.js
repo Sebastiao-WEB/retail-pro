@@ -9,6 +9,10 @@ export function mostrarToastSwal(mensagem, tipo = "error") {
     showConfirmButton: false,
     timer: 2600,
     timerProgressBar: true,
+    customClass: {
+      container: "retailpro-toast-container-top",
+      popup: "retailpro-toast-top",
+    },
   });
 }
 
