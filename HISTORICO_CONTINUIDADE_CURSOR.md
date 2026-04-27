@@ -135,3 +135,54 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 
 > "continue a partir do HISTORICO_CONTINUIDADE_CURSOR.md e implemente os próximos endpoints da API conforme CONTRATO_API_FRONTEND_POS.md"
 
+---
+
+## 8) Atualização recente (2026-04-27)
+
+### Backend Laravel + Livewire (novo estado consolidado)
+
+- Foi criado e integrado um **backoffice completo** em `backend/` com:
+  - autenticação web (Fortify)
+  - autenticação API JWT
+  - permissões e roles via Spatie
+  - layout administrativo em padrão desktop POS.
+
+- Módulos administrativos Livewire ativos:
+  - dashboard, produtos, clientes, vendas, compras, reversões
+  - caixas, localizações de stock, recarga de stock
+  - movimentos e transferências de stock
+  - utilizadores
+  - roles e permissões.
+
+- Módulo novo de **Roles & Permissões**:
+  - gestão de permissões por role
+  - gestão de role/permissões diretas por utilizador
+  - rotas, menu e permissões (`roles.view`, `roles.manage`) já incluídos.
+
+### Padronização visual com Lucide
+
+- Lucide integrado globalmente no backoffice:
+  - ícones em navegação, cards e botões
+  - renderização automática em navegação e re-render do Livewire.
+
+- Inputs agora usam ícones por contexto de campo (nome/tipo/label/placeholder), por exemplo:
+  - email, senha, telefone, data, quantidade, preço, código, localização, nota, pesquisa.
+
+### Correções funcionais recentes
+
+- Página `/utilizadores`:
+  - corrigido comportamento de "sumir linha" ao abrir modal
+  - ajustes aplicados: `type="button"` nos botões Livewire, `wire:key` por linha e ordenação estável da listagem.
+
+- Página `/dashboard`:
+  - corrigido bug de crescimento infinito de altura dos gráficos (scroll infinito)
+  - aplicado wrapper com altura fixa
+  - ciclo de vida do Chart.js ajustado com `destroy()` antes de recriar em eventos Livewire.
+
+### Git e continuidade
+
+- Commit grande já realizado com a inclusão completa do `backend/`:
+  - `a1f1953` - "Padroniza ícones no backoffice com Lucide."
+
+- Há uma alteração local adicional pendente relacionada ao ajuste do dashboard (Chart.js), pronta para commit.
+

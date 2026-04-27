@@ -83,11 +83,15 @@
     <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <article class="rounded-lg border border-slate-200 bg-white p-4 xl:col-span-2">
             <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vendas dos últimos 7 dias</p>
-            <canvas id="chartVendas7Dias" height="110"></canvas>
+            <div class="h-72">
+                <canvas id="chartVendas7Dias" class="h-full w-full"></canvas>
+            </div>
         </article>
         <article class="rounded-lg border border-slate-200 bg-white p-4">
             <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Métodos de pagamento</p>
-            <canvas id="chartPagamentos" height="110"></canvas>
+            <div class="h-72">
+                <canvas id="chartPagamentos" class="h-full w-full"></canvas>
+            </div>
         </article>
     </section>
 
@@ -125,7 +129,7 @@
 </div>
 
 <script>
-    window.addEventListener('load', () => {
+    function renderDashboardCharts() {
         if (typeof window.Chart === 'undefined') return;
 
         const labelsVendas = @js($labelsVendas);
@@ -133,9 +137,19 @@
         const labelsPagamentos = @js($labelsPagamentos);
         const dadosPagamentos = @js($dadosPagamentos);
 
+        if (window.retailChartVendas7Dias) {
+            window.retailChartVendas7Dias.destroy();
+            window.retailChartVendas7Dias = null;
+        }
+
+        if (window.retailChartPagamentos) {
+            window.retailChartPagamentos.destroy();
+            window.retailChartPagamentos = null;
+        }
+
         const canvasVendas = document.getElementById('chartVendas7Dias');
         if (canvasVendas) {
-            new window.Chart(canvasVendas, {
+            window.retailChartVendas7Dias = new window.Chart(canvasVendas, {
                 type: 'line',
                 data: {
                     labels: labelsVendas,
@@ -158,7 +172,7 @@
 
         const canvasPagamentos = document.getElementById('chartPagamentos');
         if (canvasPagamentos) {
-            new window.Chart(canvasPagamentos, {
+            window.retailChartPagamentos = new window.Chart(canvasPagamentos, {
                 type: 'doughnut',
                 data: {
                     labels: labelsPagamentos,
@@ -172,6 +186,16 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
                 },
+            });
+        }
+    }
+
+    window.addEventListener('load', renderDashboardCharts);
+    window.addEventListener('livewire:navigated', renderDashboardCharts);
+    window.addEventListener('livewire:initialized', () => {
+        if (window.Livewire?.hook) {
+            window.Livewire.hook('morph.updated', () => {
+                renderDashboardCharts();
             });
         }
     });
