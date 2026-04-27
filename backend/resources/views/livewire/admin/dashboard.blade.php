@@ -1,39 +1,81 @@
 <div class="space-y-6">
     <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="badge-dollar-sign" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Vendas hoje</p>
-            <p class="mt-2 text-lg font-semibold">{{ number_format($metricas['vendasHoje'], 2, ',', '.') }} MZN</p>
+        <article class="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700">
+                    <i data-lucide="badge-dollar-sign" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-emerald-800/80">Vendas hoje</p>
+                    <p class="mt-1 text-xl font-bold text-emerald-900">{{ number_format($metricas['vendasHoje'], 2, ',', '.') }} MZN</p>
+                </div>
+            </div>
         </article>
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="box" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Produtos ativos</p>
-            <p class="mt-2 text-lg font-semibold">{{ $metricas['totalProdutos'] }}</p>
+        <article class="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-700">
+                    <i data-lucide="box" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-blue-800/80">Produtos ativos</p>
+                    <p class="mt-1 text-xl font-bold text-blue-900">{{ $metricas['totalProdutos'] }}</p>
+                </div>
+            </div>
         </article>
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="users" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Clientes ativos</p>
-            <p class="mt-2 text-lg font-semibold">{{ $metricas['totalClientes'] }}</p>
+        <article class="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-700">
+                    <i data-lucide="users" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-indigo-800/80">Clientes ativos</p>
+                    <p class="mt-1 text-xl font-bold text-indigo-900">{{ $metricas['totalClientes'] }}</p>
+                </div>
+            </div>
         </article>
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="package-plus" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Compras do mês</p>
-            <p class="mt-2 text-lg font-semibold">{{ number_format($metricas['comprasMes'], 2, ',', '.') }} MZN</p>
+        <article class="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-700">
+                    <i data-lucide="package-plus" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-cyan-800/80">Compras do mês</p>
+                    <p class="mt-1 text-xl font-bold text-cyan-900">{{ number_format($metricas['comprasMes'], 2, ',', '.') }} MZN</p>
+                </div>
+            </div>
         </article>
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="undo-2" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Reversões pendentes</p>
-            <p class="mt-2 text-lg font-semibold">{{ $metricas['reversoesPendentes'] }}</p>
+        <article class="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700">
+                    <i data-lucide="undo-2" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-amber-800/80">Reversões pendentes</p>
+                    <p class="mt-1 text-xl font-bold text-amber-900">{{ $metricas['reversoesPendentes'] }}</p>
+                </div>
+            </div>
         </article>
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="wallet" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Caixas ativos</p>
-            <p class="mt-2 text-lg font-semibold">{{ $metricas['caixasAtivos'] }}</p>
+        <article class="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-violet-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-700">
+                    <i data-lucide="wallet" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-violet-800/80">Caixas ativos</p>
+                    <p class="mt-1 text-xl font-bold text-violet-900">{{ $metricas['caixasAtivos'] }}</p>
+                </div>
+            </div>
         </article>
-        <article class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <i data-lucide="warehouse" class="mb-2 h-4 w-4 text-slate-500"></i>
-            <p class="text-xs uppercase tracking-widest text-slate-500">Locais de stock ativos</p>
-            <p class="mt-2 text-lg font-semibold">{{ $metricas['locaisAtivos'] }}</p>
+        <article class="rounded-xl border border-rose-200 bg-gradient-to-br from-rose-50 to-rose-100/70 p-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-700">
+                    <i data-lucide="warehouse" class="h-6 w-6"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-rose-800/80">Locais de stock ativos</p>
+                    <p class="mt-1 text-xl font-bold text-rose-900">{{ $metricas['locaisAtivos'] }}</p>
+                </div>
+            </div>
         </article>
     </section>
 
