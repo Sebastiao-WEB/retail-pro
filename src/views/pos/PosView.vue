@@ -54,6 +54,8 @@ const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 const listaPreVisualizacaoRef = ref(null);
+const processandoAberturaCaixa = ref(false);
+const processandoFechoCaixa = ref(false);
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
@@ -399,7 +401,12 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     }
   }
 
-  await vendaStore.registarVenda(venda);
+  try {
+    await vendaStore.registarVenda(venda);
+  } catch (erro) {
+    mostrarToastSwal(erro?.message || "Falha ao registar venda na API.", "error");
+    return;
+  }
   produtoStore.aplicarVenda(venda.itens);
   carrinhoStore.limparCarrinho();
   valorPagoInteiro.value = "0";
@@ -472,19 +479,41 @@ async function confirmarSolicitacaoReversao() {
   mostrarToastSwal("Solicitação de reversão enviada ao gerente para aprovação.", "success");
 }
 
-onMounted(() => {
+onMounted(async () => {
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
+  if (temApiConfigurada()) {
+    const sincronizacao = await sessaoStore.sincronizarTurnoRemoto();
+    if (!sincronizacao.remotoOk && sincronizacao.erro) {
+      mostrarToastSwal(sincronizacao.erro, "error");
+    }
+  }
   if (!sessaoStore.turnoAberto) {
     modalAberturaCaixa.value = true;
   }
 });
 
-function abrirTurnoCaixa() {
+async function abrirTurnoCaixa() {
+  if (processandoAberturaCaixa.value) return;
+  processandoAberturaCaixa.value = true;
   const fundo = Number(fundoInicialInput.value || 0);
-  sessaoStore.abrirTurno({ fundoInicial: fundo });
+  const resultado = await sessaoStore.abrirTurno({ fundoInicial: fundo });
+  if (temApiConfigurada() && !resultado.remotoOk) {
+    mostrarToastSwal(resultado.erro || "Não foi possível abrir caixa na API.", "error");
+    processandoAberturaCaixa.value = false;
+    return;
+  }
   modalAberturaCaixa.value = false;
-  mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)}.`, "success");
+  if (temApiConfigurada()) {
+    if (resultado.remotoOk) {
+      mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)} e sessão remota ativa.`, "success");
+    } else {
+      mostrarToastSwal(`Caixa aberto localmente. API de sessão indisponível: ${resultado.erro || "erro não detalhado"}`, "warning");
+    }
+  } else {
+    mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)}.`, "success");
+  }
+  processandoAberturaCaixa.value = false;
 }
 
 function abrirFechoCaixa() {
@@ -493,7 +522,8 @@ function abrirFechoCaixa() {
   modalFechoCaixa.value = true;
 }
 
-function confirmarFechoCaixa() {
+async function confirmarFechoCaixa() {
+  if (processandoFechoCaixa.value) return;
   if (diferencaFecho.value === null) {
     mostrarToastSwal("Informe o dinheiro real contado no caixa.", "warning");
     return;
@@ -502,7 +532,8 @@ function confirmarFechoCaixa() {
     mostrarToastSwal("Informe a justificativa da diferença para concluir o fecho.", "warning");
     return;
   }
-  sessaoStore.fecharTurno({
+  processandoFechoCaixa.value = true;
+  const resultado = await sessaoStore.fecharTurno({
     utilizador: sessaoStore.utilizador,
     caixa: sessaoStore.caixaAtribuido,
     aberturaEm: sessaoStore.aberturaEm,
@@ -523,8 +554,14 @@ function confirmarFechoCaixa() {
       itens: venda.itens.length,
     })),
   });
+  if (temApiConfigurada() && !resultado.remotoOk) {
+    mostrarToastSwal(resultado.erro || "Não foi possível fechar caixa na API.", "error");
+    processandoFechoCaixa.value = false;
+    return;
+  }
   modalFechoCaixa.value = false;
   mostrarToastSwal("Fecho de caixa concluído e relatório diário registado.", "success");
+  processandoFechoCaixa.value = false;
 }
 </script>
 
@@ -829,10 +866,11 @@ function confirmarFechoCaixa() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="aviso" @click="abrirTurnoCaixa">
+        <BotaoBase variante="aviso" :disabled="processandoAberturaCaixa" @click="abrirTurnoCaixa">
           <span class="inline-flex items-center gap-1.5">
-            <DoorOpen :size="14" />
-            <span>Confirmar abertura</span>
+            <LoaderCircle v-if="processandoAberturaCaixa" class="animate-spin" :size="14" />
+            <DoorOpen v-else :size="14" />
+            <span>{{ processandoAberturaCaixa ? "A abrir..." : "Confirmar abertura" }}</span>
           </span>
         </BotaoBase>
       </div>
@@ -878,10 +916,11 @@ function confirmarFechoCaixa() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="aviso" @click="confirmarFechoCaixa">
+        <BotaoBase variante="aviso" :disabled="processandoFechoCaixa" @click="confirmarFechoCaixa">
           <span class="inline-flex items-center gap-1.5">
-            <DoorClosed :size="14" />
-            <span>Confirmar fecho</span>
+            <LoaderCircle v-if="processandoFechoCaixa" class="animate-spin" :size="14" />
+            <DoorClosed v-else :size="14" />
+            <span>{{ processandoFechoCaixa ? "A fechar..." : "Confirmar fecho" }}</span>
           </span>
         </BotaoBase>
       </div>

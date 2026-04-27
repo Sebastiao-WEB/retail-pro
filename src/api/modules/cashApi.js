@@ -1,6 +1,10 @@
 import { httpRequest } from "../httpClient";
 
 export const cashApi = {
+  async sessaoAtiva(registerId) {
+    const query = registerId ? `?register_id=${encodeURIComponent(registerId)}` : "";
+    return httpRequest(`/cash-sessions/active${query}`);
+  },
   async abrirSessao(payload) {
     return httpRequest("/cash-sessions/open", { method: "POST", body: payload });
   },

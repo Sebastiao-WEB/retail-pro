@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { useVendaStore } from "../src/store/useVendaStore";
 
+vi.mock("../src/services/integracaoApi", async () => {
+  const atual = await vi.importActual("../src/services/integracaoApi");
+  return {
+    ...atual,
+    solicitarReversaoIntegrada: vi.fn(async () => ({ ok: true })),
+  };
+});
+
 describe("useVendaStore", () => {
   beforeEach(() => {
     setActivePinia(createPinia());

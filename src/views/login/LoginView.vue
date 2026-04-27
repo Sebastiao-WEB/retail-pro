@@ -3,7 +3,7 @@ import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
-import { authApi, temApiConfigurada } from "../../api";
+import { authApi, modoApiAtivo, temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
 import { LogIn, LoaderCircle } from "lucide-vue-next";
 
@@ -17,6 +17,8 @@ const form = reactive({
   codigo: "",
   caixa: "Caixa 01",
 });
+
+const apiMode = modoApiAtivo();
 
 function extrairSourceLocation(user) {
   const fonte =
@@ -38,6 +40,10 @@ async function entrar() {
   if (!form.username.trim()) return;
 
   if (!temApiConfigurada()) {
+    if (modoApiAtivo()) {
+      mostrarToastSwal("Modo API ativo, mas VITE_API_URL não está configurado.", "error");
+      return;
+    }
     sessaoStore.login({
       username: form.username.trim(),
       caixa: form.caixa,
@@ -52,7 +58,7 @@ async function entrar() {
     const resposta = await authApi.login({
       username: form.username.trim(),
       password: form.senha,
-      registerCode: form.codigo || form.caixa,
+      registerCode: form.codigo.trim() || null,
     });
     const user = resposta?.user || {};
     const token = resposta?.access_token || "";
@@ -102,10 +108,16 @@ async function entrar() {
           <input v-model="form.senha" type="password" class="rp-input" placeholder="••••••" />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Código do operador (opcional)</label>
-          <input v-model="form.codigo" class="rp-input" placeholder="Código ou cartão" />
+          <label class="mb-1 block text-xs font-semibold text-slate-600">
+            {{ apiMode ? "Código do caixa (opcional para validação)" : "Código do operador (opcional)" }}
+          </label>
+          <input
+            v-model="form.codigo"
+            class="rp-input"
+            :placeholder="apiMode ? 'Ex: CX-01 ou Caixa 01' : 'Código ou cartão'"
+          />
         </div>
-        <div>
+        <div v-if="!apiMode">
           <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa atribuído</label>
           <select v-model="form.caixa" class="rp-input">
             <option>Caixa 01</option>

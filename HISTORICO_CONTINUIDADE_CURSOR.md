@@ -62,17 +62,14 @@ Este arquivo serve para retomar rapidamente o contexto no Cursor (em outro compu
 
 - `MODELAGEM_BD_V2.md`
   - modelagem completa da BD (multi-caixa, stock, transferências, UUID).
-
 - `GUIA_API_LARAVEL_LIVEWIRE.md`
   - guia de implementação backend (Laravel + Livewire + API JWT).
-
 - `CONTRATO_API_FRONTEND_POS.md`
   - contrato de API esperado pelo frontend:
     - endpoints consumidos
     - formato de sucesso/erro
     - payloads de request/response esperados
     - regras críticas para não quebrar o POS.
-
 - `INTEGRACAO_API_LARAVEL.md`
   - visão resumida da integração API no frontend.
 
@@ -83,9 +80,7 @@ Este arquivo serve para retomar rapidamente o contexto no Cursor (em outro compu
 - Sessão (`useSessaoStore`) guarda metadados de operação:
   - `registerId`, `registerCodigo`
   - `sourceLocationId`, `sourceLocationCodigo`, `sourceLocationNome`
-
 - Login (`LoginView`) já extrai esses dados do payload da API quando presentes.
-
 - POS (`PosView`) valida origem de stock em modo API:
   - bloqueia finalização sem `sourceLocationId`
   - envia dados de `register` e `source_location` no payload da venda.
@@ -95,18 +90,15 @@ Este arquivo serve para retomar rapidamente o contexto no Cursor (em outro compu
 ## 5) O que falta / próximos passos recomendados
 
 1. **Backend Laravel**
-   - Implementar endpoints do contrato em `CONTRATO_API_FRONTEND_POS.md`.
-   - Garantir respostas JSON com `message` em erros.
-   - Validar vínculo `register -> source_location` no backend ao criar venda.
-
+  - Implementar endpoints do contrato em `CONTRATO_API_FRONTEND_POS.md`.
+  - Garantir respostas JSON com `message` em erros.
+  - Validar vínculo `register -> source_location` no backend ao criar venda.
 2. **Mapeamento de campos**
-   - Ideal padronizar API em `snake_case` e criar mapper frontend para reduzir ambiguidade.
-
+  - Ideal padronizar API em `snake_case` e criar mapper frontend para reduzir ambiguidade.
 3. **Fluxo de caixa remoto**
-   - Integrar abertura/fecho de caixa com endpoints `cash-sessions/*` (hoje parte ainda local).
-
+  - Integrar abertura/fecho de caixa com endpoints `cash-sessions/`* (hoje parte ainda local).
 4. **Homologação**
-   - Rodar ponta a ponta em `VITE_API_MODE=api` com dados reais.
+  - Rodar ponta a ponta em `VITE_API_MODE=api` com dados reais.
 
 ---
 
@@ -114,18 +106,18 @@ Este arquivo serve para retomar rapidamente o contexto no Cursor (em outro compu
 
 1. Abrir projeto.
 2. Ler nesta ordem:
-   - `HISTORICO_CONTINUIDADE_CURSOR.md` (este arquivo)
-   - `CONTRATO_API_FRONTEND_POS.md`
-   - `MODELAGEM_BD_V2.md`
-   - `GUIA_API_LARAVEL_LIVEWIRE.md`
+  - `HISTORICO_CONTINUIDADE_CURSOR.md` (este arquivo)
+  - `CONTRATO_API_FRONTEND_POS.md`
+  - `MODELAGEM_BD_V2.md`
+  - `GUIA_API_LARAVEL_LIVEWIRE.md`
 3. Validar `.env`:
-   - `VITE_API_MODE=api` (ou `mock` para fallback)
-   - `VITE_API_URL`
-   - `VITE_API_TIMEOUT_MS`
+  - `VITE_API_MODE=api` (ou `mock` para fallback)
+  - `VITE_API_URL`
+  - `VITE_API_TIMEOUT_MS`
 4. Rodar:
-   - `npm install`
-   - `npm run test`
-   - `npm run electron:dev` (ou `npm run dev:web`)
+  - `npm install`
+  - `npm run test`
+  - `npm run electron:dev` (ou `npm run dev:web`)
 
 ---
 
@@ -146,14 +138,12 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
   - autenticação API JWT
   - permissões e roles via Spatie
   - layout administrativo em padrão desktop POS.
-
 - Módulos administrativos Livewire ativos:
   - dashboard, produtos, clientes, vendas, compras, reversões
   - caixas, localizações de stock, recarga de stock
   - movimentos e transferências de stock
   - utilizadores
   - roles e permissões.
-
 - Módulo novo de **Roles & Permissões**:
   - gestão de permissões por role
   - gestão de role/permissões diretas por utilizador
@@ -164,7 +154,6 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 - Lucide integrado globalmente no backoffice:
   - ícones em navegação, cards e botões
   - renderização automática em navegação e re-render do Livewire.
-
 - Inputs agora usam ícones por contexto de campo (nome/tipo/label/placeholder), por exemplo:
   - email, senha, telefone, data, quantidade, preço, código, localização, nota, pesquisa.
 
@@ -173,7 +162,6 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 - Página `/utilizadores`:
   - corrigido comportamento de "sumir linha" ao abrir modal
   - ajustes aplicados: `type="button"` nos botões Livewire, `wire:key` por linha e ordenação estável da listagem.
-
 - Página `/dashboard`:
   - corrigido bug de crescimento infinito de altura dos gráficos (scroll infinito)
   - aplicado wrapper com altura fixa
@@ -183,13 +171,11 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 
 - Commit grande já realizado com a inclusão completa do `backend/`:
   - `a1f1953` - "Padroniza ícones no backoffice com Lucide."
-
 - Commits recentes de consolidação:
   - `43b44df` - Atualiza histórico de continuidade e estabiliza gráficos do dashboard.
   - `50de0eb` - Refina cards de métricas do dashboard com foco visual.
   - `edd4757` - Adiciona gestão de utilizadores na API v1 e checklist de produção.
   - `f6a1aee` - Integra desktop com API versionada de forma robusta.
-
 - Situação atual da branch `main`:
   - alterações já publicadas no remoto
   - único item local não versionado continua sendo `release/`.
@@ -216,6 +202,6 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 ### Pendências recomendadas (próxima sessão)
 
 1. Homologação manual na UI desktop (fluxo completo de caixa, venda e reversão).
-2. Integrar `cash-sessions/*` no frontend (hoje abertura/fecho ainda local).
+2. Integrar `cash-sessions/`* no frontend (hoje abertura/fecho ainda local).
 3. Ajustar `.env` de produção web e checklist operacional final.
 

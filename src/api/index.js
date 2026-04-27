@@ -1,4 +1,4 @@
-export { apiConfig, temApiConfigurada } from "./config";
+export { apiConfig, modoApiAtivo, temApiConfigurada, garantirBackendDisponivel } from "./config";
 export { ApiError } from "./httpClient";
 export { authApi } from "./modules/authApi";
 export { cashApi } from "./modules/cashApi";

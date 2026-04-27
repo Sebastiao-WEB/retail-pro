@@ -30,6 +30,27 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $registerInformado = trim((string) ($dados['register_code'] ?? ''));
+        if ($registerInformado !== '') {
+            $registerUser = $user->register;
+            $candidatos = array_filter([
+                $registerUser?->code,
+                $registerUser?->name,
+                $user->caixa_atribuido,
+            ], fn ($valor) => is_string($valor) && trim($valor) !== '');
+
+            $normalizadoInformado = mb_strtolower($registerInformado);
+            $corresponde = collect($candidatos)->contains(
+                fn ($valor) => mb_strtolower(trim((string) $valor)) === $normalizadoInformado
+            );
+
+            if (! $corresponde) {
+                return response()->json([
+                    'message' => 'O caixa informado não corresponde ao caixa atribuído ao utilizador.',
+                ], 422);
+            }
+        }
+
         $token = auth('api')->login($user);
         $ttl = config('jwt.ttl', 60) * 60;
 

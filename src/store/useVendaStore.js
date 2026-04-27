@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { temApiConfigurada } from "../api";
 import {
   carregarHistoricoIntegrado,
   criarVendaIntegrada,
@@ -85,8 +86,10 @@ export const useVendaStore = defineStore("vendas", {
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
         estado: "Concluida",
       };
+      if (temApiConfigurada()) {
+        await criarVendaIntegrada(vendaLocal);
+      }
       this.vendas.unshift(vendaLocal);
-      await criarVendaIntegrada(vendaLocal);
     },
     async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
       const existePendente = this.solicitacoesReversao.some((item) => item.vendaId === vendaId && item.estado === "Pendente");

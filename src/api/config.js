@@ -9,7 +9,17 @@ export const apiConfig = {
   versionPrefix: baseJaVersionada || !versionRaw ? "" : `/${versionRaw}`,
 };
 
+export function modoApiAtivo() {
+  return apiConfig.usarBackend;
+}
+
 export function temApiConfigurada() {
   return apiConfig.usarBackend && !!apiConfig.baseUrl;
+}
+
+export function garantirBackendDisponivel() {
+  if (!modoApiAtivo()) return;
+  if (temApiConfigurada()) return;
+  throw new Error("VITE_API_MODE=api ativo, mas VITE_API_URL não está configurado.");
 }
 

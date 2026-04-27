@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CashSessionController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\PurchaseController;
@@ -41,6 +42,11 @@ Route::prefix('v1')->group(function () {
         Route::get('sale-reversal-requests', [SaleReversalRequestController::class, 'index']);
         Route::post('sale-reversal-requests', [SaleReversalRequestController::class, 'store']);
         Route::patch('sale-reversal-requests/{saleReversalRequest}', [SaleReversalRequestController::class, 'update']);
+
+        Route::post('cash-sessions/open', [CashSessionController::class, 'open']);
+        Route::post('cash-sessions/{id}/close', [CashSessionController::class, 'close']);
+        Route::get('cash-sessions/active', [CashSessionController::class, 'active']);
+        Route::get('cash-sessions/{id}/movements', [CashSessionController::class, 'movements']);
 
         Route::get('purchases', [PurchaseController::class, 'index']);
         Route::post('purchases', [PurchaseController::class, 'store']);
