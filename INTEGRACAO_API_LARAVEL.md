@@ -12,8 +12,12 @@ Configure no `.env`:
 ```env
 VITE_API_MODE=api
 VITE_API_URL=http://localhost:8000/api
+VITE_API_VERSION=v1
 VITE_API_TIMEOUT_MS=15000
 ```
+
+Observacao:
+- Se `VITE_API_URL` ja terminar com versao (ex.: `/api/v1`), a aplicacao nao duplica o prefixo.
 
 ## Autenticacao JWT
 

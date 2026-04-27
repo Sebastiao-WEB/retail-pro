@@ -12,7 +12,8 @@ export class ApiError extends Error {
 
 function construirUrl(path) {
   const rota = String(path || "").startsWith("/") ? path : `/${path}`;
-  return `${apiConfig.baseUrl}${rota}`;
+  const rotaFinal = `${apiConfig.versionPrefix}${rota}`.replace(/\/{2,}/g, "/");
+  return `${apiConfig.baseUrl}${rotaFinal}`;
 }
 
 let promessaRefresh = null;
