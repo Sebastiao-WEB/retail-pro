@@ -82,3 +82,24 @@ Observacao:
 
 Se a API falhar, o fluxo continua operacional com mock local.
 
+---
+
+## Validação rápida (executada)
+
+Integração validada com backend em `http://127.0.0.1:8000/api/v1`:
+
+- `POST /auth/login` -> 200
+- `GET /products` -> 200
+- `GET /customers` -> 200
+- `GET /sales` -> 200
+- `GET /purchases` -> 200
+- `GET /users` -> 200
+- `PATCH /users/{id}/status` -> 200
+- `POST /sales` -> 201
+
+### Observações
+
+- A camada API do desktop agora suporta versionamento via `VITE_API_VERSION`.
+- Se `VITE_API_URL` já tiver `/v1`, o prefixo não é duplicado.
+- Endpoints de `cash-sessions/*` permanecem preparados no cliente, mas ainda não integrados ao fluxo principal da UI.
+

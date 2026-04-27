@@ -184,5 +184,38 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 - Commit grande já realizado com a inclusão completa do `backend/`:
   - `a1f1953` - "Padroniza ícones no backoffice com Lucide."
 
-- Há uma alteração local adicional pendente relacionada ao ajuste do dashboard (Chart.js), pronta para commit.
+- Commits recentes de consolidação:
+  - `43b44df` - Atualiza histórico de continuidade e estabiliza gráficos do dashboard.
+  - `50de0eb` - Refina cards de métricas do dashboard com foco visual.
+  - `edd4757` - Adiciona gestão de utilizadores na API v1 e checklist de produção.
+  - `f6a1aee` - Integra desktop com API versionada de forma robusta.
+
+- Situação atual da branch `main`:
+  - alterações já publicadas no remoto
+  - único item local não versionado continua sendo `release/`.
+
+---
+
+## 9) Estado de integração Desktop <-> API (última validação)
+
+### Configuração validada
+
+- No desktop:
+  - `VITE_API_MODE=api`
+  - `VITE_API_URL=http://localhost:8000/api`
+  - `VITE_API_VERSION=v1`
+  - `VITE_API_TIMEOUT_MS=15000`
+
+### Smoke test funcional executado
+
+- Login JWT: `POST /api/v1/auth/login` ✅
+- Leituras principais: `products`, `customers`, `sales`, `purchases`, `users` ✅
+- Gestão de utilizador: `PATCH /api/v1/users/{id}/status` ✅
+- Registo de venda: `POST /api/v1/sales` ✅
+
+### Pendências recomendadas (próxima sessão)
+
+1. Homologação manual na UI desktop (fluxo completo de caixa, venda e reversão).
+2. Integrar `cash-sessions/*` no frontend (hoje abertura/fecho ainda local).
+3. Ajustar `.env` de produção web e checklist operacional final.
 
