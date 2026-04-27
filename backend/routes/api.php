@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\StockLocationController;
 use App\Http\Controllers\Api\V1\StockTransferController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -58,5 +59,10 @@ Route::prefix('v1')->group(function () {
         Route::get('stock/movements', [StockMovementController::class, 'index']);
         Route::get('stock/transfers', [StockTransferController::class, 'index']);
         Route::post('stock/transfers', [StockTransferController::class, 'store']);
+
+        Route::get('users', [UserController::class, 'index']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::put('users/{user}', [UserController::class, 'update']);
+        Route::patch('users/{user}/status', [UserController::class, 'updateStatus']);
     });
 });
