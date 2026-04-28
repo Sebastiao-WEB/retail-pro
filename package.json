@@ -39,6 +39,7 @@
         "AppImage",
         "deb"
       ],
+      "icon": "src/assets/rp.png",
       "category": "Office"
     }
   },

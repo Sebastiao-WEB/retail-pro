@@ -6,6 +6,7 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { authApi, modoApiAtivo, temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
 import { LogIn, LoaderCircle } from "lucide-vue-next";
+import logoRetailPro from "../../assets/rp.png";
 
 const router = useRouter();
 const sessaoStore = useSessaoStore();
@@ -93,9 +94,8 @@ async function entrar() {
 <template>
   <section class="flex min-h-screen items-center justify-center bg-[var(--bg-app)] p-6">
     <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div class="mb-5 text-center">
-        <h1 class="text-2xl font-bold text-slate-900">RetailPro POS</h1>
-        <p class="text-sm text-slate-500">Início de turno do caixa</p>
+      <div class="mb-[-20px] text-center">
+        <img :src="logoRetailPro" alt="RetailPro POS" class="mx-auto h-45 w-auto object-contain" />
       </div>
 
       <form class="space-y-3" @submit.prevent="entrar">

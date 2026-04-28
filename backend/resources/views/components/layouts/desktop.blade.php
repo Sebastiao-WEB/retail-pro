@@ -19,7 +19,7 @@
         <aside class="fixed left-0 top-0 flex h-screen w-64 flex-col bg-[var(--dark)] text-slate-100">
             <div class="border-b border-white/10 px-5 py-5">
                 <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--gold)] text-sm font-black text-black">R</div>
+                    <img src="{{ asset('assets/images/rp.png') }}" alt="RetailPro POS" class="h-9 w-9 rounded-lg object-contain">
                     <div>
                         <h1 class="text-sm font-bold leading-tight">RetailPro <span class="text-[var(--gold)]">POS</span></h1>
                         <p class="text-[10px] text-slate-400">Backoffice Livewire</p>

@@ -10,8 +10,7 @@
     <section class="flex min-h-screen items-center justify-center p-6">
         <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="mb-5 text-center">
-                <h1 class="text-2xl font-bold text-slate-900">RetailPro POS</h1>
-                <p class="text-sm text-slate-500">Inicio de sessao do backoffice</p>
+                <img src="{{ asset('assets/images/rp.png') }}" alt="RetailPro POS" class="mx-auto h-35 w-auto object-contain">
             </div>
 
             @php

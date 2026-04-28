@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -139,7 +140,16 @@ async function obterDadosImpressoras(alvo) {
   };
 }
 
+function obterIconeAplicacao() {
+  const candidatos = [
+    path.join(app.getAppPath(), "src/assets/rp.png"),
+    path.join(process.cwd(), "src/assets/rp.png"),
+  ];
+  return candidatos.find((caminho) => fs.existsSync(caminho));
+}
+
 function createWindow() {
+  const iconeAplicacao = obterIconeAplicacao();
   const window = new BrowserWindow({
     width: 1280,
     height: 735,
@@ -151,6 +161,7 @@ function createWindow() {
     maximizable: false,
     fullscreenable: false,
     backgroundColor: "#0f172a",
+    icon: iconeAplicacao,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
