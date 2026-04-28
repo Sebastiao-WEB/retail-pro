@@ -12,6 +12,7 @@ import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-nex
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
+let logoTalaoDataUrlPromise = null;
 
 const vendaSelecionada = ref(null);
 const modalDetalhesAberto = ref(false);
@@ -85,7 +86,25 @@ function escaparHtml(valor) {
     .replaceAll("'", "&#039;");
 }
 
-function gerarHtmlTalao(venda) {
+async function obterLogoTalaoDataUrl() {
+  if (!logoTalaoDataUrlPromise) {
+    logoTalaoDataUrlPromise = fetch(logoRetailPro)
+      .then((resposta) => resposta.blob())
+      .then(
+        (blob) =>
+          new Promise((resolve, reject) => {
+            const leitor = new FileReader();
+            leitor.onloadend = () => resolve(String(leitor.result || ""));
+            leitor.onerror = reject;
+            leitor.readAsDataURL(blob);
+          })
+      )
+      .catch(() => "");
+  }
+  return logoTalaoDataUrlPromise;
+}
+
+async function gerarHtmlTalao(venda) {
   const linhasItens = (venda.itens || [])
     .map(
       (item) => `
@@ -99,6 +118,8 @@ function gerarHtmlTalao(venda) {
       `
     )
     .join("");
+  const logoDataUrl = await obterLogoTalaoDataUrl();
+  const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo RetailPro" class="logo" />` : "";
 
   return `
     <!doctype html>
@@ -110,8 +131,8 @@ function gerarHtmlTalao(venda) {
           @page { size: 80mm auto; margin: 4mm; }
           body { font-family: Arial, sans-serif; width: 80mm; margin: 0 auto; color: #111; font-size: 12px; }
           .center { text-align: center; }
-          .logo { width: 96px; height: auto; margin: 0 auto 6px; display: block; }
-          .title { font-size: 18px; font-weight: 700; margin: 4px 0; }
+          .logo { width: 151px; height: auto; margin: 0 auto 6px; display: block; }
+          .title { font-size: 18px; font-weight: 700; margin: -30px 0 4px; }
           .muted { color: #555; font-size: 11px; }
           .sep { border-top: 1px dashed #444; margin: 8px 0; }
           table { width: 100%; border-collapse: collapse; }
@@ -123,7 +144,7 @@ function gerarHtmlTalao(venda) {
       </head>
       <body>
         <div class="center">
-          <img src="${logoRetailPro}" alt="Logo RetailPro" class="logo" />
+          ${logoHtml}
           <div class="title">${escaparHtml(configuracaoStore.nomeEmpresa || "RetailPro POS")}</div>
           <div class="muted">2a via do Talão</div>
           <div class="muted">NUIT: ${escaparHtml(configuracaoStore.nif || "")}</div>
@@ -171,8 +192,9 @@ async function reimprimirVenda(venda) {
     return;
   }
   try {
+    const htmlTalao = await gerarHtmlTalao(venda);
     const resultado = await window.api.imprimirTalao({
-      html: gerarHtmlTalao(venda),
+      html: htmlTalao,
       deviceName: configuracaoStore.impressoraPadrao,
       copies: 1,
       larguraTalao: "80mm",
