@@ -380,6 +380,7 @@ function limparCarrinhoAtual() {
 }
 
 async function concluirVenda(opcoes = { imprimir: true }) {
+  if (opcoes.imprimir && imprimindoAgora.value) return;
   if (!vendaPendente.value) return;
   if (!validarOrigemStock()) return;
   if (carrinhoStore.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < carrinhoStore.total) {
@@ -448,6 +449,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 }
 
 async function reimprimirVenda(venda) {
+  if (imprimindoAgora.value) return;
   if (!window.api?.imprimirTalao) {
     mostrarToastSwal("Reimpressão disponível apenas na versão desktop (Electron).", "error");
     return;

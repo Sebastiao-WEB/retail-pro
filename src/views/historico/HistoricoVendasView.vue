@@ -13,6 +13,7 @@ const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
 let logoTalaoDataUrlPromise = null;
+const imprimindoAgora = ref(false);
 
 const vendaSelecionada = ref(null);
 const modalDetalhesAberto = ref(false);
@@ -183,6 +184,7 @@ async function gerarHtmlTalao(venda) {
 }
 
 async function reimprimirVenda(venda) {
+  if (imprimindoAgora.value) return;
   if (!window.api?.imprimirTalao) {
     mostrarToastSwal("Reimpressão disponível apenas na versão desktop (Electron).", "error");
     return;
@@ -192,6 +194,7 @@ async function reimprimirVenda(venda) {
     return;
   }
   try {
+    imprimindoAgora.value = true;
     const htmlTalao = await gerarHtmlTalao(venda);
     const resultado = await window.api.imprimirTalao({
       html: htmlTalao,
@@ -207,6 +210,8 @@ async function reimprimirVenda(venda) {
     mostrarToastSwal(`Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`, "success");
   } catch {
     mostrarToastSwal("Falha ao reimprimir recibo.", "error");
+  } finally {
+    imprimindoAgora.value = false;
   }
 }
 
