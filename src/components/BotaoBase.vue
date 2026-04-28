@@ -60,13 +60,13 @@ async function aoClicar(evento) {
     v-bind="attrsBotao"
     :type="props.tipo"
     :disabled="estaDesativado"
+    data-rp-managed="1"
     class="rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
     :class="[mapaVariantes[props.variante] || mapaVariantes.primario, props.bloco ? 'w-full' : '', attrs.class]"
     @click="aoClicar"
   >
-    <span v-if="estaCarregando" class="inline-flex items-center gap-1.5">
+    <span v-if="estaCarregando" class="inline-flex items-center justify-center">
       <LoaderCircle :size="14" class="animate-spin" />
-      <span>A processar...</span>
     </span>
     <slot v-else />
   </button>

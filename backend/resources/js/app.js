@@ -113,6 +113,79 @@ function renderLucideIcons() {
     });
 }
 
+const ESTADO_LOADING_ATTR = 'data-rp-loading';
+const ESTADO_HTML_ATTR = 'data-rp-original-html';
+const ESTADO_WIDTH_ATTR = 'data-rp-original-width';
+const ESTADO_DISABLED_ATTR = 'data-rp-original-disabled';
+const managedButtons = new Set();
+let pendingRequests = 0;
+
+function spinnerHtml() {
+    return `
+        <span class="inline-flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="animate-spin" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"></circle>
+                <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3"></path>
+            </svg>
+        </span>
+    `;
+}
+
+function setButtonLoading(button) {
+    if (!button || button.hasAttribute(ESTADO_LOADING_ATTR) || button.hasAttribute('data-rp-ignore-loading')) return;
+    button.setAttribute(ESTADO_LOADING_ATTR, '1');
+    button.setAttribute(ESTADO_HTML_ATTR, button.innerHTML);
+    button.setAttribute(ESTADO_WIDTH_ATTR, String(button.getBoundingClientRect().width || 0));
+    button.setAttribute(ESTADO_DISABLED_ATTR, button.disabled ? '1' : '0');
+    button.disabled = true;
+    button.style.minWidth = `${Number(button.getAttribute(ESTADO_WIDTH_ATTR) || 0)}px`;
+    button.innerHTML = spinnerHtml();
+    managedButtons.add(button);
+}
+
+function restoreManagedButtons() {
+    managedButtons.forEach((button) => {
+        const originalHtml = button.getAttribute(ESTADO_HTML_ATTR);
+        const disabledOriginal = button.getAttribute(ESTADO_DISABLED_ATTR) === '1';
+        if (originalHtml !== null) button.innerHTML = originalHtml;
+        button.disabled = disabledOriginal;
+        button.style.minWidth = '';
+        button.removeAttribute(ESTADO_LOADING_ATTR);
+        button.removeAttribute(ESTADO_HTML_ATTR);
+        button.removeAttribute(ESTADO_WIDTH_ATTR);
+        button.removeAttribute(ESTADO_DISABLED_ATTR);
+    });
+    managedButtons.clear();
+    renderLucideIcons();
+}
+
+function syncLoadingState() {
+    if (pendingRequests <= 0) {
+        pendingRequests = 0;
+        restoreManagedButtons();
+    }
+}
+
+const originalFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+    pendingRequests += 1;
+    try {
+        return await originalFetch(...args);
+    } finally {
+        pendingRequests -= 1;
+        syncLoadingState();
+    }
+};
+
+document.addEventListener('click', (event) => {
+    const button = event.target instanceof Element ? event.target.closest('button') : null;
+    if (!button || button.disabled) return;
+    setButtonLoading(button);
+    window.setTimeout(() => {
+        if (pendingRequests === 0) syncLoadingState();
+    }, 120);
+}, true);
+
 window.retailToast = function retailToast(message, type = 'info') {
     const toastType = ['success', 'error', 'warning', 'info', 'question'].includes(type) ? type : 'info';
 
