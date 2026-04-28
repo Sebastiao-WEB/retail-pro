@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashSessionController;
+use App\Http\Controllers\Api\V1\CompanyProfileController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\PurchaseController;
@@ -23,6 +24,9 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware('auth:api')->group(function () {
+        Route::get('company-profile', [CompanyProfileController::class, 'show']);
+        Route::put('company-profile', [CompanyProfileController::class, 'update']);
+
         Route::get('products', [ProductController::class, 'index']);
         Route::post('products', [ProductController::class, 'store']);
         Route::get('products/{product}', [ProductController::class, 'show']);

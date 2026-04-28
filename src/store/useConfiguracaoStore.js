@@ -1,4 +1,6 @@
 import { defineStore } from "pinia";
+import { temApiConfigurada } from "../api/config";
+import { companyApi } from "../api/modules/companyApi";
 
 const CHAVE_LOCAL_STORAGE = "retailpro:configuracoes";
 
@@ -35,6 +37,19 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
     carregado: false,
   }),
   actions: {
+    aplicarDadosEmpresa(dados = {}) {
+      const empresa = {
+        nomeEmpresa: String(dados.nomeEmpresa || this.nomeEmpresa || ""),
+        nif: String(dados.nif || ""),
+        email: String(dados.email || ""),
+        telefone: String(dados.telefone || ""),
+        endereco: String(dados.endereco || ""),
+        banco: String(dados.banco || ""),
+        iban: String(dados.iban || ""),
+      };
+      Object.assign(this, empresa);
+      this.salvar();
+    },
     hidratar() {
       if (this.carregado) return;
       this.carregado = true;
@@ -46,6 +61,28 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
       } catch {
         // Mantém padrão quando storage inválido.
       }
+    },
+    async hidratarDadosEmpresaRemotos() {
+      if (!temApiConfigurada()) return;
+      const resposta = await companyApi.obterPerfil();
+      this.aplicarDadosEmpresa(resposta?.data || {});
+    },
+    async salvarDadosEmpresaRemotos() {
+      if (!temApiConfigurada()) {
+        this.salvar();
+        return;
+      }
+      const payload = {
+        nomeEmpresa: this.nomeEmpresa,
+        nif: this.nif,
+        email: this.email,
+        telefone: this.telefone,
+        endereco: this.endereco,
+        banco: this.banco,
+        iban: this.iban,
+      };
+      const resposta = await companyApi.atualizarPerfil(payload);
+      this.aplicarDadosEmpresa(resposta?.data || payload);
     },
     salvar() {
       const payload = { ...this };

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
+use App\Models\CompanyProfile;
 use App\Models\Product;
 use App\Models\Register;
 use App\Models\StockBalance;
@@ -128,17 +129,27 @@ class DatabaseSeeder extends Seeder
             ['telefone' => '000000000', 'email' => 'cliente@demo.co.mz', 'nuit' => '400000099', 'is_active' => true]
         );
 
+        CompanyProfile::query()->firstOrCreate([], [
+            'name' => 'Empresa Demo Lda',
+            'nif' => '400000099',
+            'email' => 'geral@empresa.co.mz',
+            'phone' => '+258 21 000 000',
+            'address' => 'Av. 25 de Setembro, 420, Maputo, Moçambique',
+            'bank' => 'BCI — Banco Comercial e de Investimentos',
+            'iban' => 'MZ59 0000 0000 1234 5678 901',
+        ]);
+
         $product = Product::query()->firstOrCreate([
-            'nome' => 'Pão francês',
+            'nome' => 'Pão francês 200g',
         ], [
-            'codigo_barras' => '5601000000012',
+            'codigo_barras' => '0000000000000',
             'categoria' => 'Padaria',
-            'preco_compra' => 6,
-            'preco_venda' => 8,
+            'preco_compra' => 0,
+            'preco_venda' => 0,
             'iva_tipo' => 'ISENTO',
             'iva_valor' => 0,
             'iva_percentual' => 0,
-            'stock' => 120,
+            'stock' => 0,
             'is_active' => true,
         ]);
 

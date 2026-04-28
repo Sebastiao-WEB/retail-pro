@@ -12,12 +12,25 @@ const bloqueadoAdministrador = true;
 
 onMounted(() => {
   configuracoes.hidratar();
+  carregarDadosEmpresa();
   carregarImpressoras();
 });
 
-function guardarConfiguracoes() {
-  configuracoes.salvar();
-  mostrarToastSwal("Configurações guardadas com sucesso.", "success");
+async function guardarConfiguracoes() {
+  try {
+    await configuracoes.salvarDadosEmpresaRemotos();
+    mostrarToastSwal("Configurações guardadas com sucesso.", "success");
+  } catch (erro) {
+    mostrarToastSwal(erro?.message || "Falha ao guardar dados da empresa no backend.", "error");
+  }
+}
+
+async function carregarDadosEmpresa() {
+  try {
+    await configuracoes.hidratarDadosEmpresaRemotos();
+  } catch (erro) {
+    mostrarToastSwal(erro?.message || "Falha ao carregar dados da empresa do backend.", "warning");
+  }
 }
 
 async function carregarImpressoras() {
@@ -62,7 +75,6 @@ async function carregarImpressoras() {
         <div class="border-b border-slate-200 px-4 py-3">
           <h3 class="text-sm font-bold text-slate-900">Dados da Empresa</h3>
           <p class="text-xs text-slate-500">Informações para as facturas</p>
-          <p class="mt-1 text-[11px] font-semibold text-amber-700">Edição exclusiva do administrador</p>
         </div>
         <div class="space-y-3 p-4">
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2">

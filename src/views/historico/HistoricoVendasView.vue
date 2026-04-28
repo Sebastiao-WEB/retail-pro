@@ -6,6 +6,7 @@ import { useVendaStore } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
+import logoRetailPro from "../../assets/rp.png";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
@@ -109,6 +110,7 @@ function gerarHtmlTalao(venda) {
           @page { size: 80mm auto; margin: 4mm; }
           body { font-family: Arial, sans-serif; width: 80mm; margin: 0 auto; color: #111; font-size: 12px; }
           .center { text-align: center; }
+          .logo { width: 96px; height: auto; margin: 0 auto 6px; display: block; }
           .title { font-size: 18px; font-weight: 700; margin: 4px 0; }
           .muted { color: #555; font-size: 11px; }
           .sep { border-top: 1px dashed #444; margin: 8px 0; }
@@ -121,6 +123,7 @@ function gerarHtmlTalao(venda) {
       </head>
       <body>
         <div class="center">
+          <img src="${logoRetailPro}" alt="Logo RetailPro" class="logo" />
           <div class="title">${escaparHtml(configuracaoStore.nomeEmpresa || "RetailPro POS")}</div>
           <div class="muted">2a via do Talão</div>
           <div class="muted">NUIT: ${escaparHtml(configuracaoStore.nif || "")}</div>

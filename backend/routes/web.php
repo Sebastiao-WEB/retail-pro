@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Admin\CustomersPage;
+use App\Livewire\Admin\CompanySettingsPage;
 use App\Livewire\Admin\Dashboard;
 use App\Livewire\Admin\ProductsPage;
 use App\Livewire\Admin\PurchasesPage;
@@ -31,6 +32,7 @@ Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
     Route::get('/recarregar-stock', StockReloadPage::class)->middleware('permission:stock.reload')->name('stock.reload');
     Route::get('/movimentos-stock', StockMovementsPage::class)->middleware('permission:stock.movements.view')->name('stock.movements');
     Route::get('/transferencias-stock', StockTransfersPage::class)->middleware('permission:stock.transfers.view')->name('stock.transfers');
+    Route::get('/configuracoes', CompanySettingsPage::class)->middleware('permission:dashboard.view')->name('settings.company');
     Route::get('/utilizadores', UsersPage::class)->middleware('permission:users.view')->name('users.index');
     Route::get('/roles-permissoes', RolesPermissionsPage::class)->middleware('permission:roles.view')->name('roles.permissions');
 });
