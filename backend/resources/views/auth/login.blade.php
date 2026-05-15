@@ -35,7 +35,7 @@
                     Lembrar sessao
                 </label>
 
-                <button type="submit" class="w-full rounded-lg bg-[var(--gold)] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-95">
+                <button type="submit" data-rp-ignore-loading class="w-full rounded-lg bg-[var(--gold)] px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-95">
                     Entrar no sistema
                 </button>
             </form>

@@ -180,7 +180,21 @@ window.fetch = async (...args) => {
 document.addEventListener('click', (event) => {
     const button = event.target instanceof Element ? event.target.closest('button') : null;
     if (!button || button.disabled) return;
+    if (button.type === 'submit' && button.form) return;
     setButtonLoading(button);
+    window.setTimeout(() => {
+        if (pendingRequests === 0) syncLoadingState();
+    }, 120);
+}, true);
+
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const submitButton = form.querySelector('button[type="submit"]:not([disabled])');
+    if (!submitButton) return;
+
+    setButtonLoading(submitButton);
     window.setTimeout(() => {
         if (pendingRequests === 0) syncLoadingState();
     }, 120);

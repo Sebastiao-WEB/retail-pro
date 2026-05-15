@@ -11,6 +11,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -42,15 +43,34 @@ class FortifyServiceProvider extends ServiceProvider
                 'password' => ['required', 'string'],
             ]);
 
+            Log::info('Login attempt', [
+                'username' => $credentials['username'],
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
             $user = User::query()
                 ->where('username', $credentials['username'])
                 ->first();
 
             if (! $user || ! Hash::check($credentials['password'], $user->password) || ! $user->is_active) {
+                Log::warning('Login failed', [
+                    'username' => $credentials['username'],
+                    'ip' => $request->ip(),
+                    'reason' => ! $user
+                        ? 'user_not_found'
+                        : (! Hash::check($credentials['password'], $user->password) ? 'invalid_password' : 'user_inactive'),
+                ]);
                 return null;
             }
 
             Auth::guard('web')->login($user, $request->boolean('remember'));
+
+            Log::info('Login successful', [
+                'user_id' => $user->id,
+                'username' => $user->username,
+                'ip' => $request->ip(),
+            ]);
 
             return $user;
         });
