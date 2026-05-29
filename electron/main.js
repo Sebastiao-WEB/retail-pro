@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { gerarBufferEscpos } from "./escposTalao.js";
+import { gerarBufferEscpos, gerarBufferEscposRelatorioFecho } from "./escposTalao.js";
 import { enviarRawParaImpressora } from "./imprimirRaw.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -266,6 +266,26 @@ ipcMain.handle("pos:imprimir-talao", async (_event, payload) => {
   } catch (error) {
     console.log("[POS][print][raw] erro:", error?.message || error);
     return { ok: false, error: error?.message || "Erro inesperado ao imprimir RAW." };
+  }
+});
+
+ipcMain.handle("pos:imprimir-relatorio-fecho", async (_event, payload) => {
+  const deviceName = String(payload?.deviceName || "");
+  const copies = Math.max(1, Number(payload?.copies || 1));
+  const corteAutomatico = payload?.corteAutomatico !== false;
+  const relatorio = payload?.relatorio;
+
+  if (!relatorio || typeof relatorio !== "object") {
+    return { ok: false, error: "Dados do relatorio invalidos." };
+  }
+
+  try {
+    const buffer = gerarBufferEscposRelatorioFecho(relatorio, { corteAutomatico });
+    await enviarRawParaImpressora(deviceName, buffer, copies);
+    return { ok: true, modo: "raw" };
+  } catch (error) {
+    console.log("[POS][print][relatorio-fecho] erro:", error?.message || error);
+    return { ok: false, error: error?.message || "Erro inesperado ao imprimir relatorio RAW." };
   }
 });
 

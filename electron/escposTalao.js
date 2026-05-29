@@ -273,6 +273,82 @@ export function gerarBufferEscpos(talao, opcoes = {}) {
   return concat(partes);
 }
 
+export function gerarBufferEscposRelatorioFecho(payload, opcoes = {}) {
+  const largura = larguraColunas(payload?.larguraTalao);
+  const corteAutomatico = opcoes.corteAutomatico !== false;
+  const linhasAvancoCorte = Math.max(2, Number(opcoes.linhasAvancoCorte || 4));
+  const empresa = payload.empresa || {};
+  const relatorio = payload.relatorio || {};
+
+  const partes = [
+    comandoInicializar(),
+    comandoCodePageLatin(),
+    linhaTexto(empresa.nome || "RetailPro POS", { alinhamento: "centro", negrito: true, tamanho: { altura: true } }),
+    linhaTexto(payload.titulo || "Relatorio de Fecho de Caixa", { alinhamento: "centro" }),
+    linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }),
+  ];
+
+  const info = [
+    ["Caixa", relatorio.caixa],
+    ["Operador", relatorio.operador],
+    ["Abertura", relatorio.aberturaFormatada],
+    ["Fecho", relatorio.fechoFormatada],
+  ];
+  for (const [rotulo, valor] of info) {
+    if (!valor) continue;
+    partes.push(linhaTexto(`${rotulo}: ${truncar(String(valor), largura - rotulo.length - 2)}`));
+  }
+
+  partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
+
+  const resumo = [
+    ["Fundo inicial", formatarMoeda(relatorio.fundoInicial)],
+    ["Total vendido", formatarMoeda(relatorio.totalVendido)],
+    ["Transacoes", String(relatorio.totalTransacoes ?? 0)],
+    ["Ticket medio", formatarMoeda(relatorio.ticketMedio)],
+    ["Vendas Dinheiro", formatarMoeda(relatorio.vendasDinheiro)],
+    ["Vendas Transfer.", formatarMoeda(relatorio.vendasTransferencia)],
+    ["Dinheiro esperado", formatarMoeda(relatorio.dinheiroEsperado)],
+    ["Dinheiro contado", formatarMoeda(relatorio.dinheiroReal)],
+    ["Diferenca", formatarMoeda(relatorio.diferenca)],
+  ];
+  for (const [rotulo, valor] of resumo) {
+    partes.push(linhaResumo(rotulo, valor, largura));
+  }
+
+  if (relatorio.justificativaDiferenca) {
+    partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
+    for (const linha of quebrarLinhas(`Justificativa: ${relatorio.justificativaDiferenca}`, largura)) {
+      partes.push(linhaTexto(linha));
+    }
+  }
+
+  const vendas = relatorio.vendas || [];
+  if (vendas.length) {
+    partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
+    partes.push(linhaTexto("Vendas do turno", { negrito: true }));
+    for (const venda of vendas) {
+      const data = truncar(String(venda.dataFormatada || venda.data || ""), 16);
+      const pagamento = truncar(String(venda.metodoPagamento || ""), 10);
+      const total = formatarPrecoCurto(venda.total);
+      partes.push(linhaTexto(montarLinhaEsquerdaDireita(`${data} ${pagamento}`, total, largura)));
+    }
+  }
+
+  partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
+  partes.push(comandoResetFormatacao());
+
+  for (const linha of quebrarLinhas(empresa.rodape || "", largura)) {
+    if (linha) partes.push(linhaTexto(linha, { alinhamento: "centro" }));
+  }
+
+  if (corteAutomatico) {
+    partes.push(comandoCorteComAvanco(linhasAvancoCorte));
+  }
+
+  return concat(partes);
+}
+
 export {
   encodeTexto,
   sanitizarTexto,

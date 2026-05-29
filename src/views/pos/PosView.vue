@@ -13,6 +13,7 @@ import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao } from "../../services/talaoImpressao";
+import { enviarRelatorioFechoParaImpressao } from "../../services/relatorioFechoImpressao";
 import {
   Barcode,
   Check,
@@ -465,10 +466,13 @@ async function confirmarFechoCaixa() {
     return;
   }
   processandoFechoCaixa.value = true;
-  const resultado = await sessaoStore.fecharTurno({
+  const fechadoEm = new Date().toISOString();
+  const relatorio = {
     utilizador: sessaoStore.utilizador,
     caixa: sessaoStore.caixaAtribuido,
     aberturaEm: sessaoStore.aberturaEm,
+    fechadoEm,
+    fundoInicial: sessaoStore.fundoInicial,
     totalVendido: totalVendidoTurno.value,
     totalTransacoes: totalTransacoesTurno.value,
     ticketMedio: ticketMedioTurno.value,
@@ -485,14 +489,40 @@ async function confirmarFechoCaixa() {
       cliente: venda.cliente,
       itens: venda.itens.length,
     })),
-  });
+  };
+  const resultado = await sessaoStore.fecharTurno(relatorio);
   if (temApiConfigurada() && !resultado.remotoOk) {
     mostrarToastSwal(resultado.erro || "Não foi possível fechar caixa na API.", "error");
     processandoFechoCaixa.value = false;
     return;
   }
+
+  let mensagemSucesso = "Fecho de caixa concluído e relatório diário registado.";
+  if (window.api?.imprimirRelatorioFecho && configuracaoStore.impressoraPadrao) {
+    const impressao = await enviarRelatorioFechoParaImpressao({
+      relatorio,
+      configuracao: configuracaoStore,
+      opcoes: {
+        copies: 1,
+        corteAutomatico: !!configuracaoStore.corteAutomatico,
+      },
+    });
+    if (!impressao?.ok) {
+      mensagemSucesso = impressao?.error
+        ? `Fecho concluído, mas falhou a impressão do relatório: ${impressao.error}`
+        : "Fecho concluído, mas falhou a impressão do relatório.";
+      mostrarToastSwal(mensagemSucesso, "warning");
+      modalFechoCaixa.value = false;
+      processandoFechoCaixa.value = false;
+      return;
+    }
+    mensagemSucesso = `Fecho concluído e relatório enviado para ${configuracaoStore.impressoraPadrao}.`;
+  } else if (window.api?.imprimirRelatorioFecho && !configuracaoStore.impressoraPadrao) {
+    mensagemSucesso = "Fecho concluído. Defina a impressora padrão para imprimir o relatório.";
+  }
+
   modalFechoCaixa.value = false;
-  mostrarToastSwal("Fecho de caixa concluído e relatório diário registado.", "success");
+  mostrarToastSwal(mensagemSucesso, "success");
   processandoFechoCaixa.value = false;
 }
 </script>
