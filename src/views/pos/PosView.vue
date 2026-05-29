@@ -12,7 +12,7 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
-import logoRetailPro from "../../assets/rp.png";
+import { enviarTalaoParaImpressao } from "../../services/talaoImpressao";
 import {
   Barcode,
   Check,
@@ -131,7 +131,6 @@ const origemStockVenda = computed(() => ({
   codigo: sessaoStore.sourceLocationCodigo || "",
   nome: sessaoStore.sourceLocationNome || "",
 }));
-let logoTalaoDataUrlPromise = null;
 
 function formatarMT(valor) {
   return `${new Intl.NumberFormat("pt-MZ", {
@@ -220,116 +219,6 @@ function alternarDesconto() {
   }
 }
 
-function escaparHtml(valor) {
-  return String(valor ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-async function obterLogoTalaoDataUrl() {
-  if (!logoTalaoDataUrlPromise) {
-    logoTalaoDataUrlPromise = fetch(logoRetailPro)
-      .then((resposta) => resposta.blob())
-      .then(
-        (blob) =>
-          new Promise((resolve, reject) => {
-            const leitor = new FileReader();
-            leitor.onloadend = () => resolve(String(leitor.result || ""));
-            leitor.onerror = reject;
-            leitor.readAsDataURL(blob);
-          })
-      )
-      .catch(() => "");
-  }
-  return logoTalaoDataUrlPromise;
-}
-
-async function gerarHtmlTalao(venda) {
-  const largura = configuracaoStore.larguraTalao === "58mm" ? "58mm" : "80mm";
-  const linhasItens = venda.itens
-    .map(
-      (item) => `
-        <tr>
-          <td>${escaparHtml(item.nome)}</td>
-          <td style="text-align:center;">${item.quantidade}</td>
-          <td style="text-align:center;">${formatarIva(item.ivaPercentual)}</td>
-          <td style="text-align:right;">${formatarMT(item.subtotal)}</td>
-        </tr>
-      `
-    )
-    .join("");
-
-  const nomeEmpresa = escaparHtml(configuracaoStore.nomeEmpresa || "RetailPro POS");
-  const nifEmpresa = escaparHtml(configuracaoStore.nif || "");
-  const enderecoEmpresa = escaparHtml(configuracaoStore.endereco || "");
-  const telefoneEmpresa = escaparHtml(configuracaoStore.telefone || "");
-  const rodapeEmpresa = escaparHtml(configuracaoStore.rodapeFacturas || "Obrigado pela preferência.");
-  const logoDataUrl = await obterLogoTalaoDataUrl();
-  const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo RetailPro" class="logo" />` : "";
-
-  return `
-    <!doctype html>
-    <html lang="pt">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Talão</title>
-        <style>
-          @page { size: ${largura} auto; margin: 4mm; }
-          body { font-family: Arial, sans-serif; width: ${largura}; margin: 0 auto; color: #111; font-size: 12px; }
-          .center { text-align: center; }
-          .logo { width: 151px; height: auto; margin: 0 auto 6px; display: block; }
-          .title { font-size: 18px; font-weight: 700; margin: -30px 0 4px; }
-          .muted { color: #555; font-size: 11px; }
-          .sep { border-top: 1px dashed #444; margin: 8px 0; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { padding: 4px 0; font-size: 11px; }
-          th { text-transform: uppercase; font-size: 10px; color: #666; border-bottom: 1px solid #ddd; }
-          .tot { font-weight: 700; font-size: 14px; }
-          .foot { margin-top: 10px; font-size: 10px; color: #555; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="center">
-          ${logoHtml}
-          <div class="title">${nomeEmpresa}</div>
-          <div class="muted">Talão de Venda</div>
-          <div class="muted">NUIT: ${nifEmpresa}</div>
-          <div class="muted">${enderecoEmpresa}</div>
-          <div class="muted">${telefoneEmpresa}</div>
-          <div class="muted">Data: ${escaparHtml(new Date(venda.data).toLocaleString("pt-MZ"))}</div>
-        </div>
-        <div class="sep"></div>
-        <div><strong>Cliente:</strong> ${escaparHtml(venda.cliente)}</div>
-        <div><strong>Pagamento:</strong> ${escaparHtml(venda.metodoPagamento)}</div>
-        <div class="sep"></div>
-        <table>
-          <thead>
-            <tr><th>Item</th><th>Qtd</th><th>IVA</th><th>Total</th></tr>
-          </thead>
-          <tbody>
-            ${linhasItens}
-          </tbody>
-        </table>
-        <div class="sep"></div>
-        <table>
-          <tbody>
-            <tr><td>Subtotal</td><td style="text-align:right">${formatarMT(venda.subtotal ?? venda.total)}</td></tr>
-            <tr><td>Desconto</td><td style="text-align:right">- ${formatarMT(venda.descontoAplicado || 0)}</td></tr>
-            <tr><td>Total</td><td style="text-align:right" class="tot">${formatarMT(venda.total)}</td></tr>
-            <tr><td>Valor Pago</td><td style="text-align:right">${venda.metodoPagamento === "Dinheiro" ? formatarMT(venda.valorPago) : "--"}</td></tr>
-            <tr><td>Troco</td><td style="text-align:right">${venda.metodoPagamento === "Dinheiro" ? formatarMT(venda.troco) : "--"}</td></tr>
-          </tbody>
-        </table>
-        <div class="sep"></div>
-        <div class="foot">${rodapeEmpresa}</div>
-      </body>
-    </html>
-  `;
-}
-
 function validarOrigemStock() {
   if (!temApiConfigurada()) return true;
   if (origemStockVenda.value.id) return true;
@@ -416,13 +305,13 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       return;
     }
     imprimindoAgora.value = true;
-    const htmlTalao = await gerarHtmlTalao(venda);
-    const resultado = await window.api.imprimirTalao({
-      html: htmlTalao,
-      deviceName: configuracaoStore.impressoraPadrao,
-      copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
-      larguraTalao: configuracaoStore.larguraTalao || "80mm",
-      corteAutomatico: !!configuracaoStore.corteAutomatico,
+    const resultado = await enviarTalaoParaImpressao({
+      venda,
+      configuracao: configuracaoStore,
+      opcoes: {
+        copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
+        corteAutomatico: !!configuracaoStore.corteAutomatico,
+      },
     });
     imprimindoAgora.value = false;
     if (!resultado?.ok) {
@@ -463,13 +352,13 @@ async function reimprimirVenda(venda) {
     return;
   }
   imprimindoAgora.value = true;
-  const htmlTalao = await gerarHtmlTalao(venda);
-  const resultado = await window.api.imprimirTalao({
-    html: htmlTalao,
-    deviceName: configuracaoStore.impressoraPadrao,
-    copies: 1,
-    larguraTalao: configuracaoStore.larguraTalao || "80mm",
-    corteAutomatico: !!configuracaoStore.corteAutomatico,
+  const resultado = await enviarTalaoParaImpressao({
+    venda,
+    configuracao: configuracaoStore,
+    opcoes: {
+      copies: 1,
+      corteAutomatico: !!configuracaoStore.corteAutomatico,
+    },
   });
   imprimindoAgora.value = false;
   if (!resultado?.ok) {

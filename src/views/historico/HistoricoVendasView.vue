@@ -6,13 +6,12 @@ import { useVendaStore } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
-import logoRetailPro from "../../assets/rp.png";
+import { enviarTalaoParaImpressao, formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda } from "../../services/talaoImpressao";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
-let logoTalaoDataUrlPromise = null;
 const imprimindoAgora = ref(false);
 
 const vendaSelecionada = ref(null);
@@ -43,32 +42,6 @@ const solicitacoesPendentesPorVenda = computed(() => {
   return mapa;
 });
 
-function formatarMT(valor) {
-  return `${new Intl.NumberFormat("pt-MZ", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(valor || 0))} MT`;
-}
-
-function formatarIva(valor) {
-  const numero = Number(valor || 0);
-  return `${Number.isFinite(numero) ? numero : 0}%`;
-}
-
-function obterIvaItem(item) {
-  const subtotal = Number(item?.subtotal || 0);
-  const ivaPercentual = Number(item?.ivaPercentual || 0);
-  if (Number.isFinite(item?.valorIvaUnitario)) {
-    return Number(item.valorIvaUnitario || 0) * Number(item?.quantidade || 0);
-  }
-  if (ivaPercentual <= 0 || subtotal <= 0) return 0;
-  return subtotal - subtotal / (1 + ivaPercentual / 100);
-}
-
-function obterTotalIvaVenda(venda) {
-  return (venda?.itens || []).reduce((acc, item) => acc + obterIvaItem(item), 0);
-}
-
 function formatarData(valor) {
   return new Date(valor).toLocaleString("pt-MZ");
 }
@@ -78,136 +51,25 @@ function abrirDetalhes(venda) {
   modalDetalhesAberto.value = true;
 }
 
-function escaparHtml(valor) {
-  return String(valor ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-async function obterLogoTalaoDataUrl() {
-  if (!logoTalaoDataUrlPromise) {
-    logoTalaoDataUrlPromise = fetch(logoRetailPro)
-      .then((resposta) => resposta.blob())
-      .then(
-        (blob) =>
-          new Promise((resolve, reject) => {
-            const leitor = new FileReader();
-            leitor.onloadend = () => resolve(String(leitor.result || ""));
-            leitor.onerror = reject;
-            leitor.readAsDataURL(blob);
-          })
-      )
-      .catch(() => "");
-  }
-  return logoTalaoDataUrlPromise;
-}
-
-async function gerarHtmlTalao(venda) {
-  const linhasItens = (venda.itens || [])
-    .map(
-      (item) => `
-        <tr>
-          <td>${escaparHtml(item.nome)}</td>
-          <td style="text-align:center;">${item.quantidade}</td>
-          <td style="text-align:center;">${formatarIva(item.ivaPercentual)}</td>
-          <td style="text-align:right;">${formatarMT(obterIvaItem(item))}</td>
-          <td style="text-align:right;">${formatarMT(item.subtotal)}</td>
-        </tr>
-      `
-    )
-    .join("");
-  const logoDataUrl = await obterLogoTalaoDataUrl();
-  const logoHtml = logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo RetailPro" class="logo" />` : "";
-
-  return `
-    <!doctype html>
-    <html lang="pt">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Talão</title>
-        <style>
-          @page { size: 80mm auto; margin: 4mm; }
-          body { font-family: Arial, sans-serif; width: 80mm; margin: 0 auto; color: #111; font-size: 12px; }
-          .center { text-align: center; }
-          .logo { width: 151px; height: auto; margin: 0 auto 6px; display: block; }
-          .title { font-size: 18px; font-weight: 700; margin: -30px 0 4px; }
-          .muted { color: #555; font-size: 11px; }
-          .sep { border-top: 1px dashed #444; margin: 8px 0; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { padding: 4px 0; font-size: 11px; }
-          th { text-transform: uppercase; font-size: 10px; color: #666; border-bottom: 1px solid #ddd; }
-          .tot { font-weight: 700; font-size: 14px; }
-          .foot { margin-top: 10px; font-size: 10px; color: #555; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="center">
-          ${logoHtml}
-          <div class="title">${escaparHtml(configuracaoStore.nomeEmpresa || "RetailPro POS")}</div>
-          <div class="muted">2a via do Talão</div>
-          <div class="muted">NUIT: ${escaparHtml(configuracaoStore.nif || "")}</div>
-          <div class="muted">${escaparHtml(configuracaoStore.endereco || "")}</div>
-          <div class="muted">${escaparHtml(configuracaoStore.telefone || "")}</div>
-          <div class="muted">Data: ${escaparHtml(new Date(venda.data).toLocaleString("pt-MZ"))}</div>
-        </div>
-        <div class="sep"></div>
-        <div><strong>Cliente:</strong> ${escaparHtml(venda.cliente)}</div>
-        <div><strong>Pagamento:</strong> ${escaparHtml(venda.metodoPagamento)}</div>
-        <div class="sep"></div>
-        <table>
-          <thead>
-            <tr><th>Item</th><th>Qtd</th><th>IVA %</th><th>IVA MT</th><th>Total</th></tr>
-          </thead>
-          <tbody>
-            ${linhasItens}
-          </tbody>
-        </table>
-        <div class="sep"></div>
-        <table>
-          <tbody>
-            <tr><td>Subtotal</td><td style="text-align:right">${formatarMT(venda.subtotal ?? venda.total)}</td></tr>
-            <tr><td>Total IVA</td><td style="text-align:right">${formatarMT(obterTotalIvaVenda(venda))}</td></tr>
-            <tr><td>Desconto</td><td style="text-align:right">- ${formatarMT(venda.descontoAplicado || 0)}</td></tr>
-            <tr><td>Total</td><td style="text-align:right" class="tot">${formatarMT(venda.total)}</td></tr>
-            <tr><td>Valor Pago</td><td style="text-align:right">${venda.metodoPagamento === "Dinheiro" ? formatarMT(venda.valorPago) : "--"}</td></tr>
-            <tr><td>Troco</td><td style="text-align:right">${venda.metodoPagamento === "Dinheiro" ? formatarMT(venda.troco) : "--"}</td></tr>
-          </tbody>
-        </table>
-        <div class="sep"></div>
-        <div class="foot">${escaparHtml(configuracaoStore.rodapeFacturas || "Obrigado pela preferência.")}</div>
-      </body>
-    </html>
-  `;
-}
-
 async function reimprimirVenda(venda) {
   if (imprimindoAgora.value) return;
-  if (!window.api?.imprimirTalao) {
-    mostrarToastSwal("Reimpressão disponível apenas na versão desktop (Electron).", "error");
-    return;
-  }
-  if (!configuracaoStore.impressoraPadrao) {
-    mostrarToastSwal("Defina a impressora padrão em Configurações para reimprimir.", "error");
-    return;
-  }
   try {
     imprimindoAgora.value = true;
-    const htmlTalao = await gerarHtmlTalao(venda);
-    const resultado = await window.api.imprimirTalao({
-      html: htmlTalao,
-      deviceName: configuracaoStore.impressoraPadrao,
-      copies: 1,
-      larguraTalao: "80mm",
-      corteAutomatico: true,
+    const resultado = await enviarTalaoParaImpressao({
+      venda,
+      configuracao: configuracaoStore,
+      opcoes: {
+        segundaVia: true,
+        detalharIva: true,
+        copies: 1,
+        corteAutomatico: true,
+      },
     });
     if (!resultado?.ok) {
       mostrarToastSwal(resultado?.error || "Falha ao reimprimir recibo.", "error");
       return;
     }
-    mostrarToastSwal(`Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`, "success");
+    mostrarToastSwal(`Recibo reenviado para impressao RAW em ${configuracaoStore.impressoraPadrao}.`, "success");
   } catch {
     mostrarToastSwal("Falha ao reimprimir recibo.", "error");
   } finally {

@@ -9,5 +9,5 @@ const api = {
 contextBridge.exposeInMainWorld("api", api);
 contextBridge.exposeInMainWorld("desktopInfo", {
   preloadOk: true,
-  apiVersion: "1.0.1",
+  apiVersion: "1.1.0",
 });

@@ -9,7 +9,7 @@ Sistema POS desktop focado em operacao de caixa, construido com Electron + Vue 3
 - Login de operador com atribuicao de caixa.
 - Abertura e fecho de turno com controle de diferencas.
 - Ponto de venda com catalogo, carrinho, desconto e validacao de stock.
-- Impressao de talao (Electron), incluindo dados de IVA.
+- Impressao de talao em **RAW ESC/POS** (Electron), incluindo dados de IVA.
 - Historico de vendas com detalhes, reimpressao e solicitacao de reversao.
 - Dashboard de caixa com indicadores do turno e ultimas vendas.
 - Configuracoes locais de impressao persistidas no `localStorage`.

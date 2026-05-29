@@ -4,6 +4,8 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { gerarBufferEscpos } from "./escposTalao.js";
+import { enviarRawParaImpressora } from "./imprimirRaw.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -248,50 +250,22 @@ ipcMain.handle("pos:listar-impressoras-fallback", async () => {
 });
 
 ipcMain.handle("pos:imprimir-talao", async (_event, payload) => {
-  const html = String(payload?.html || "");
   const deviceName = String(payload?.deviceName || "");
   const copies = Math.max(1, Number(payload?.copies || 1));
-  if (!html.trim()) {
-    return { ok: false, error: "Conteúdo do talão vazio." };
+  const corteAutomatico = payload?.corteAutomatico !== false;
+  const talao = payload?.talao;
+
+  if (!talao || typeof talao !== "object") {
+    return { ok: false, error: "Dados do talao invalidos." };
   }
 
-  const janelaImpressao = new BrowserWindow({
-    show: false,
-    webPreferences: {
-      sandbox: true,
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
-
   try {
-    await janelaImpressao.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-
-    const resultado = await new Promise((resolve) => {
-      janelaImpressao.webContents.print(
-        {
-          silent: true,
-          printBackground: true,
-          deviceName: deviceName || undefined,
-          copies,
-        },
-        (success, failureReason) => {
-          if (!success) {
-            resolve({ ok: false, error: failureReason || "Falha ao enviar para impressora." });
-            return;
-          }
-          resolve({ ok: true });
-        }
-      );
-    });
-
-    return resultado;
+    const buffer = gerarBufferEscpos(talao, { corteAutomatico });
+    await enviarRawParaImpressora(deviceName, buffer, copies);
+    return { ok: true, modo: "raw" };
   } catch (error) {
-    return { ok: false, error: error?.message || "Erro inesperado ao imprimir." };
-  } finally {
-    if (!janelaImpressao.isDestroyed()) {
-      janelaImpressao.destroy();
-    }
+    console.log("[POS][print][raw] erro:", error?.message || error);
+    return { ok: false, error: error?.message || "Erro inesperado ao imprimir RAW." };
   }
 });
 
