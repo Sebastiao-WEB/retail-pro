@@ -46,6 +46,10 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
         endereco: String(dados.endereco || ""),
         banco: String(dados.banco || ""),
         iban: String(dados.iban || ""),
+        rodapeFacturas:
+          dados.rodapeFacturas !== undefined
+            ? String(dados.rodapeFacturas || "")
+            : String(this.rodapeFacturas || configuracoesPadrao.rodapeFacturas),
       };
       Object.assign(this, empresa);
       this.salvar();
@@ -80,6 +84,7 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
         endereco: this.endereco,
         banco: this.banco,
         iban: this.iban,
+        rodapeFacturas: this.rodapeFacturas,
       };
       const resposta = await companyApi.atualizarPerfil(payload);
       this.aplicarDadosEmpresa(resposta?.data || payload);

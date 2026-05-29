@@ -7,6 +7,7 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao, formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda } from "../../services/talaoImpressao";
+import { temApiConfigurada } from "../../api";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
 
 const vendaStore = useVendaStore();
@@ -20,8 +21,15 @@ const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 
-onMounted(() => {
+onMounted(async () => {
   configuracaoStore.hidratar();
+  if (temApiConfigurada()) {
+    try {
+      await configuracaoStore.hidratarDadosEmpresaRemotos();
+    } catch {
+      // Mantem dados locais quando a API falhar.
+    }
+  }
 });
 
 const vendasDoTurnoCaixa = computed(() => {

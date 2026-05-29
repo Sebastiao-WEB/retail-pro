@@ -20,6 +20,7 @@ class CompanyProfileController extends Controller
                 'address' => 'Av. 25 de Setembro, 420, Maputo, Moçambique',
                 'bank' => 'BCI — Banco Comercial e de Investimentos',
                 'iban' => 'MZ59 0000 0000 1234 5678 901',
+                'invoice_footer' => 'Obrigado pela sua preferência. Para reclamações contacte: geral@empresa.co.mz',
             ]
         );
 
@@ -32,6 +33,7 @@ class CompanyProfileController extends Controller
                 'endereco' => $profile->address ?? '',
                 'banco' => $profile->bank ?? '',
                 'iban' => $profile->iban ?? '',
+                'rodapeFacturas' => $profile->invoice_footer ?? '',
             ],
         ]);
     }
@@ -46,6 +48,7 @@ class CompanyProfileController extends Controller
             'endereco' => ['nullable', 'string', 'max:255'],
             'banco' => ['nullable', 'string', 'max:255'],
             'iban' => ['nullable', 'string', 'max:255'],
+            'rodapeFacturas' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $profile = CompanyProfile::query()->firstOrCreate([]);
@@ -57,6 +60,7 @@ class CompanyProfileController extends Controller
             'address' => $dados['endereco'] ?? '',
             'bank' => $dados['banco'] ?? '',
             'iban' => $dados['iban'] ?? '',
+            'invoice_footer' => $dados['rodapeFacturas'] ?? '',
         ])->save();
 
         return response()->json([
@@ -69,6 +73,7 @@ class CompanyProfileController extends Controller
                 'endereco' => $profile->address ?? '',
                 'banco' => $profile->bank ?? '',
                 'iban' => $profile->iban ?? '',
+                'rodapeFacturas' => $profile->invoice_footer ?? '',
             ],
         ]);
     }

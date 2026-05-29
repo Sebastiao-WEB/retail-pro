@@ -1,10 +1,13 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const execFileAsync = promisify(execFile);
 
 function executarComando(comando, args, entrada = null) {
@@ -44,68 +47,44 @@ async function imprimirRawDarwin(deviceName, buffer) {
   await executarComando("lp", ["-d", deviceName, "-o", "raw"], buffer);
 }
 
+async function executarPowerShellWindows(args) {
+  const candidatos = [
+    process.env.SystemRoot ? path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : null,
+    "powershell.exe",
+    "pwsh.exe",
+  ].filter(Boolean);
+
+  let ultimoErro = null;
+  for (const binario of candidatos) {
+    try {
+      return await execFileAsync(binario, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", ...args], {
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+    } catch (error) {
+      ultimoErro = error;
+    }
+  }
+
+  throw ultimoErro || new Error("PowerShell nao encontrado no Windows.");
+}
+
 async function imprimirRawWindows(deviceName, buffer) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "retailpro-print-"));
   const tempFile = path.join(tempDir, "talao.bin");
+  const scriptPath = path.join(__dirname, "imprimirRawWindows.ps1");
+
   await fs.writeFile(tempFile, buffer);
 
-  const script = `
-$ErrorActionPreference = "Stop"
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class RawPrinterHelper {
-  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-  public class DOCINFO {
-    [MarshalAs(UnmanagedType.LPWStr)] public string pDocName;
-    [MarshalAs(UnmanagedType.LPWStr)] public string pOutputFile;
-    [MarshalAs(UnmanagedType.LPWStr)] public string pDataType;
-  }
-  [DllImport("winspool.drv", CharSet = CharSet.Unicode, SetLastError = true)]
-  public static extern bool OpenPrinter(string pPrinterName, out IntPtr phPrinter, IntPtr pDefault);
-  [DllImport("winspool.drv", SetLastError = true)]
-  public static extern bool ClosePrinter(IntPtr hPrinter);
-  [DllImport("winspool.drv", CharSet = CharSet.Unicode, SetLastError = true)]
-  public static extern bool StartDocPrinter(IntPtr hPrinter, int level, [In] DOCINFO di);
-  [DllImport("winspool.drv", SetLastError = true)]
-  public static extern bool EndDocPrinter(IntPtr hPrinter);
-  [DllImport("winspool.drv", SetLastError = true)]
-  public static extern bool StartPagePrinter(IntPtr hPrinter);
-  [DllImport("winspool.drv", SetLastError = true)]
-  public static extern bool EndPagePrinter(IntPtr hPrinter);
-  [DllImport("winspool.drv", SetLastError = true)]
-  public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
-  public static bool SendBytesToPrinter(string printerName, byte[] bytes) {
-    IntPtr hPrinter;
-    if (!OpenPrinter(printerName, out hPrinter, IntPtr.Zero)) return false;
-    try {
-      DOCINFO di = new DOCINFO();
-      di.pDocName = "RetailPro Talao";
-      di.pDataType = "RAW";
-      if (!StartDocPrinter(hPrinter, 1, di)) return false;
-      try {
-        if (!StartPagePrinter(hPrinter)) return false;
-        try {
-          IntPtr unmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
-          Marshal.Copy(bytes, 0, unmanagedBytes, bytes.Length);
-          int written = 0;
-          bool ok = WritePrinter(hPrinter, unmanagedBytes, bytes.Length, out written);
-          Marshal.FreeCoTaskMem(unmanagedBytes);
-          if (!ok) return false;
-        } finally { EndPagePrinter(hPrinter); }
-      } finally { EndDocPrinter(hPrinter); }
-    } finally { ClosePrinter(hPrinter); }
-    return true;
-  }
-}
-"@
-$bytes = [System.IO.File]::ReadAllBytes('${tempFile.replace(/\\/g, "\\\\")}')
-$result = [RawPrinterHelper]::SendBytesToPrinter('${deviceName.replace(/'/g, "''")}', $bytes)
-if (-not $result) { throw "Falha ao enviar RAW para a impressora." }
-`;
-
   try {
-    await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
+    await executarPowerShellWindows([
+      "-File",
+      scriptPath,
+      "-PrinterName",
+      deviceName,
+      "-FilePath",
+      tempFile,
+    ]);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
   }

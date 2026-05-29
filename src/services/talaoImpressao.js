@@ -1,3 +1,5 @@
+import { temApiConfigurada } from "../api/config";
+
 function formatarMT(valor) {
   return `${new Intl.NumberFormat("pt-MZ", {
     minimumFractionDigits: 2,
@@ -34,10 +36,46 @@ function normalizarItem(item) {
   };
 }
 
+function obterDescontoAplicado(venda) {
+  const explicito = Number(
+    venda?.descontoAplicado ?? venda?.desconto_aplicado ?? venda?.discount_amount ?? 0
+  );
+  if (Number.isFinite(explicito) && explicito > 0) return explicito;
+
+  const subtotal = Number(venda?.subtotal ?? 0);
+  const total = Number(venda?.total ?? 0);
+  if (subtotal > total && total >= 0) {
+    return Number((subtotal - total).toFixed(2));
+  }
+
+  return 0;
+}
+
+function obterRodapeTalao(configuracao) {
+  if (temApiConfigurada()) {
+    return String(configuracao?.rodapeFacturas ?? "");
+  }
+  return String(configuracao?.rodapeFacturas || "Obrigado pela preferencia.");
+}
+
+async function sincronizarConfiguracaoEmpresaRemota(configuracao) {
+  if (!temApiConfigurada()) return configuracao;
+  if (typeof configuracao?.hidratarDadosEmpresaRemotos !== "function") return configuracao;
+  try {
+    await configuracao.hidratarDadosEmpresaRemotos();
+  } catch {
+    // Mantem dados locais quando a API falhar.
+  }
+  return configuracao;
+}
+
 export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
   const itens = (venda?.itens || []).map(normalizarItem);
   const metodoPagamento = String(venda?.metodoPagamento || "");
   const dataIso = venda?.data || new Date().toISOString();
+  const subtotal = Number(venda?.subtotal ?? venda?.total ?? 0);
+  const total = Number(venda?.total || 0);
+  const descontoAplicado = obterDescontoAplicado({ ...venda, subtotal, total });
 
   return {
     titulo: opcoes.segundaVia ? "2a via do Talao" : "Talao de Venda",
@@ -49,7 +87,7 @@ export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
       nuit: String(configuracao?.nif || ""),
       endereco: String(configuracao?.endereco || ""),
       telefone: String(configuracao?.telefone || ""),
-      rodape: String(configuracao?.rodapeFacturas || "Obrigado pela preferencia."),
+      rodape: obterRodapeTalao(configuracao),
     },
     venda: {
       referencia: String(venda?.referencia || ""),
@@ -58,17 +96,17 @@ export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
       data: dataIso,
       dataFormatada: new Date(dataIso).toLocaleString("pt-MZ"),
       itens,
-      subtotal: Number(venda?.subtotal ?? venda?.total ?? 0),
-      descontoAplicado: Number(venda?.descontoAplicado || 0),
+      subtotal,
+      descontoAplicado,
       totalIva: obterTotalIvaVenda(venda),
-      total: Number(venda?.total || 0),
+      total,
       valorPago: Number(venda?.valorPago || 0),
       troco: Number(venda?.troco || 0),
       pagamentoDinheiro: metodoPagamento === "Dinheiro",
     },
     formatado: {
-      subtotal: formatarMT(venda?.subtotal ?? venda?.total ?? 0),
-      desconto: formatarMT(venda?.descontoAplicado || 0),
+      subtotal: formatarMT(subtotal),
+      desconto: formatarMT(descontoAplicado),
       totalIva: formatarMT(obterTotalIvaVenda(venda)),
       total: formatarMT(venda?.total || 0),
       valorPago: formatarMT(venda?.valorPago || 0),
@@ -85,7 +123,8 @@ export async function enviarTalaoParaImpressao({ venda, configuracao, opcoes = {
     return { ok: false, error: "Impressora padrao nao configurada." };
   }
 
-  const talao = montarPayloadTalao(venda, configuracao, opcoes);
+  const configuracaoAtualizada = await sincronizarConfiguracaoEmpresaRemota(configuracao);
+  const talao = montarPayloadTalao(venda, configuracaoAtualizada, opcoes);
   const copies = Math.max(1, Number(opcoes.copies ?? configuracao.copiasImpressao ?? 1));
 
   return window.api.imprimirTalao({
@@ -97,4 +136,4 @@ export async function enviarTalaoParaImpressao({ venda, configuracao, opcoes = {
   });
 }
 
-export { formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda };
+export { formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda, obterDescontoAplicado };

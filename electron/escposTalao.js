@@ -179,7 +179,7 @@ function comandoAvancoLinhas(linhas) {
   return bytes(ESC, 0x64, total);
 }
 
-function comandoCorteComAvanco(linhasAvanco = 5) {
+function comandoCorteComAvanco(linhasAvanco = 4) {
   return concat([
     comandoResetFormatacao(),
     comandoAvancoLinhas(linhasAvanco),
@@ -204,16 +204,20 @@ function linhaTexto(texto, opcoes = {}) {
 export function gerarBufferEscpos(talao, opcoes = {}) {
   const largura = larguraColunas(talao?.larguraTalao);
   const corteAutomatico = opcoes.corteAutomatico !== false;
-  const linhasAvancoCorte = Math.max(3, Number(opcoes.linhasAvancoCorte || 5));
+  const linhasAvancoCorte = Math.max(2, Number(opcoes.linhasAvancoCorte || 4));
   const detalharIva = !!talao.detalharIva;
   const venda = talao.venda || {};
+  const descontoAplicado = Number(venda.descontoAplicado || 0);
 
   const partes = [
     comandoInicializar(),
     comandoCodePageLatin(),
     linhaTexto(talao.empresa.nome, { alinhamento: "centro", negrito: true, tamanho: { altura: true } }),
-    linhaTexto(talao.titulo, { alinhamento: "centro" }),
   ];
+
+  if (talao.segundaVia) {
+    partes.push(linhaTexto(talao.titulo, { alinhamento: "centro" }));
+  }
 
   if (talao.empresa.nuit) {
     partes.push(linhaTexto(`NUIT: ${talao.empresa.nuit}`, { alinhamento: "centro" }));
@@ -245,11 +249,13 @@ export function gerarBufferEscpos(talao, opcoes = {}) {
   if (detalharIva) {
     partes.push(linhaResumo("Total IVA", formatarMoeda(venda.totalIva), largura));
   }
-  partes.push(linhaResumo("Desconto", `- ${formatarMoeda(venda.descontoAplicado)}`, largura));
-  partes.push(linhaResumo("TOTAL", formatarMoeda(venda.total), largura));
+  if (descontoAplicado > 0) {
+    partes.push(linhaResumo("Desconto", `- ${formatarMoeda(descontoAplicado)}`, largura));
+  }
+  partes.push(linhaResumo("Total", formatarMoeda(venda.total), largura));
 
   if (venda.pagamentoDinheiro) {
-    partes.push(linhaResumo("Valor pago", formatarMoeda(venda.valorPago), largura));
+    partes.push(linhaResumo("Valor Pago", formatarMoeda(venda.valorPago), largura));
     partes.push(linhaResumo("Troco", formatarMoeda(venda.troco), largura));
   }
 

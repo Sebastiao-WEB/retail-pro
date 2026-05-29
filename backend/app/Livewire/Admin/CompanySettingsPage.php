@@ -14,6 +14,7 @@ class CompanySettingsPage extends Component
     public string $endereco = '';
     public string $banco = '';
     public string $iban = '';
+    public string $rodapeFacturas = '';
 
     public function mount(): void
     {
@@ -30,6 +31,7 @@ class CompanySettingsPage extends Component
             'endereco' => ['nullable', 'string', 'max:255'],
             'banco' => ['nullable', 'string', 'max:255'],
             'iban' => ['nullable', 'string', 'max:255'],
+            'rodapeFacturas' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $perfil = CompanyProfile::query()->firstOrCreate([]);
@@ -41,6 +43,7 @@ class CompanySettingsPage extends Component
             'address' => $dados['endereco'] ?: null,
             'bank' => $dados['banco'] ?: null,
             'iban' => $dados['iban'] ?: null,
+            'invoice_footer' => $dados['rodapeFacturas'] ?: null,
         ])->save();
 
         session()->flash('toast', ['type' => 'success', 'message' => 'Configurações da empresa atualizadas.']);
@@ -57,6 +60,7 @@ class CompanySettingsPage extends Component
             'address' => 'Av. 25 de Setembro, 420, Maputo, Moçambique',
             'bank' => 'BCI — Banco Comercial e de Investimentos',
             'iban' => 'MZ59 0000 0000 1234 5678 901',
+            'invoice_footer' => 'Obrigado pela sua preferência. Para reclamações contacte: geral@empresa.co.mz',
         ]);
 
         $this->nomeEmpresa = (string) ($perfil->name ?? '');
@@ -66,6 +70,7 @@ class CompanySettingsPage extends Component
         $this->endereco = (string) ($perfil->address ?? '');
         $this->banco = (string) ($perfil->bank ?? '');
         $this->iban = (string) ($perfil->iban ?? '');
+        $this->rodapeFacturas = (string) ($perfil->invoice_footer ?? '');
     }
 
     public function render()

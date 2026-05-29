@@ -22,6 +22,7 @@ class CompanyProfile extends Model
         'address',
         'bank',
         'iban',
+        'invoice_footer',
     ];
 }
 

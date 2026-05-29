@@ -281,6 +281,12 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   const venda = {
     ...vendaPendente.value,
     cliente: cliente.value,
+    itens: carrinhoStore.itens.map((item) => ({ ...item })),
+    subtotal: carrinhoStore.subtotal,
+    descontoTipo: carrinhoStore.descontoTipo,
+    descontoValor: carrinhoStore.descontoValor,
+    descontoAplicado: carrinhoStore.valorDesconto,
+    total: carrinhoStore.total,
     metodoPagamento: carrinhoStore.metodoPagamento,
     valorPago: valorPagoNumerico.value,
     troco: troco.value,
@@ -404,6 +410,11 @@ onMounted(async () => {
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
   if (temApiConfigurada()) {
+    try {
+      await configuracaoStore.hidratarDadosEmpresaRemotos();
+    } catch {
+      // Mantem dados locais quando a API falhar.
+    }
     const sincronizacao = await sessaoStore.sincronizarTurnoRemoto();
     if (!sincronizacao.remotoOk && sincronizacao.erro) {
       mostrarToastSwal(sincronizacao.erro, "error");
