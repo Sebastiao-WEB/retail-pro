@@ -110,9 +110,8 @@ Ja implementado:
 - stores principais conectados a integracao
 
 Proximo passo recomendado:
-- integrar login real (`/auth/login`) com token JWT/Sanctum
-- sincronizar abertura/fecho de caixa direto na API
-- persistencia oficial de vendas/stock no backend
+- homologacao manual ponta a ponta em `VITE_API_MODE=api`
+- validar testes backend com `php artisan test --filter=Api` (requer extensao `php-sqlite3`)
 
 ---
 

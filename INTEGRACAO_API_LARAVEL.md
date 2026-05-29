@@ -70,6 +70,7 @@ Observacao:
 ### Caixa
 - `POST /cash-sessions/open`
 - `POST /cash-sessions/{id}/close`
+- `GET /cash-sessions/active`
 - `GET /cash-sessions/{id}/movements`
 
 ---
@@ -79,6 +80,9 @@ Observacao:
 - `useProdutoStore` -> carrega produtos via integracao API.
 - `useClienteStore` -> carrega clientes via integracao API.
 - `useVendaStore` -> carrega historico, cria venda e solicita reversao via integracao API.
+- `useSessaoStore` -> abre/fecha turno e sincroniza sessao ativa via integracao API.
+
+Respostas da API passam por mapeadores em `src/api/mappers/` (suportam camelCase portugues e snake_case).
 
 Se a API falhar, o fluxo continua operacional com mock local.
 
@@ -101,5 +105,7 @@ Integração validada com backend em `http://127.0.0.1:8000/api/v1`:
 
 - A camada API do desktop agora suporta versionamento via `VITE_API_VERSION`.
 - Se `VITE_API_URL` já tiver `/v1`, o prefixo não é duplicado.
-- Endpoints de `cash-sessions/*` permanecem preparados no cliente, mas ainda não integrados ao fluxo principal da UI.
+- Endpoints de `cash-sessions/*` integrados ao fluxo principal da UI (abertura, fecho, sincronizacao ao montar POS).
+- Vendas enviam `cash_session_id` quando sessao remota esta ativa.
+- Respostas API normalizadas via `src/api/mappers/` (snake_case + camelCase).
 

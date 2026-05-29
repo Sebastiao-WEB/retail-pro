@@ -22,6 +22,10 @@ class SaleController extends Controller
             $query->where('register_id', $registerId);
         }
 
+        if ($cashSessionId = request('cash_session_id')) {
+            $query->where('cash_session_id', $cashSessionId);
+        }
+
         $sales = $query->get()->map(function (Sale $sale) {
             return [
                 'id' => $sale->id,
@@ -92,6 +96,8 @@ class SaleController extends Controller
                 'referencia' => $dados['referencia'] ?? ('VD-'.now()->format('Ymd-His')),
                 'register_id' => $dados['register_id'] ?? ($dados['registerId'] ?? null),
                 'source_location_id' => $dados['source_location_id'] ?? ($dados['sourceLocationId'] ?? null),
+                'cash_session_id' => $dados['cash_session_id'] ?? ($dados['cashSessionId'] ?? null),
+                'user_id' => auth('api')->id(),
                 'cliente' => $dados['cliente'],
                 'caixa' => $dados['caixa'] ?? null,
                 'operador' => $dados['operador'] ?? null,

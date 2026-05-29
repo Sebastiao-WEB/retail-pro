@@ -354,6 +354,7 @@ function finalizarVenda() {
     caixa: sessaoStore.caixaAtribuido,
     registerId: sessaoStore.registerId,
     registerCodigo: sessaoStore.registerCodigo,
+    cashSessionId: sessaoStore.cashSessionId,
     sourceLocationId: origemStockVenda.value.id,
     sourceLocationCodigo: origemStockVenda.value.codigo,
     sourceLocationNome: origemStockVenda.value.nome,
@@ -396,11 +397,14 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     troco: troco.value,
     registerId: sessaoStore.registerId,
     registerCodigo: sessaoStore.registerCodigo,
+    cashSessionId: sessaoStore.cashSessionId,
     sourceLocationId: origemStockVenda.value.id,
     sourceLocationCodigo: origemStockVenda.value.codigo,
     sourceLocationNome: origemStockVenda.value.nome,
     register_id: sessaoStore.registerId,
     source_location_id: origemStockVenda.value.id,
+    cash_session_id: sessaoStore.cashSessionId,
+    cashSessionId: sessaoStore.cashSessionId,
   };
   if (opcoes.imprimir) {
     if (!window.api?.imprimirTalao) {

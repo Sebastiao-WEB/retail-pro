@@ -96,9 +96,11 @@ Este arquivo serve para retomar rapidamente o contexto no Cursor (em outro compu
 2. **Mapeamento de campos**
   - Ideal padronizar API em `snake_case` e criar mapper frontend para reduzir ambiguidade.
 3. **Fluxo de caixa remoto**
-  - Integrar abertura/fecho de caixa com endpoints `cash-sessions/`* (hoje parte ainda local).
+  - Integrado: abertura/fecho/sincronizacao via `cash-sessions/*` no desktop.
+  - Vendas vinculam `cash_session_id` na API.
 4. **Homologação**
-  - Rodar ponta a ponta em `VITE_API_MODE=api` com dados reais.
+  - Testes automatizados: `npm run test` (frontend) e `php artisan test --filter=Api` (backend).
+  - Validar fluxo manual ponta a ponta em `VITE_API_MODE=api`.
 
 ---
 
@@ -202,6 +204,6 @@ Se precisar continuar exatamente de onde parou, peça ao agente:
 ### Pendências recomendadas (próxima sessão)
 
 1. Homologação manual na UI desktop (fluxo completo de caixa, venda e reversão).
-2. Integrar `cash-sessions/`* no frontend (hoje abertura/fecho ainda local).
-3. Ajustar `.env` de produção web e checklist operacional final.
+2. Instalar `php-sqlite3` no ambiente de CI/dev e validar `php artisan test --filter=Api`.
+3. Ajustar `.env` de produção web (ver `backend/.env.production.example`) e checklist operacional final.
 

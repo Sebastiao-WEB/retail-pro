@@ -18,6 +18,7 @@ class Sale extends Model
         'referencia',
         'register_id',
         'source_location_id',
+        'cash_session_id',
         'customer_id',
         'user_id',
         'cliente',

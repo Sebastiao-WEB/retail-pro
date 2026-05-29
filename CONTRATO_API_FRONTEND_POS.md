@@ -298,6 +298,7 @@ Payload atual enviado pelo frontend (exemplo real):
   "sourceLocationNome": "Loja - Caixa 01",
   "register_id": "af1f056f-b084-4f44-9e46-b7f5552f0cf9",
   "source_location_id": "f9b95ac2-cbd9-4b3d-a72e-2f660f24e4f2",
+  "cash_session_id": "c81192e6-dcb8-48a2-943a-73eaf0476a82",
   "operador": "Operador 01",
   "turnoAbertura": "2026-04-23T08:00:00Z",
   "subtotal": 730,
@@ -403,11 +404,9 @@ Campos esperados (minimo para historico local):
 - `PUT /products/{id}`
 - `POST /customers`
 - `PUT /customers/{id}`
-- `POST /cash-sessions/open`
-- `POST /cash-sessions/{id}/close`
 - `GET /cash-sessions/{id}/movements`
 
-Esses endpoints existem no cliente API, mas o fluxo de POS atual ainda opera abertura/fecho de caixa localmente.
+O fluxo de abertura/fecho de caixa ja opera via API quando `VITE_API_MODE=api`.
 
 ---
 

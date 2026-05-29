@@ -8,6 +8,14 @@ import {
   purchasesApi,
   cashApi,
 } from "../api";
+import { ApiError } from "../api/httpClient";
+import {
+  mapearCliente,
+  mapearCompra,
+  mapearLista,
+  mapearProduto,
+  mapearVenda,
+} from "../api/mappers";
 import { obterClientes, obterCompras, obterProdutos, obterVendas } from "./dadosMockados";
 
 function normalizarLista(resposta) {
@@ -19,25 +27,28 @@ function normalizarLista(resposta) {
 export async function carregarProdutosIntegrado() {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) return obterProdutos();
-  return normalizarLista(await productsApi.listar());
+  return mapearLista(mapearProduto, normalizarLista(await productsApi.listar()));
 }
 
 export async function carregarClientesIntegrado() {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) return obterClientes();
-  return normalizarLista(await customersApi.listar());
+  return mapearLista(mapearCliente, normalizarLista(await customersApi.listar()));
 }
 
-export async function carregarHistoricoIntegrado() {
+export async function carregarHistoricoIntegrado(filtros = {}) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) {
     const [vendas, compras] = await Promise.all([obterVendas(), obterCompras()]);
     return { vendas, compras };
   }
-  const [vendasResp, comprasResp] = await Promise.all([salesApi.listar(), purchasesApi.listar()]);
+  const [vendasResp, comprasResp] = await Promise.all([
+    salesApi.listar(filtros),
+    purchasesApi.listar(filtros),
+  ]);
   return {
-    vendas: normalizarLista(vendasResp),
-    compras: normalizarLista(comprasResp),
+    vendas: mapearLista(mapearVenda, normalizarLista(vendasResp)),
+    compras: mapearLista(mapearCompra, normalizarLista(comprasResp)),
   };
 }
 
@@ -72,6 +83,9 @@ export async function abrirTurnoIntegrado(payload) {
     const resposta = await cashApi.abrirSessao(payload);
     return { ok: true, data: normalizarObjeto(resposta) };
   } catch (erro) {
+    if (erro instanceof ApiError && erro.status === 409 && erro.payload?.data?.id) {
+      return { ok: true, data: erro.payload.data, reutilizada: true };
+    }
     return { ok: false, erro: erro?.message || "Falha ao abrir sessão de caixa na API." };
   }
 }
@@ -97,4 +111,3 @@ export async function obterSessaoAtivaIntegrada(registerId) {
     return { ok: false, erro: erro?.message || "Falha ao consultar sessão ativa na API." };
   }
 }
-

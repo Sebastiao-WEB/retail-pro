@@ -48,10 +48,13 @@
 
 ## 7. Saúde e testes mínimos
 
+- Instalar extensão PHP para testes: `php-sqlite3` (ou configurar MySQL de testes).
 - Rodar testes antes do deploy:
   - `php artisan test`
+  - `php artisan test --filter=Api` (auth, caixa, vendas, reversão)
 - Validar login web, dashboard e módulos críticos.
 - Validar login JWT e endpoints críticos da API v1.
+- Validar fluxo desktop em `VITE_API_MODE=api`: abertura/fecho de caixa remoto, venda com `cash_session_id`, reversão.
 
 ## 8. Operação pós-deploy
 

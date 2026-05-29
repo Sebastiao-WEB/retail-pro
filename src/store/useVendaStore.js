@@ -5,6 +5,7 @@ import {
   criarVendaIntegrada,
   solicitarReversaoIntegrada,
 } from "../services/integracaoApi";
+import { useSessaoStore } from "./useSessaoStore";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
 
@@ -68,7 +69,14 @@ export const useVendaStore = defineStore("vendas", {
     },
     async carregarHistorico() {
       if (this.carregado) return;
-      const { vendas, compras } = await carregarHistoricoIntegrado();
+      const sessaoStore = useSessaoStore();
+      sessaoStore.hidratar();
+      const filtros = {};
+      if (temApiConfigurada()) {
+        if (sessaoStore.cashSessionId) filtros.cash_session_id = sessaoStore.cashSessionId;
+        else if (sessaoStore.registerId) filtros.register_id = sessaoStore.registerId;
+      }
+      const { vendas, compras } = await carregarHistoricoIntegrado(filtros);
       this.vendas = vendas.map((venda, indice) => ({
         ...venda,
         referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
