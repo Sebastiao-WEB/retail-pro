@@ -3,11 +3,13 @@ import { onMounted, ref } from "vue";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
+import { enviarAbrirGaveta } from "../../services/talaoImpressao";
 import { RefreshCcw, Save, X } from "lucide-vue-next";
 
 const configuracoes = useConfiguracaoStore();
 const impressorasDisponiveis = ref([]);
 const carregandoImpressoras = ref(false);
+const testandoGaveta = ref(false);
 const bloqueadoAdministrador = true;
 
 onMounted(() => {
@@ -64,6 +66,29 @@ async function carregarImpressoras() {
     impressorasDisponiveis.value = [];
   } finally {
     carregandoImpressoras.value = false;
+  }
+}
+
+async function testarGaveta() {
+  if (testandoGaveta.value) return;
+  if (!window.api?.abrirGaveta) {
+    mostrarToastSwal("Abrir gaveta disponível apenas no app desktop (Electron).", "warning");
+    return;
+  }
+  if (!configuracoes.impressoraPadrao) {
+    mostrarToastSwal("Defina a impressora padrão antes de testar a gaveta.", "warning");
+    return;
+  }
+  testandoGaveta.value = true;
+  try {
+    const resultado = await enviarAbrirGaveta({ configuracao: configuracoes });
+    if (!resultado?.ok) {
+      mostrarToastSwal(resultado?.error || "Falha ao enviar pulso para a gaveta.", "error");
+      return;
+    }
+    mostrarToastSwal("Pulso enviado para a gaveta via impressora. Verifique se abriu.", "success");
+  } finally {
+    testandoGaveta.value = false;
   }
 }
 </script>
@@ -176,7 +201,29 @@ async function carregarImpressoras() {
               @change="configuracoes.definirCorteAutomatico($event.target.checked)"
             />
           </label>
+          <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+            <div>
+              <p class="font-semibold text-slate-700">Abrir gaveta em vendas em dinheiro</p>
+              <p class="text-[11px] text-slate-500">Envia pulso ESC/POS na porta DK (cabos R15/RJ11)</p>
+            </div>
+            <input
+              :checked="configuracoes.abrirGavetaAutomatico"
+              type="checkbox"
+              class="h-4 w-4 accent-amber-500"
+              @change="configuracoes.definirAbrirGavetaAutomatico($event.target.checked)"
+            />
+          </label>
+          <div v-if="configuracoes.abrirGavetaAutomatico">
+            <label class="mb-1 block text-xs font-semibold text-slate-600">Porta da gaveta (DK)</label>
+            <select :value="configuracoes.gavetaPin" class="rp-input" @change="configuracoes.definirGavetaPin($event.target.value)">
+              <option :value="0">Pin 2 (padrão — maioria R15)</option>
+              <option :value="1">Pin 5 (alguns modelos)</option>
+            </select>
+          </div>
           <div class="flex justify-end gap-2">
+            <BotaoBase variante="secundario" :disabled="testandoGaveta" @click="testarGaveta">
+              <span>{{ testandoGaveta ? "A testar..." : "Testar gaveta" }}</span>
+            </BotaoBase>
             <BotaoBase variante="secundario" @click="carregarImpressoras">
               <span class="inline-flex items-center gap-1.5">
                 <RefreshCcw :size="14" />

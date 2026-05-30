@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 
 trait ResolvesAssignedRegister
@@ -13,16 +14,26 @@ trait ResolvesAssignedRegister
      */
     protected function resolverRegisterIdConsulta(Request $request, ?string $registerIdInformado)
     {
-        $registerAtribuido = optional($request->user())->register_id;
+        /** @var User|null $user */
+        $user = $request->user();
+        $assignedIds = $user ? $user->assignedRegisterIds() : [];
 
-        if ($registerAtribuido) {
-            if ($registerIdInformado && $registerIdInformado !== $registerAtribuido) {
+        if ($assignedIds !== []) {
+            if ($registerIdInformado && ! in_array($registerIdInformado, $assignedIds, true)) {
                 return response()->json([
                     'message' => 'O caixa informado não corresponde ao caixa atribuído ao utilizador.',
                 ], 403);
             }
 
-            return $registerAtribuido;
+            if ($registerIdInformado && in_array($registerIdInformado, $assignedIds, true)) {
+                return $registerIdInformado;
+            }
+
+            if ($user?->register_id && in_array($user->register_id, $assignedIds, true)) {
+                return $user->register_id;
+            }
+
+            return $assignedIds[0];
         }
 
         if (! $registerIdInformado) {

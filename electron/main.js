@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { gerarBufferEscpos, gerarBufferEscposRelatorioFecho } from "./escposTalao.js";
+import { gerarBufferEscpos, gerarBufferEscposRelatorioFecho, gerarBufferAbrirGaveta } from "./escposTalao.js";
 import { enviarRawParaImpressora } from "./imprimirRaw.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -260,7 +260,13 @@ ipcMain.handle("pos:imprimir-talao", async (_event, payload) => {
   }
 
   try {
-    const buffer = gerarBufferEscpos(talao, { corteAutomatico });
+    const buffer = gerarBufferEscpos(talao, {
+      corteAutomatico,
+      abrirGaveta: !!payload?.abrirGaveta,
+      gavetaPin: payload?.gavetaPin,
+      gavetaTempoOn: payload?.gavetaTempoOn,
+      gavetaTempoOff: payload?.gavetaTempoOff,
+    });
     await enviarRawParaImpressora(deviceName, buffer, copies);
     return { ok: true, modo: "raw" };
   } catch (error) {
@@ -286,6 +292,26 @@ ipcMain.handle("pos:imprimir-relatorio-fecho", async (_event, payload) => {
   } catch (error) {
     console.log("[POS][print][relatorio-fecho] erro:", error?.message || error);
     return { ok: false, error: error?.message || "Erro inesperado ao imprimir relatorio RAW." };
+  }
+});
+
+ipcMain.handle("pos:abrir-gaveta", async (_event, payload) => {
+  const deviceName = String(payload?.deviceName || "");
+  if (!deviceName) {
+    return { ok: false, error: "Impressora nao informada para abrir gaveta." };
+  }
+
+  try {
+    const buffer = gerarBufferAbrirGaveta({
+      pin: payload?.gavetaPin,
+      tempoOn: payload?.gavetaTempoOn,
+      tempoOff: payload?.gavetaTempoOff,
+    });
+    await enviarRawParaImpressora(deviceName, buffer, 1);
+    return { ok: true, modo: "raw" };
+  } catch (error) {
+    console.log("[POS][print][gaveta] erro:", error?.message || error);
+    return { ok: false, error: error?.message || "Erro inesperado ao abrir gaveta." };
   }
 });
 

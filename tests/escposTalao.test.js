@@ -3,6 +3,7 @@ import {
   encodeTexto,
   formatarMoeda,
   formatarPrecoCurto,
+  gerarBufferAbrirGaveta,
   gerarBufferEscpos,
   larguraColunas,
   montarBlocoPrecoItem,
@@ -160,5 +161,29 @@ describe("escposTalao", () => {
     expect(posTotal).toBeGreaterThan(posDesconto);
     expect(posValorPago).toBeGreaterThan(posTotal);
     expect(posTroco).toBeGreaterThan(posValorPago);
+  });
+
+  it("inclui comando ESC p para gaveta em vendas em dinheiro", () => {
+    const talao = montarPayloadTalao(
+      {
+        cliente: "Cliente",
+        metodoPagamento: "Dinheiro",
+        subtotal: 50,
+        total: 50,
+        valorPago: 50,
+        troco: 0,
+        data: "2026-05-29T10:00:00.000Z",
+        itens: [{ nome: "Item", quantidade: 1, ivaPercentual: 0, subtotal: 50 }],
+      },
+      { nomeEmpresa: "Empresa Demo", larguraTalao: "80mm" }
+    );
+
+    const buffer = gerarBufferEscpos(talao, { corteAutomatico: false, abrirGaveta: true, gavetaPin: 0 });
+    expect(buffer.includes(Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa]))).toBe(true);
+  });
+
+  it("gera buffer standalone para abrir gaveta", () => {
+    const buffer = gerarBufferAbrirGaveta({ pin: 1, tempoOn: 100, tempoOff: 200 });
+    expect(buffer.equals(Buffer.from([0x1b, 0x70, 0x01, 0x32, 0x64]))).toBe(true);
   });
 });

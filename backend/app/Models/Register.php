@@ -23,4 +23,14 @@ class Register extends Model
     {
         return $this->hasOne(StockLocation::class);
     }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'register_user');
+    }
+
+    public function cashSessions()
+    {
+        return $this->hasMany(CashSession::class);
+    }
 }

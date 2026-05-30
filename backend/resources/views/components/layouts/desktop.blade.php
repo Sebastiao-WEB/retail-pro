@@ -42,6 +42,18 @@
                             <span>Vendas</span>
                         </a>
                     @endcan
+                    @can('cash_sessions.view')
+                        <a href="{{ route('cash-sessions.active') }}"
+                           class="{{ request()->routeIs('cash-sessions.active') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
+                            <i data-lucide="door-open" class="h-4 w-4"></i>
+                            <span>Sessões activas</span>
+                        </a>
+                        <a href="{{ route('cash-sessions.closed') }}"
+                           class="{{ request()->routeIs('cash-sessions.closed') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
+                            <i data-lucide="history" class="h-4 w-4"></i>
+                            <span>Histórico de fechos</span>
+                        </a>
+                    @endcan
                     @can('purchases.view')
                         <a href="{{ route('purchases.index') }}"
                            class="{{ request()->routeIs('purchases.*') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">

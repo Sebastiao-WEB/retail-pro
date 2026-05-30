@@ -53,6 +53,8 @@ class UserController extends Controller
             'role' => ['required', 'in:ADMIN,MANAGER,CASHIER'],
             'isActive' => ['nullable', 'boolean'],
             'registerId' => ['nullable', 'uuid', 'exists:registers,id'],
+            'registerIds' => ['nullable', 'array'],
+            'registerIds.*' => ['uuid', 'exists:registers,id'],
             'sourceLocationId' => ['nullable', 'uuid', 'exists:stock_locations,id'],
         ]);
 
@@ -66,8 +68,10 @@ class UserController extends Controller
             'is_active' => (bool) ($dados['isActive'] ?? true),
             'register_id' => $dados['registerId'] ?? null,
             'source_location_id' => $dados['sourceLocationId'] ?? null,
-            'caixa_atribuido' => null,
         ]);
+        $registerIds = $dados['registerIds'] ?? (isset($dados['registerId']) && $dados['registerId'] ? [$dados['registerId']] : []);
+        $user->syncAssignedRegisters($registerIds);
+        $user->save();
         $user->syncRoles([$dados['role']]);
 
         return response()->json([
@@ -88,6 +92,8 @@ class UserController extends Controller
             'role' => ['sometimes', 'in:ADMIN,MANAGER,CASHIER'],
             'isActive' => ['sometimes', 'boolean'],
             'registerId' => ['sometimes', 'nullable', 'uuid', 'exists:registers,id'],
+            'registerIds' => ['sometimes', 'nullable', 'array'],
+            'registerIds.*' => ['uuid', 'exists:registers,id'],
             'sourceLocationId' => ['sometimes', 'nullable', 'uuid', 'exists:stock_locations,id'],
         ]);
 
@@ -112,6 +118,14 @@ class UserController extends Controller
         }
 
         $user->save();
+
+        if (array_key_exists('registerIds', $dados)) {
+            $user->syncAssignedRegisters($dados['registerIds'] ?? []);
+            $user->save();
+        } elseif (array_key_exists('registerId', $dados) && $dados['registerId']) {
+            $user->syncAssignedRegisters([$dados['registerId']]);
+            $user->save();
+        }
 
         if (array_key_exists('role', $dados)) {
             $user->syncRoles([$dados['role']]);

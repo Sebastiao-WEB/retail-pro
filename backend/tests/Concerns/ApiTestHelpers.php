@@ -86,6 +86,16 @@ trait ApiTestHelpers
         }
 
         $resposta = $this->postJson('/api/v1/auth/login', $payload);
+
+        if ($resposta->status() === 422 && $resposta->json('requires_register_selection')) {
+            $registers = $resposta->json('registers') ?? [];
+            $codigo = $registerCode ?? ($registers[0]['code'] ?? null);
+            if ($codigo) {
+                $payload['register_code'] = $codigo;
+                $resposta = $this->postJson('/api/v1/auth/login', $payload);
+            }
+        }
+
         $resposta->assertOk();
 
         return (string) $resposta->json('access_token');

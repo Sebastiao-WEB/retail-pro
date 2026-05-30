@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\SaleReversalRequest;
+use App\Services\SaleReversalService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -11,10 +12,15 @@ class ReversalsPage extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $statusFilter = '';
+
     public bool $decisionModalOpen = false;
+
     public ?string $decisionId = null;
+
     public string $decisionStatus = 'APPROVED';
+
     public string $decisionReason = '';
 
     public function updatedSearch(): void
@@ -36,7 +42,7 @@ class ReversalsPage extends Component
         $this->decisionModalOpen = true;
     }
 
-    public function applyDecision(): void
+    public function applyDecision(SaleReversalService $reversalService): void
     {
         abort_unless(auth()->user()?->can('reversals.manage'), 403);
         $dados = $this->validate([
@@ -47,26 +53,31 @@ class ReversalsPage extends Component
             return;
         }
 
-        $pedido = SaleReversalRequest::query()->find($this->decisionId);
+        $pedido = SaleReversalRequest::query()->with('sale')->find($this->decisionId);
         if (! $pedido) {
             return;
         }
 
-        $pedido->update([
-            'status' => $this->decisionStatus,
-            'approved_by' => auth()->id(),
-            'reason' => $dados['decisionReason'] !== '' ? $dados['decisionReason'] : $pedido->reason,
-            'decided_at' => now(),
-        ]);
+        try {
+            if ($this->decisionStatus === 'APPROVED') {
+                $reversalService->approve($pedido, $dados['decisionReason'] ?? null, auth()->id());
+                session()->flash('toast', ['type' => 'success', 'message' => 'Reversão aprovada e stock estornado.']);
+            } else {
+                $reversalService->reject($pedido, $dados['decisionReason'] ?? null, auth()->id());
+                session()->flash('toast', ['type' => 'success', 'message' => 'Solicitação rejeitada.']);
+            }
+        } catch (\Throwable $e) {
+            session()->flash('toast', ['type' => 'error', 'message' => $e->getMessage()]);
+        }
 
         $this->decisionModalOpen = false;
         $this->decisionId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Solicitação atualizada com sucesso.']);
     }
 
     public function render()
     {
         $reversoes = SaleReversalRequest::query()
+            ->with(['sale'])
             ->when($this->search !== '', function ($q) {
                 $q->where(function ($inner) {
                     $inner->where('sale_id', 'like', "%{$this->search}%")

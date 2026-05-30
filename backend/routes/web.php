@@ -1,5 +1,7 @@
 <?php
 
+use App\Livewire\Admin\CashSessionsActivePage;
+use App\Livewire\Admin\CashSessionsClosedPage;
 use App\Livewire\Admin\CustomersPage;
 use App\Livewire\Admin\CompanySettingsPage;
 use App\Livewire\Admin\Dashboard;
@@ -25,6 +27,8 @@ Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
     Route::get('/produtos', ProductsPage::class)->middleware('permission:products.view')->name('products.index');
     Route::get('/clientes', CustomersPage::class)->middleware('permission:customers.view')->name('customers.index');
     Route::get('/vendas', SalesPage::class)->middleware('permission:sales.view')->name('sales.index');
+    Route::get('/sessoes-caixa-activas', CashSessionsActivePage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.active');
+    Route::get('/historico-fechos-caixa', CashSessionsClosedPage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.closed');
     Route::get('/compras', PurchasesPage::class)->middleware('permission:purchases.view')->name('purchases.index');
     Route::get('/reversoes', ReversalsPage::class)->middleware('permission:reversals.view')->name('reversals.index');
     Route::get('/caixas', RegistersPage::class)->middleware('permission:registers.view')->name('registers.index');

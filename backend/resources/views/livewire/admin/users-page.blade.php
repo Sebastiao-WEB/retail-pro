@@ -24,6 +24,7 @@
                     <th class="px-3 py-2">Username</th>
                     <th class="px-3 py-2">Email</th>
                     <th class="px-3 py-2">Perfil</th>
+                    <th class="px-3 py-2">Caixas</th>
                     <th class="px-3 py-2">Estado</th>
                     @can('users.manage')
                         <th class="px-3 py-2">Ações</th>
@@ -37,6 +38,7 @@
                         <td class="px-3 py-2">{{ $user->username }}</td>
                         <td class="px-3 py-2">{{ $user->email }}</td>
                         <td class="px-3 py-2">{{ $user->getRoleNames()->first() ?? $user->role }}</td>
+                        <td class="px-3 py-2 text-xs text-slate-600">{{ $user->caixa_atribuido ?: '—' }}</td>
                         <td class="px-3 py-2">
                             <span class="{{ $user->is_active ? 'text-emerald-600' : 'text-red-600' }}">
                                 {{ $user->is_active ? 'Ativo' : 'Inativo' }}
@@ -53,7 +55,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ auth()->user()?->can('users.manage') ? 6 : 5 }}" class="px-3 py-6 text-center text-slate-500">Sem utilizadores registados.</td>
+                        <td colspan="{{ auth()->user()?->can('users.manage') ? 7 : 6 }}" class="px-3 py-6 text-center text-slate-500">Sem utilizadores registados.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -94,14 +96,19 @@
                             </select>
                             @error('role') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa (opcional)</label>
-                            <select wire:model.defer="register_id" class="rp-input">
-                                <option value="">Sem vínculo</option>
-                                @foreach ($registers as $register)
-                                    <option value="{{ $register->id }}">{{ $register->code }} - {{ $register->name }}</option>
-                                @endforeach
-                            </select>
+                        <div class="md:col-span-2">
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">Caixas atribuídos (pode seleccionar vários)</label>
+                            <div class="max-h-36 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                                @forelse ($registers as $register)
+                                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                                        <input type="checkbox" wire:model.defer="register_ids" value="{{ $register->id }}" class="h-4 w-4 accent-amber-500">
+                                        <span>{{ $register->code }} — {{ $register->name }}</span>
+                                    </label>
+                                @empty
+                                    <p class="text-xs text-slate-500">Sem caixas activos.</p>
+                                @endforelse
+                            </div>
+                            @error('register_ids') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-semibold text-slate-600">Local de stock (opcional)</label>

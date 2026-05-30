@@ -6,6 +6,7 @@ use App\Models\Register;
 use App\Models\StockLocation;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -14,18 +15,30 @@ class UsersPage extends Component
     use WithPagination;
 
     public string $search = '';
+
     public bool $modalOpen = false;
+
     public bool $confirmDisableOpen = false;
+
     public ?string $editingId = null;
+
     public ?string $disableId = null;
 
     public string $name = '';
+
     public string $username = '';
+
     public string $email = '';
+
     public string $password = '';
+
     public string $role = 'MANAGER';
+
     public bool $is_active = true;
-    public ?string $register_id = null;
+
+    /** @var array<int, string> */
+    public array $register_ids = [];
+
     public ?string $source_location_id = null;
 
     public function updatedSearch(): void
@@ -43,7 +56,7 @@ class UsersPage extends Component
     public function openEditModal(string $id): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
-        $user = User::query()->findOrFail($id);
+        $user = User::query()->with('registers')->findOrFail($id);
         $this->editingId = $user->id;
         $this->name = $user->name;
         $this->username = (string) $user->username;
@@ -51,7 +64,10 @@ class UsersPage extends Component
         $this->password = '';
         $this->role = (string) ($user->role ?: ($user->getRoleNames()->first() ?? 'MANAGER'));
         $this->is_active = (bool) $user->is_active;
-        $this->register_id = $user->register_id;
+        $this->register_ids = $user->registers->pluck('id')->all();
+        if ($this->register_ids === [] && $user->register_id) {
+            $this->register_ids = [$user->register_id];
+        }
         $this->source_location_id = $user->source_location_id;
         $this->modalOpen = true;
     }
@@ -66,7 +82,8 @@ class UsersPage extends Component
             'email' => ['required', 'email', 'max:255', 'unique:users,email,'.($this->editingId ?? 'NULL').',id'],
             'role' => ['required', 'in:ADMIN,MANAGER,CASHIER'],
             'is_active' => ['boolean'],
-            'register_id' => ['nullable', 'uuid', 'exists:registers,id'],
+            'register_ids' => ['nullable', 'array'],
+            'register_ids.*' => ['uuid', 'exists:registers,id'],
             'source_location_id' => ['nullable', 'uuid', 'exists:stock_locations,id'],
         ];
 
@@ -84,9 +101,7 @@ class UsersPage extends Component
             'email' => $dados['email'],
             'role' => $dados['role'],
             'is_active' => $dados['is_active'],
-            'register_id' => $dados['register_id'] ?: null,
             'source_location_id' => $dados['source_location_id'] ?: null,
-            'caixa_atribuido' => null,
         ];
 
         if (! empty($dados['password'])) {
@@ -94,10 +109,21 @@ class UsersPage extends Component
         }
 
         /** @var User $user */
-        $user = User::query()->updateOrCreate(
-            ['id' => $this->editingId],
-            $payload
-        );
+        if ($this->editingId) {
+            $user = User::query()->findOrFail($this->editingId);
+            $user->fill($payload);
+            $user->save();
+        } else {
+            $payload['id'] = (string) Str::uuid();
+            $user = User::query()->create($payload);
+        }
+
+        $user->syncAssignedRegisters($dados['register_ids'] ?? []);
+        if ($user->register_id && ! $user->source_location_id) {
+            $user->syncSourceLocationFromRegister($user->register_id);
+        }
+        $user->save();
+
         $user->syncRoles([$dados['role']]);
 
         session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Utilizador atualizado.' : 'Utilizador criado.']);
@@ -137,13 +163,14 @@ class UsersPage extends Component
         $this->password = '';
         $this->role = 'MANAGER';
         $this->is_active = true;
-        $this->register_id = null;
+        $this->register_ids = [];
         $this->source_location_id = null;
     }
 
     public function render()
     {
         $users = User::query()
+            ->with('registers')
             ->when($this->search !== '', function ($q) {
                 $q->where(function ($inner) {
                     $inner->where('name', 'like', "%{$this->search}%")

@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { authApi, modoApiAtivo, temApiConfigurada } from "../../api";
+import { ApiError } from "../../api/httpClient";
 import { mostrarToastSwal } from "../../services/toast";
 import { LogIn, LoaderCircle } from "lucide-vue-next";
 import logoRetailPro from "../../assets/rp.png";
@@ -11,6 +12,8 @@ import logoRetailPro from "../../assets/rp.png";
 const router = useRouter();
 const sessaoStore = useSessaoStore();
 const carregando = ref(false);
+const caixasDisponiveis = ref([]);
+const aguardandoSelecaoCaixa = ref(false);
 
 const form = reactive({
   username: "",
@@ -37,6 +40,28 @@ function extrairSourceLocation(user) {
   };
 }
 
+function concluirLogin(resposta) {
+  const user = resposta?.user || {};
+  const token = resposta?.access_token || "";
+  if (!token) throw new Error("Token JWT não recebido da API.");
+  const sourceLocation = extrairSourceLocation(user);
+  sessaoStore.login({
+    username: user.name || form.username.trim(),
+    caixa: user.register?.name || user.caixa_atribuido || form.caixa,
+    perfil: user.role || "CASHIER",
+    token,
+    refreshToken: resposta?.refresh_token || "",
+    registerId: user.register?.id ?? null,
+    registerCodigo: user.register?.code || user.register?.codigo || "",
+    sourceLocationId: sourceLocation.id,
+    sourceLocationCodigo: sourceLocation.codigo,
+    sourceLocationNome: sourceLocation.nome,
+  });
+  aguardandoSelecaoCaixa.value = false;
+  caixasDisponiveis.value = [];
+  router.push("/pos");
+}
+
 async function entrar() {
   if (!form.username.trim()) return;
 
@@ -61,24 +86,23 @@ async function entrar() {
       password: form.senha,
       registerCode: form.codigo.trim() || null,
     });
-    const user = resposta?.user || {};
-    const token = resposta?.access_token || "";
-    if (!token) throw new Error("Token JWT não recebido da API.");
-    const sourceLocation = extrairSourceLocation(user);
-    sessaoStore.login({
-      username: user.name || form.username.trim(),
-      caixa: user.register?.name || user.caixa_atribuido || form.caixa,
-      perfil: user.role || "CASHIER",
-      token,
-      refreshToken: resposta?.refresh_token || "",
-      registerId: user.register?.id ?? null,
-      registerCodigo: user.register?.code || user.register?.codigo || "",
-      sourceLocationId: sourceLocation.id,
-      sourceLocationCodigo: sourceLocation.codigo,
-      sourceLocationNome: sourceLocation.nome,
-    });
-    router.push("/pos");
+    concluirLogin(resposta);
   } catch (erro) {
+    if (erro instanceof ApiError && erro.payload?.requires_register_selection) {
+      caixasDisponiveis.value = Array.isArray(erro.payload.registers) ? erro.payload.registers : [];
+      aguardandoSelecaoCaixa.value = caixasDisponiveis.value.length > 0;
+      if (caixasDisponiveis.value.length === 1) {
+        form.codigo = caixasDisponiveis.value[0].code || caixasDisponiveis.value[0].name || "";
+        carregando.value = false;
+        return entrar();
+      }
+      if (aguardandoSelecaoCaixa.value) {
+        mostrarToastSwal("Seleccione o caixa em que vai operar.", "info");
+        carregando.value = false;
+        return;
+      }
+    }
+
     const mensagemOriginal = String(erro?.message || "");
     const mensagem =
       mensagemOriginal.toLowerCase().includes("failed to fetch")
@@ -101,20 +125,27 @@ async function entrar() {
       <form class="space-y-3" @submit.prevent="entrar">
         <div>
           <label class="mb-1 block text-xs font-semibold text-slate-600">Utilizador</label>
-          <input v-model="form.username" class="rp-input" placeholder="username" />
+          <input v-model="form.username" class="rp-input" placeholder="username" :disabled="aguardandoSelecaoCaixa" />
         </div>
         <div>
           <label class="mb-1 block text-xs font-semibold text-slate-600">Senha / PIN</label>
-          <input v-model="form.senha" type="password" class="rp-input" placeholder="••••••" />
+          <input v-model="form.senha" type="password" class="rp-input" placeholder="••••••" :disabled="aguardandoSelecaoCaixa" />
         </div>
-        <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">
-            {{ apiMode ? "Código do caixa (opcional para validação)" : "Código do operador (opcional)" }}
-          </label>
+        <div v-if="apiMode && aguardandoSelecaoCaixa">
+          <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa para operar</label>
+          <select v-model="form.codigo" class="rp-input">
+            <option value="">Seleccione o caixa...</option>
+            <option v-for="caixa in caixasDisponiveis" :key="caixa.id" :value="caixa.code">
+              {{ caixa.code }} — {{ caixa.name }}
+            </option>
+          </select>
+        </div>
+        <div v-else-if="apiMode">
+          <label class="mb-1 block text-xs font-semibold text-slate-600">Código do caixa (se tiver mais do que um)</label>
           <input
             v-model="form.codigo"
             class="rp-input"
-            :placeholder="apiMode ? 'Ex: CX-01 ou Caixa 01' : 'Código ou cartão'"
+            placeholder="Ex: CX-01 ou Caixa 01"
           />
         </div>
         <div v-if="!apiMode">
@@ -125,11 +156,11 @@ async function entrar() {
             <option>Caixa 03</option>
           </select>
         </div>
-        <BotaoBase tipo="submit" bloco variante="aviso" :disabled="carregando">
+        <BotaoBase tipo="submit" bloco variante="aviso" :disabled="carregando || (aguardandoSelecaoCaixa && !form.codigo)">
           <span class="inline-flex items-center gap-1.5">
             <LoaderCircle v-if="carregando" class="animate-spin" :size="14" />
             <LogIn v-else :size="14" />
-            <span>{{ carregando ? "A autenticar..." : "Entrar no sistema" }}</span>
+            <span>{{ carregando ? "A autenticar..." : aguardandoSelecaoCaixa ? "Confirmar caixa" : "Entrar no sistema" }}</span>
           </span>
         </BotaoBase>
       </form>

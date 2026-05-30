@@ -133,6 +133,22 @@ export async function enviarTalaoParaImpressao({ venda, configuracao, opcoes = {
     copies,
     corteAutomatico: opcoes.corteAutomatico ?? !!configuracao.corteAutomatico,
     larguraTalao: talao.larguraTalao,
+    abrirGaveta: opcoes.abrirGaveta ?? !!configuracao.abrirGavetaAutomatico,
+    gavetaPin: opcoes.gavetaPin ?? configuracao.gavetaPin ?? 0,
+  });
+}
+
+export async function enviarAbrirGaveta({ configuracao, opcoes = {} } = {}) {
+  if (!window.api?.abrirGaveta) {
+    return { ok: false, error: "API de gaveta indisponivel no desktop." };
+  }
+  if (!configuracao?.impressoraPadrao) {
+    return { ok: false, error: "Impressora padrao nao configurada." };
+  }
+
+  return window.api.abrirGaveta({
+    deviceName: configuracao.impressoraPadrao,
+    gavetaPin: opcoes.gavetaPin ?? configuracao.gavetaPin ?? 0,
   });
 }
 

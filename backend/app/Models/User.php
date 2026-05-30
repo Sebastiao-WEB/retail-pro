@@ -68,6 +68,85 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(Register::class);
     }
 
+    public function registers()
+    {
+        return $this->belongsToMany(Register::class, 'register_user');
+    }
+
+    /** @return \Illuminate\Support\Collection<int, Register> */
+    public function assignedRegisters()
+    {
+        $registers = $this->registers()->where('registers.is_active', true)->orderBy('registers.name')->get();
+        if ($registers->isNotEmpty()) {
+            return $registers;
+        }
+
+        if ($this->register_id) {
+            $register = Register::query()->where('id', $this->register_id)->where('is_active', true)->first();
+            if ($register) {
+                return collect([$register]);
+            }
+        }
+
+        return collect();
+    }
+
+    /** @return array<int, string> */
+    public function assignedRegisterIds(): array
+    {
+        return $this->assignedRegisters()->pluck('id')->all();
+    }
+
+    public function syncAssignedRegisters(array $registerIds): void
+    {
+        $ids = collect($registerIds)->filter()->unique()->values()->all();
+        $this->registers()->sync($ids);
+
+        if ($ids !== []) {
+            if (! $this->register_id || ! in_array($this->register_id, $ids, true)) {
+                $this->register_id = $ids[0];
+            }
+            $this->syncCaixaAtribuido($ids);
+            $this->syncSourceLocationFromRegister($this->register_id);
+        } else {
+            $this->register_id = null;
+            $this->caixa_atribuido = null;
+        }
+    }
+
+    public function syncCaixaAtribuido(?array $registerIds = null): void
+    {
+        $ids = $registerIds ?? $this->assignedRegisterIds();
+        if ($ids === []) {
+            $this->caixa_atribuido = null;
+
+            return;
+        }
+
+        $nomes = Register::query()->whereIn('id', $ids)->orderBy('name')->pluck('name');
+        $this->caixa_atribuido = $nomes->join(', ');
+    }
+
+    public function applyActiveRegister(Register $register): void
+    {
+        $this->register_id = $register->id;
+        $this->syncCaixaAtribuido([$register->id]);
+        $this->syncSourceLocationFromRegister($register->id);
+    }
+
+    public function syncSourceLocationFromRegister(?string $registerId): void
+    {
+        if (! $registerId) {
+            return;
+        }
+
+        $register = Register::query()->with('sourceLocation')->find($registerId);
+        $location = $register?->sourceLocation;
+        if ($location) {
+            $this->source_location_id = $location->id;
+        }
+    }
+
     public function sourceLocation()
     {
         return $this->belongsTo(StockLocation::class, 'source_location_id');

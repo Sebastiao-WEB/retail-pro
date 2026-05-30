@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Sale;
 use App\Models\SaleReversalRequest;
+use App\Services\SaleReversalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class SaleReversalRequestController extends Controller
 {
+    public function __construct(private readonly SaleReversalService $reversalService) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -49,9 +51,13 @@ class SaleReversalRequestController extends Controller
             ], 422);
         }
 
-        $sale = Sale::query()->find($saleId);
+        $sale = \App\Models\Sale::query()->find($saleId);
         if (! $sale) {
             return response()->json(['message' => 'Venda não encontrada.'], 404);
+        }
+
+        if (strcasecmp((string) $sale->estado, 'Revertida') === 0) {
+            return response()->json(['message' => 'A venda já está revertida.'], 409);
         }
 
         $duplicada = SaleReversalRequest::query()
@@ -90,17 +96,34 @@ class SaleReversalRequestController extends Controller
             'reason' => ['nullable', 'string'],
         ]);
 
-        $saleReversalRequest->status = $dados['status'];
-        $saleReversalRequest->reason = $dados['reason'] ?? $saleReversalRequest->reason;
-        $saleReversalRequest->approved_by = auth('api')->id();
-        $saleReversalRequest->decided_at = now();
-        $saleReversalRequest->save();
+        try {
+            if ($dados['status'] === 'APPROVED') {
+                $this->reversalService->approve(
+                    $saleReversalRequest,
+                    $dados['reason'] ?? null,
+                    auth('api')->id()
+                );
+            } elseif ($dados['status'] === 'REJECTED') {
+                $this->reversalService->reject(
+                    $saleReversalRequest,
+                    $dados['reason'] ?? null,
+                    auth('api')->id()
+                );
+            } else {
+                $saleReversalRequest->update([
+                    'status' => $dados['status'],
+                    'reason' => $dados['reason'] ?? $saleReversalRequest->reason,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json([
             'message' => 'Solicitação de reversão atualizada.',
             'data' => [
                 'id' => $saleReversalRequest->id,
-                'status' => $saleReversalRequest->status,
+                'status' => $saleReversalRequest->fresh()->status,
             ],
         ]);
     }

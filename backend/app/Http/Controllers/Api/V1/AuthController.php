@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Register;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -19,9 +19,11 @@ class AuthController extends Controller
         ]);
 
         $user = User::query()
-            ->with(['register.sourceLocation'])
-            ->where('username', $dados['username'])
-            ->orWhere('email', $dados['username'])
+            ->with(['registers.sourceLocation', 'register.sourceLocation'])
+            ->where(function ($q) use ($dados) {
+                $q->where('username', $dados['username'])
+                    ->orWhere('email', $dados['username']);
+            })
             ->first();
 
         if (! $user || ! Hash::check($dados['password'], $user->password) || ! $user->is_active) {
@@ -30,26 +32,37 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $registerInformado = trim((string) ($dados['register_code'] ?? ''));
-        if ($registerInformado !== '') {
-            $registerUser = $user->register;
-            $candidatos = array_filter([
-                $registerUser?->code,
-                $registerUser?->name,
-                $user->caixa_atribuido,
-            ], fn ($valor) => is_string($valor) && trim($valor) !== '');
+        $registers = $user->assignedRegisters();
+        $registerCode = trim((string) ($dados['register_code'] ?? ''));
 
-            $normalizadoInformado = mb_strtolower($registerInformado);
-            $corresponde = collect($candidatos)->contains(
-                fn ($valor) => mb_strtolower(trim((string) $valor)) === $normalizadoInformado
-            );
+        if ($registers->isEmpty()) {
+            return response()->json([
+                'message' => 'Utilizador sem caixa atribuído para operar no POS.',
+            ], 422);
+        }
 
-            if (! $corresponde) {
+        $selectedRegister = null;
+
+        if ($registers->count() === 1) {
+            $selectedRegister = $registers->first();
+        } elseif ($registerCode !== '') {
+            $selectedRegister = $this->findRegisterByCode($registers, $registerCode);
+            if (! $selectedRegister) {
                 return response()->json([
-                    'message' => 'O caixa informado não corresponde ao caixa atribuído ao utilizador.',
+                    'message' => 'O caixa informado não está atribuído a este utilizador.',
+                    'registers' => $this->serializeRegisters($registers),
                 ], 422);
             }
+        } else {
+            return response()->json([
+                'message' => 'Selecione o caixa para operar.',
+                'requires_register_selection' => true,
+                'registers' => $this->serializeRegisters($registers),
+            ], 422);
         }
+
+        $user->applyActiveRegister($selectedRegister);
+        $user->save();
 
         $token = auth('api')->login($user);
         $ttl = config('jwt.ttl', 60) * 60;
@@ -59,22 +72,7 @@ class AuthController extends Controller
             'refresh_token' => $token,
             'token_type' => 'Bearer',
             'expires_in' => $ttl,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'role' => $user->role,
-                'caixa_atribuido' => $user->caixa_atribuido,
-                'register' => $user->register ? [
-                    'id' => $user->register->id,
-                    'code' => $user->register->code,
-                    'name' => $user->register->name,
-                    'source_location' => $user->register->sourceLocation ? [
-                        'id' => $user->register->sourceLocation->id,
-                        'code' => $user->register->sourceLocation->code,
-                        'name' => $user->register->sourceLocation->name,
-                    ] : null,
-                ] : null,
-            ],
+            'user' => $this->serializeUser($user, $selectedRegister, $registers),
         ]);
     }
 
@@ -103,11 +101,59 @@ class AuthController extends Controller
         try {
             auth('api')->logout();
         } catch (\Throwable) {
-            JWTAuth::invalidate(JWTAuth::getToken());
+            \PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::invalidate(\PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::getToken());
         }
 
         return response()->json([
             'message' => 'Sessão encerrada com sucesso.',
         ]);
+    }
+
+    private function findRegisterByCode($registers, string $code): ?Register
+    {
+        $normalizado = mb_strtolower(trim($code));
+
+        return $registers->first(function (Register $register) use ($normalizado) {
+            $candidatos = array_filter([
+                $register->code,
+                $register->name,
+            ], fn ($valor) => is_string($valor) && trim($valor) !== '');
+
+            return collect($candidatos)->contains(
+                fn ($valor) => mb_strtolower(trim((string) $valor)) === $normalizado
+            );
+        });
+    }
+
+    private function serializeRegisters($registers): array
+    {
+        return $registers->map(fn (Register $register) => [
+            'id' => $register->id,
+            'code' => $register->code,
+            'name' => $register->name,
+        ])->values()->all();
+    }
+
+    private function serializeUser(User $user, Register $selectedRegister, $allRegisters): array
+    {
+        $selectedRegister->loadMissing('sourceLocation');
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'role' => $user->role,
+            'caixa_atribuido' => $user->caixa_atribuido,
+            'registers' => $this->serializeRegisters($allRegisters),
+            'register' => [
+                'id' => $selectedRegister->id,
+                'code' => $selectedRegister->code,
+                'name' => $selectedRegister->name,
+                'source_location' => $selectedRegister->sourceLocation ? [
+                    'id' => $selectedRegister->sourceLocation->id,
+                    'code' => $selectedRegister->sourceLocation->code,
+                    'name' => $selectedRegister->sourceLocation->name,
+                ] : null,
+            ],
+        ];
     }
 }

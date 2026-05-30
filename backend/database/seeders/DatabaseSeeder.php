@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
             'products.view', 'products.manage',
             'customers.view', 'customers.manage',
             'sales.view',
+            'cash_sessions.view',
             'purchases.view', 'purchases.manage',
             'reversals.view', 'reversals.manage',
         ];
@@ -61,6 +62,7 @@ class DatabaseSeeder extends Seeder
             'products.view', 'products.manage',
             'customers.view', 'customers.manage',
             'sales.view',
+            'cash_sessions.view',
             'purchases.view', 'purchases.manage',
             'reversals.view', 'reversals.manage',
         ];
@@ -108,7 +110,14 @@ class DatabaseSeeder extends Seeder
             'source_location_id' => $sourceLocation->id,
             'is_active' => true,
         ]);
+        $register2 = Register::query()->firstOrCreate(
+            ['code' => 'CX-02'],
+            ['name' => 'Caixa 02', 'is_active' => true]
+        );
+
         $user->syncRoles(['CASHIER']);
+        $user->syncAssignedRegisters([$register->id, $register2->id]);
+        $user->save();
 
         $admin = User::query()->updateOrCreate([
             'username' => 'admin',
@@ -163,11 +172,6 @@ class DatabaseSeeder extends Seeder
                 'min_stock' => 10,
                 'max_stock' => 500,
             ]
-        );
-
-        Register::query()->firstOrCreate(
-            ['code' => 'CX-02'],
-            ['name' => 'Caixa 02', 'is_active' => true]
         );
 
         StockLocation::query()->firstOrCreate([

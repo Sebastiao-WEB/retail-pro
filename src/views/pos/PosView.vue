@@ -13,7 +13,7 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
-import { enviarTalaoParaImpressao } from "../../services/talaoImpressao";
+import { enviarTalaoParaImpressao, enviarAbrirGaveta } from "../../services/talaoImpressao";
 import { enviarRelatorioFechoParaImpressao } from "../../services/relatorioFechoImpressao";
 import {
   Barcode,
@@ -402,18 +402,30 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       return;
     }
     imprimindoAgora.value = true;
+    const pagamentoDinheiro = carrinhoStore.metodoPagamento === "Dinheiro";
     const resultado = await enviarTalaoParaImpressao({
       venda,
       configuracao: configuracaoStore,
       opcoes: {
         copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
         corteAutomatico: !!configuracaoStore.corteAutomatico,
+        abrirGaveta: pagamentoDinheiro && !!configuracaoStore.abrirGavetaAutomatico,
       },
     });
     imprimindoAgora.value = false;
     if (!resultado?.ok) {
       mostrarToastSwal(resultado?.error || "Falha ao imprimir talão.", "error");
       return;
+    }
+  } else if (
+    carrinhoStore.metodoPagamento === "Dinheiro" &&
+    configuracaoStore.abrirGavetaAutomatico &&
+    window.api?.abrirGaveta &&
+    configuracaoStore.impressoraPadrao
+  ) {
+    const resultadoGaveta = await enviarAbrirGaveta({ configuracao: configuracaoStore });
+    if (!resultadoGaveta?.ok) {
+      mostrarToastSwal(resultadoGaveta?.error || "Falha ao abrir gaveta.", "warning");
     }
   }
 

@@ -28,6 +28,8 @@ const configuracoesPadrao = {
   copiasImpressao: 1,
   larguraTalao: "80mm",
   corteAutomatico: true,
+  abrirGavetaAutomatico: true,
+  gavetaPin: 0,
   somToastsAtivo: true,
 };
 
@@ -109,6 +111,14 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
     },
     definirCorteAutomatico(valor) {
       this.corteAutomatico = !!valor;
+      this.salvar();
+    },
+    definirAbrirGavetaAutomatico(valor) {
+      this.abrirGavetaAutomatico = !!valor;
+      this.salvar();
+    },
+    definirGavetaPin(valor) {
+      this.gavetaPin = Number(valor) === 1 ? 1 : 0;
       this.salvar();
     },
     definirSomToastsAtivo(valor) {

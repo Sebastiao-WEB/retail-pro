@@ -40,4 +40,9 @@ class CashSession extends Model
     {
         return $this->belongsTo(Register::class);
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

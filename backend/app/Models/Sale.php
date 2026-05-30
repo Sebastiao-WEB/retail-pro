@@ -47,4 +47,19 @@ class Sale extends Model
     {
         return $this->hasMany(SaleItem::class);
     }
+
+    public function register()
+    {
+        return $this->belongsTo(Register::class);
+    }
+
+    public function cashSession()
+    {
+        return $this->belongsTo(CashSession::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
