@@ -33,13 +33,14 @@ export const useCarrinhoStore = defineStore("carrinho", {
     quantidadeItens: (state) => state.itens.reduce((acc, item) => acc + item.quantidade, 0),
   },
   actions: {
-    adicionarProduto(produto) {
+    adicionarProduto(produto, quantidade = 1) {
       const ivaPercentual = Number(produto.ivaPercentual || 0);
       const precoUnitario = Number(produto.precoVendaComIva ?? produto.precoVenda ?? 0);
       const valorIvaUnitario = Number((precoUnitario - Number(produto.precoVenda || 0)).toFixed(2));
+      const quantidadeNormalizada = Math.max(1, Math.floor(Number(quantidade) || 1));
       const itemExistente = this.itens.find((item) => item.produtoId === produto.id);
       if (itemExistente) {
-        itemExistente.quantidade += 1;
+        itemExistente.quantidade += quantidadeNormalizada;
         itemExistente.subtotal = itemExistente.quantidade * itemExistente.precoVenda;
         itemExistente.ordemAdicao = ++this.sequenciaAdicao;
         // Mantém o item mais recentemente adicionado no topo da pré-visualização.
@@ -55,8 +56,8 @@ export const useCarrinhoStore = defineStore("carrinho", {
         ivaPercentual: Number.isFinite(ivaPercentual) ? ivaPercentual : 0,
         valorIvaUnitario: Number.isFinite(valorIvaUnitario) ? valorIvaUnitario : 0,
         ordemAdicao: ++this.sequenciaAdicao,
-        quantidade: 1,
-        subtotal: precoUnitario,
+        quantidade: quantidadeNormalizada,
+        subtotal: quantidadeNormalizada * precoUnitario,
       });
     },
     removerProduto(produtoId) {

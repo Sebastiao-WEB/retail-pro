@@ -33,5 +33,21 @@ describe("useCarrinhoStore", () => {
     expect(carrinho.valorDesconto).toBe(15);
     expect(carrinho.total).toBe(135);
   });
-});
 
+  it("adiciona produto com quantidade informada", () => {
+    const carrinho = useCarrinhoStore();
+    carrinho.adicionarProduto(
+      {
+        id: 11,
+        nome: "Caixa",
+        precoVenda: 10,
+        precoVendaComIva: 10,
+        ivaPercentual: 0,
+      },
+      3
+    );
+
+    expect(carrinho.itens[0].quantidade).toBe(3);
+    expect(carrinho.itens[0].subtotal).toBe(30);
+  });
+});

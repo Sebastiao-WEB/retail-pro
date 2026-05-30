@@ -64,6 +64,7 @@ const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 const listaPreVisualizacaoRef = ref(null);
+const ignorarBlurQuantidadePreview = ref(false);
 const processandoAberturaCaixa = ref(false);
 const processandoFechoCaixa = ref(false);
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
@@ -147,6 +148,7 @@ function aoTeclaCampoPesquisa(event, { capturaGlobal = false } = {}) {
 function capturarTeclasPosGlobais(event) {
   if (!pesquisaDeveTerFoco.value) return;
   if (event.target === pesquisaInputRef.value) return;
+  if (listaPreVisualizacaoRef.value?.contains(event.target)) return;
 
   const teclaRelevante =
     event.key === "Enter" || (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey);
@@ -181,6 +183,7 @@ async function processarLeituraCodigoBarras() {
   }
 
   const produtoAtualizado = obterProdutoAtualizado(produto);
+  const quantidade = 1;
 
   if (!sessaoStore.turnoAberto) {
     mostrarToastSwal("Abra o caixa antes de registar vendas.", "error");
@@ -189,9 +192,13 @@ async function processarLeituraCodigoBarras() {
     return;
   }
 
-  if (!podeAdicionarProduto(produtoAtualizado)) {
+  if (!podeAdicionarProduto(produtoAtualizado, quantidade)) {
     if (produtoAtualizado.stock <= 0) {
       mostrarToastSwal(`Sem stock para "${produtoAtualizado.nome}".`, "error");
+    } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidade > produtoAtualizado.stock) {
+      mostrarErroStock(
+        `Stock insuficiente para "${produtoAtualizado.nome}". Disponível: ${Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id))}.`
+      );
     } else {
       mostrarErroStock("Não é possível adicionar acima do stock disponível.");
     }
@@ -200,9 +207,8 @@ async function processarLeituraCodigoBarras() {
     return;
   }
 
-  await adicionarAoCarrinho(produtoAtualizado);
+  await adicionarAoCarrinho(produtoAtualizado, quantidade);
   limparCampoPesquisa();
-  await focarCampoPesquisa();
 }
 
 async function focarCampoPesquisa() {
@@ -214,6 +220,7 @@ async function focarCampoPesquisa() {
     const input = pesquisaInputRef.value;
     if (!input || !pesquisaDeveTerFoco.value) return false;
     input.focus({ preventScroll: true });
+    input.select();
     return document.activeElement === input;
   };
 
@@ -224,6 +231,23 @@ async function focarCampoPesquisa() {
       tentarFoco();
     }, atraso);
   });
+}
+
+async function confirmarQuantidadePreview(produtoId, valor, event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+
+  ignorarBlurQuantidadePreview.value = true;
+  await atualizarQuantidade(produtoId, valor, { normalizar: true });
+  await focarCampoPesquisa();
+  window.setTimeout(() => {
+    ignorarBlurQuantidadePreview.value = false;
+  }, 0);
+}
+
+function aoBlurQuantidadePreview(produtoId, valor) {
+  if (ignorarBlurQuantidadePreview.value) return;
+  void atualizarQuantidade(produtoId, valor, { normalizar: true });
 }
 
 function pesquisarProdutosAgora() {
@@ -428,8 +452,13 @@ function quantidadeNoCarrinho(produtoId) {
   return carrinhoStore.itens.find((item) => item.produtoId === produtoId)?.quantidade || 0;
 }
 
-function podeAdicionarProduto(produto) {
-  return sessaoStore.turnoAberto && produto.stock > 0 && quantidadeNoCarrinho(produto.id) < produto.stock;
+function podeAdicionarProduto(produto, quantidade = 1) {
+  const quantidadeNormalizada = Math.max(1, Math.floor(Number(quantidade) || 1));
+  return (
+    sessaoStore.turnoAberto &&
+    produto.stock > 0 &&
+    quantidadeNoCarrinho(produto.id) + quantidadeNormalizada <= produto.stock
+  );
 }
 
 function mostrarErroStock(texto = "Stock insuficiente para esta quantidade.") {
@@ -441,33 +470,50 @@ function mostrarToast(texto, tipo = "erro") {
   mostrarToastSwal(texto, tipoSwal);
 }
 
-async function adicionarAoCarrinho(produto) {
+async function adicionarAoCarrinho(produto, quantidade = 1) {
+  const quantidadeNormalizada = Math.max(1, Math.floor(Number(quantidade) || 1));
+
   if (temApiConfigurada() && origemStockVenda.value.id) {
     await produtoStore.atualizarStockRemoto([produto.id], filtrosStockPos());
   }
 
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
-  if (!podeAdicionarProduto(produtoAtualizado)) {
+  if (!podeAdicionarProduto(produtoAtualizado, quantidadeNormalizada)) {
     if (produtoAtualizado.stock <= 0) {
       mostrarErroStock(`Sem stock disponível para "${produtoAtualizado.nome}".`);
+    } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
+      mostrarErroStock(
+        `Stock insuficiente para "${produtoAtualizado.nome}". Disponível: ${Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id))}.`
+      );
     } else {
       mostrarErroStock("Não é possível adicionar acima do stock disponível.");
     }
     return;
   }
 
-  carrinhoStore.adicionarProduto(produtoAtualizado);
+  carrinhoStore.adicionarProduto(produtoAtualizado, quantidadeNormalizada);
   await nextTick();
   if (listaPreVisualizacaoRef.value) {
     listaPreVisualizacaoRef.value.scrollTop = 0;
   }
+  focarQuantidadePreview(produtoAtualizado.id);
 }
 
-async function atualizarQuantidade(produtoId, valor) {
+function focarQuantidadePreview(produtoId) {
+  const input = listaPreVisualizacaoRef.value?.querySelector(`[data-pos-quantidade="${produtoId}"]`);
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  input.select();
+}
+
+async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}) {
   const item = carrinhoStore.itens.find((reg) => reg.produtoId === produtoId);
-  const quantidade = Number.parseInt(valor, 10);
-  const quantidadeFinal = Number.isNaN(quantidade) ? 1 : quantidade;
+  const texto = String(valor ?? "").trim();
+  if (!normalizar && texto === "") return;
+
+  const quantidade = Number.parseInt(texto, 10);
+  const quantidadeFinal = Number.isNaN(quantidade) || quantidade < 1 ? 1 : quantidade;
 
   if (item && quantidadeFinal > item.quantidade && temApiConfigurada() && origemStockVenda.value.id) {
     await produtoStore.atualizarStockRemoto([produtoId], filtrosStockPos());
@@ -893,11 +939,15 @@ async function confirmarFechoCaixa() {
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="mb-1 text-xl font-bold text-slate-800">Catálogo rápido de venda</p>
+            <label for="pos-pesquisa" class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Pesquisa / código de barras
+            </label>
             <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
-              <div class="flex w-24 items-center justify-center border-r border-slate-300 px-3 text-black" title="Código de barras">
-                <Barcode :size="42" :stroke-width="1.8" />
+              <div class="flex w-16 items-center justify-center border-r border-slate-300 px-2 text-black" title="Código de barras">
+                <Barcode :size="32" :stroke-width="1.8" />
               </div>
               <input
+                id="pos-pesquisa"
                 ref="pesquisaInputRef"
                 v-model="pesquisa"
                 type="text"
@@ -1018,12 +1068,19 @@ async function confirmarFechoCaixa() {
                   <div class="flex items-center gap-1">
                     <span class="text-[11px] text-slate-500">Qtd</span>
                     <input
+                      :data-pos-quantidade="item.produtoId"
                       :value="item.quantidade"
                       type="number"
                       min="1"
+                      step="1"
+                      inputmode="numeric"
                       :max="produtoStore.produtos.find((p) => p.id === item.produtoId)?.stock || 1"
-                      class="w-14 rounded border border-slate-300 px-1.5 py-0.5 text-[11px]"
+                      class="w-16 rounded border border-slate-300 px-1.5 py-1 text-center text-xs font-semibold text-slate-900 focus:border-[var(--gold)] focus:outline-none"
+                      autocomplete="off"
+                      @focus="$event.target.select()"
                       @input="atualizarQuantidade(item.produtoId, $event.target.value)"
+                      @blur="aoBlurQuantidadePreview(item.produtoId, $event.target.value)"
+                      @keydown.enter="confirmarQuantidadePreview(item.produtoId, $event.target.value, $event)"
                     />
                   </div>
                   <span class="font-semibold">{{ formatarMT(item.subtotal) }}</span>
