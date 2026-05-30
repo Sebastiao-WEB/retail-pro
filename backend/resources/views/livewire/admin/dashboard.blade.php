@@ -1,4 +1,27 @@
 <div class="space-y-6">
+    <section class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa</label>
+                <select wire:model.live="registerFilter" class="rp-input">
+                    <option value="">Todos os caixas</option>
+                    @foreach ($registers as $register)
+                        <option value="{{ $register->id }}">{{ $register->code }} — {{ $register->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Período</label>
+                <select wire:model.live="period" class="rp-input">
+                    <option value="today">Hoje</option>
+                    <option value="7d">Últimos 7 dias</option>
+                    <option value="30d">Últimos 30 dias</option>
+                    <option value="month">Mês actual</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
     <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <article class="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/70 p-4">
             <div class="flex items-center gap-3">
@@ -6,8 +29,8 @@
                     <i data-lucide="badge-dollar-sign" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-emerald-800/80">Vendas hoje</p>
-                    <p class="mt-1 text-xl font-bold text-emerald-900">{{ number_format($metricas['vendasHoje'], 2, ',', '.') }} MZN</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-emerald-800/80">{{ $metricas['periodoRotulo'] }}</p>
+                    <p class="mt-1 text-xl font-bold text-emerald-900">{{ number_format($metricas['vendasPeriodo'], 2, ',', '.') }} MZN</p>
                 </div>
             </div>
         </article>
@@ -121,7 +144,7 @@
 
     <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <article class="rounded-lg border border-slate-200 bg-white p-4 xl:col-span-2">
-            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vendas dos últimos 7 dias</p>
+            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $periodoGraficoRotulo }}</p>
             <div class="h-72">
                 <canvas id="chartVendas7Dias" class="h-full w-full"></canvas>
             </div>

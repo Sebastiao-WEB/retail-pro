@@ -93,6 +93,7 @@ class RegistersPage extends Component
     public function render()
     {
         $registers = Register::query()
+            ->with('sourceLocation')
             ->when($this->search !== '', function ($q) {
                 $q->where(fn ($inner) => $inner
                     ->where('code', 'like', "%{$this->search}%")

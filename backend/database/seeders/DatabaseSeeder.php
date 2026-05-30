@@ -113,6 +113,20 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Caixa 02', 'is_active' => true]
         );
 
+        $sourceLocation2 = StockLocation::query()->firstOrCreate([
+            'code' => 'LOC-CX02',
+        ], [
+            'register_id' => $register2->id,
+            'name' => 'Loja - Caixa 02',
+            'type' => 'STORE_FLOOR',
+            'is_saleable' => true,
+            'is_active' => true,
+        ]);
+
+        if ($sourceLocation2->register_id !== $register2->id) {
+            $sourceLocation2->update(['register_id' => $register2->id]);
+        }
+
         $user->syncRoles(['CASHIER']);
         $user->syncAssignedRegisters([$register->id, $register2->id]);
         $user->save();
@@ -171,6 +185,22 @@ class DatabaseSeeder extends Seeder
                 'max_stock' => 500,
             ]
         );
+
+        StockBalance::query()->updateOrCreate(
+            [
+                'location_id' => $sourceLocation2->id,
+                'product_id' => $product->id,
+            ],
+            [
+                'quantity' => 80,
+                'min_stock' => 10,
+                'max_stock' => 500,
+            ]
+        );
+
+        $product->update([
+            'stock' => StockBalance::query()->where('product_id', $product->id)->sum('quantity'),
+        ]);
 
         StockLocation::query()->firstOrCreate([
             'code' => 'LOC-ARM-CENTRAL',

@@ -24,7 +24,8 @@
                     <th class="px-3 py-2">Username</th>
                     <th class="px-3 py-2">Email</th>
                     <th class="px-3 py-2">Perfil</th>
-                    <th class="px-3 py-2">Caixas</th>
+                    <th class="px-3 py-2">Caixas atribuídos</th>
+                    <th class="px-3 py-2">Local de stock</th>
                     <th class="px-3 py-2">Estado</th>
                     @can('users.manage')
                         <th class="px-3 py-2">Ações</th>
@@ -38,7 +39,24 @@
                         <td class="px-3 py-2">{{ $user->username }}</td>
                         <td class="px-3 py-2">{{ $user->email }}</td>
                         <td class="px-3 py-2">{{ $user->getRoleNames()->first() ?? $user->role }}</td>
-                        <td class="px-3 py-2 text-xs text-slate-600">{{ $user->caixa_atribuido ?: '—' }}</td>
+                        <td class="px-3 py-2">
+                            @if ($user->registers->isNotEmpty())
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach ($user->registers as $register)
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">{{ $register->code }}</span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-xs text-slate-400">—</span>
+                            @endif
+                        </td>
+                        <td class="px-3 py-2 text-xs text-slate-600">
+                            @if ($user->sourceLocation)
+                                {{ $user->sourceLocation->code }}
+                            @else
+                                <span class="text-amber-700">Não definida</span>
+                            @endif
+                        </td>
                         <td class="px-3 py-2">
                             <span class="{{ $user->is_active ? 'text-emerald-600' : 'text-red-600' }}">
                                 {{ $user->is_active ? 'Ativo' : 'Inativo' }}
@@ -55,7 +73,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ auth()->user()?->can('users.manage') ? 7 : 6 }}" class="px-3 py-6 text-center text-slate-500">Sem utilizadores registados.</td>
+                        <td colspan="{{ auth()->user()?->can('users.manage') ? 8 : 7 }}" class="px-3 py-6 text-center text-slate-500">Sem utilizadores registados.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -97,23 +115,39 @@
                             @error('role') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div class="md:col-span-2">
-                            <label class="mb-1 block text-xs font-semibold text-slate-600">Caixas atribuídos (pode seleccionar vários)</label>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">Caixas atribuídos (POS)</label>
+                            <p class="mb-2 text-[11px] text-slate-500">Seleccione os caixas em que o operador pode iniciar sessão. Com um único caixa, a localização de stock é preenchida automaticamente.</p>
                             <div class="max-h-36 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
                                 @forelse ($registers as $register)
-                                    <label class="flex items-center gap-2 text-sm text-slate-700">
-                                        <input type="checkbox" wire:model.defer="register_ids" value="{{ $register->id }}" class="h-4 w-4 accent-amber-500">
-                                        <span>{{ $register->code }} — {{ $register->name }}</span>
-                                    </label>
+                                    <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 px-2 py-1.5">
+                                        <label class="flex flex-1 items-center gap-2 text-sm text-slate-700">
+                                            <input type="checkbox" wire:model.live="register_ids" value="{{ $register->id }}" class="h-4 w-4 accent-amber-500">
+                                            <span>{{ $register->code }} — {{ $register->name }}</span>
+                                        </label>
+                                        @if ($register->sourceLocation)
+                                            <button
+                                                type="button"
+                                                wire:click="aplicarLocalizacaoDoCaixa('{{ $register->id }}')"
+                                                class="rounded border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
+                                                title="Usar localização deste caixa"
+                                            >
+                                                {{ $register->sourceLocation->code }}
+                                            </button>
+                                        @else
+                                            <span class="text-[10px] text-red-600">Sem LOC</span>
+                                        @endif
+                                    </div>
                                 @empty
                                     <p class="text-xs text-slate-500">Sem caixas activos.</p>
                                 @endforelse
                             </div>
                             @error('register_ids') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold text-slate-600">Local de stock (opcional)</label>
+                        <div class="md:col-span-2">
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">Local de stock predefinido</label>
+                            <p class="mb-2 text-[11px] text-slate-500">Origem do stock quando o operador vende no POS. Deve corresponder ao caixa em uso.</p>
                             <select wire:model.defer="source_location_id" class="rp-input">
-                                <option value="">Sem vínculo</option>
+                                <option value="">Sem vínculo (usa localização do caixa no login)</option>
                                 @foreach ($locations as $location)
                                     <option value="{{ $location->id }}">{{ $location->code }} - {{ $location->name }}</option>
                                 @endforeach

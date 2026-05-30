@@ -1,11 +1,62 @@
 <div class="space-y-4">
-    <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Histórico de vendas</p>
-        <p class="text-sm text-slate-500">Monitorização das vendas concluídas no POS.</p>
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Histórico de vendas</p>
+            <p class="text-sm text-slate-500">Monitorização das vendas concluídas no POS.</p>
+            <p class="mt-1 text-xs font-semibold text-emerald-700">
+                Total filtrado: {{ number_format($totalFiltrado, 2, ',', '.') }} MT
+            </p>
+        </div>
+        <button type="button" wire:click="exportCsv" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <i data-lucide="download" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
+            Exportar CSV
+        </button>
     </div>
 
     <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <input wire:model.live.debounce.300ms="search" type="text" class="rp-input" placeholder="Pesquisar por referência, cliente, caixa ou operador...">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div class="md:col-span-2 xl:col-span-3">
+                <input wire:model.live.debounce.300ms="search" type="text" class="rp-input" placeholder="Pesquisar por referência, cliente, caixa ou operador...">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa</label>
+                <select wire:model.live="registerFilter" class="rp-input">
+                    <option value="">Todos</option>
+                    @foreach ($registers as $register)
+                        <option value="{{ $register->id }}">{{ $register->code }} — {{ $register->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Estado</label>
+                <select wire:model.live="estadoFilter" class="rp-input">
+                    <option value="">Todos</option>
+                    <option value="Concluida">Concluída</option>
+                    <option value="Revertida">Revertida</option>
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Pagamento</label>
+                <select wire:model.live="pagamentoFilter" class="rp-input">
+                    <option value="">Todos</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Transferência">Transferência</option>
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Data inicial</label>
+                <input wire:model.live="dateFrom" type="date" class="rp-input">
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Data final</label>
+                <input wire:model.live="dateTo" type="date" class="rp-input">
+            </div>
+            <div class="flex items-end">
+                <button type="button" wire:click="limparFiltros" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                    Limpar filtros
+                </button>
+            </div>
+        </div>
     </div>
 
     <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">

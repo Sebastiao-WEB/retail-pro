@@ -72,6 +72,26 @@ class UsersPage extends Component
         $this->modalOpen = true;
     }
 
+    public function updatedRegisterIds(): void
+    {
+        if (count($this->register_ids) !== 1) {
+            return;
+        }
+
+        $register = Register::query()->with('sourceLocation')->find($this->register_ids[0]);
+        if ($register?->sourceLocation) {
+            $this->source_location_id = $register->sourceLocation->id;
+        }
+    }
+
+    public function aplicarLocalizacaoDoCaixa(string $registerId): void
+    {
+        $register = Register::query()->with('sourceLocation')->find($registerId);
+        if ($register?->sourceLocation) {
+            $this->source_location_id = $register->sourceLocation->id;
+        }
+    }
+
     public function save(): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
@@ -170,7 +190,7 @@ class UsersPage extends Component
     public function render()
     {
         $users = User::query()
-            ->with('registers')
+            ->with(['registers', 'sourceLocation'])
             ->when($this->search !== '', function ($q) {
                 $q->where(function ($inner) {
                     $inner->where('name', 'like', "%{$this->search}%")
@@ -186,8 +206,8 @@ class UsersPage extends Component
             ->layout('components.layouts.desktop', ['title' => 'Utilizadores e Gerentes | RetailPro'])
             ->with([
                 'users' => $users,
-                'registers' => Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-                'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+                'registers' => Register::query()->with('sourceLocation')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+                'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'register_id']),
             ]);
     }
 }

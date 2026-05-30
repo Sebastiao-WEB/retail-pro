@@ -19,6 +19,7 @@
                 <tr class="text-left text-xs uppercase tracking-wide text-slate-500">
                     <th class="px-3 py-2">Código</th>
                     <th class="px-3 py-2">Nome</th>
+                    <th class="px-3 py-2">Localização de stock</th>
                     <th class="px-3 py-2">Estado</th>
                     @can('registers.manage')
                         <th class="px-3 py-2">Ações</th>
@@ -30,6 +31,15 @@
                     <tr class="border-t border-slate-100">
                         <td class="px-3 py-2 font-medium">{{ $register->code }}</td>
                         <td class="px-3 py-2">{{ $register->name }}</td>
+                        <td class="px-3 py-2">
+                            @if ($register->sourceLocation)
+                                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                    {{ $register->sourceLocation->code }} — {{ $register->sourceLocation->name }}
+                                </span>
+                            @else
+                                <span class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Sem localização</span>
+                            @endif
+                        </td>
                         <td class="px-3 py-2">
                             <span class="{{ $register->is_active ? 'text-emerald-600' : 'text-red-600' }}">
                                 {{ $register->is_active ? 'Ativo' : 'Inativo' }}
@@ -46,7 +56,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ auth()->user()?->can('registers.manage') ? 4 : 3 }}" class="px-3 py-6 text-center text-slate-500">Sem caixas cadastrados.</td>
+                        <td colspan="{{ auth()->user()?->can('registers.manage') ? 5 : 4 }}" class="px-3 py-6 text-center text-slate-500">Sem caixas cadastrados.</td>
                     </tr>
                 @endforelse
             </tbody>
