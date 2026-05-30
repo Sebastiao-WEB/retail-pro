@@ -113,4 +113,72 @@ class CashSessionApiTest extends TestCase
         $this->assertCount(10, $resposta->json('data'));
         $this->assertEquals(100, (float) $resposta->json('data.0.reportSnapshot.totalVendido'));
     }
+
+    public function test_lista_apenas_fechos_do_caixa_atribuido_ao_utilizador(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $outroRegister = \App\Models\Register::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'code' => 'CX-OUTRO',
+            'name' => 'Caixa Outro',
+            'is_active' => true,
+        ]);
+
+        CashSession::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'CLOSED',
+            'opening_balance' => 1000,
+            'closing_balance' => 1100,
+            'difference_amount' => 100,
+            'opened_at' => now()->subHours(2),
+            'closed_at' => now()->subHour(),
+            'report_snapshot' => ['caixa' => 'Caixa Teste'],
+        ]);
+
+        CashSession::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'register_id' => $outroRegister->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'CLOSED',
+            'opening_balance' => 500,
+            'closing_balance' => 600,
+            'difference_amount' => 100,
+            'opened_at' => now()->subHours(4),
+            'closed_at' => now()->subHours(3),
+            'report_snapshot' => ['caixa' => 'Caixa Outro'],
+        ]);
+
+        $resposta = $this->getJson(
+            '/api/v1/cash-sessions?status=CLOSED',
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.register_id', $ambiente['register']->id)
+            ->assertJsonPath('data.0.reportSnapshot.caixa', 'Caixa Teste');
+    }
+
+    public function test_rejeita_consulta_de_caixa_diferente_do_atribuido(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $outroRegister = \App\Models\Register::query()->create([
+            'id' => (string) \Illuminate\Support\Str::uuid(),
+            'code' => 'CX-OUTRO',
+            'name' => 'Caixa Outro',
+            'is_active' => true,
+        ]);
+
+        $this->getJson(
+            '/api/v1/cash-sessions?register_id='.$outroRegister->id.'&status=CLOSED',
+            $this->authHeaders($token)
+        )->assertForbidden();
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesAssignedRegister;
 use App\Models\CashSession;
 use App\Models\Register;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class CashSessionController extends Controller
 {
+    use ResolvesAssignedRegister;
+
     public function index(Request $request)
     {
         $dados = $request->validate([
@@ -19,11 +22,16 @@ class CashSessionController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
+        $registerId = $this->resolverRegisterIdConsulta($request, $dados['register_id'] ?? null);
+        if ($registerId instanceof \Illuminate\Http\JsonResponse) {
+            return $registerId;
+        }
+
         $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
 
         $query = CashSession::query()
             ->with(['register'])
-            ->when($dados['register_id'] ?? null, fn ($q, $registerId) => $q->where('register_id', $registerId))
+            ->where('register_id', $registerId)
             ->when($dados['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->latest('closed_at')
             ->latest('opened_at');
@@ -37,6 +45,7 @@ class CashSessionController extends Controller
                 'last_page' => $paginado->lastPage(),
                 'per_page' => $paginado->perPage(),
                 'total' => $paginado->total(),
+                'register_id' => $registerId,
             ],
         ]);
     }
@@ -64,11 +73,16 @@ class CashSessionController extends Controller
             'register_id' => ['nullable', 'uuid'],
         ]);
 
+        $registerId = $this->resolverRegisterIdConsulta($request, $dados['register_id'] ?? null);
+        if ($registerId instanceof \Illuminate\Http\JsonResponse) {
+            return $registerId;
+        }
+
         $userId = optional($request->user())->id;
 
         $sessao = CashSession::query()
             ->where('status', 'OPEN')
-            ->when($dados['register_id'] ?? null, fn ($q, $registerId) => $q->where('register_id', $registerId))
+            ->where('register_id', $registerId)
             ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->latest('opened_at')
             ->first();
@@ -105,10 +119,15 @@ class CashSessionController extends Controller
             ], 404);
         }
 
+        $registerId = $this->resolverRegisterIdConsulta($request, $dados['register_id']);
+        if ($registerId instanceof \Illuminate\Http\JsonResponse) {
+            return $registerId;
+        }
+
         $userId = optional($request->user())->id;
 
         $existeAberta = CashSession::query()
-            ->where('register_id', $dados['register_id'])
+            ->where('register_id', $registerId)
             ->where('status', 'OPEN')
             ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->first();
@@ -128,7 +147,7 @@ class CashSessionController extends Controller
 
         $sessao = CashSession::query()->create([
             'id' => (string) Str::uuid(),
-            'register_id' => $dados['register_id'],
+            'register_id' => $registerId,
             'user_id' => $userId,
             'status' => 'OPEN',
             'opening_balance' => $dados['opening_balance'] ?? 0,

@@ -43,12 +43,12 @@ async function carregarPagina(pagina = 1) {
       totalPaginas.value = 1;
       return;
     }
-    if (!sessaoStore.registerId) {
-      throw new Error("Caixa sem register_id para consultar histórico no backend.");
+    if (!sessaoStore.registerId && !sessaoStore.caixaAtribuido) {
+      throw new Error("Operador sem caixa atribuído para consultar histórico no backend.");
     }
 
     const resposta = await carregarHistoricoFechosIntegrado({
-      register_id: sessaoStore.registerId,
+      register_id: sessaoStore.registerId || undefined,
       status: "CLOSED",
       page: pagina,
       per_page: ITENS_POR_PAGINA,
@@ -122,8 +122,9 @@ onMounted(async () => {
         <div>
           <h3 class="text-base font-bold text-slate-900">Histórico de fechos de caixa</h3>
           <p class="text-xs text-slate-500">
-            Caixa: <strong>{{ sessaoStore.caixaAtribuido || "Sem caixa" }}</strong> ·
-            {{ totalFechos }} fecho(s) · {{ ITENS_POR_PAGINA }} por página
+            Caixa: <strong>{{ sessaoStore.caixaAtribuido || "Sem caixa" }}</strong>
+            <span v-if="sessaoStore.registerCodigo">({{ sessaoStore.registerCodigo }})</span>
+            · apenas fechos deste caixa · {{ totalFechos }} fecho(s) · {{ ITENS_POR_PAGINA }} por página
           </p>
         </div>
         <BotaoBase variante="secundario" :disabled="carregando" @click="carregarPagina(paginaAtual)">

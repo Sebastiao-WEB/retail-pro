@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesAssignedRegister;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -15,16 +16,21 @@ use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
+    use ResolvesAssignedRegister;
+
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $registerId = $this->resolverRegisterIdConsulta($request, $request->query('register_id'));
+        if ($registerId instanceof \Illuminate\Http\JsonResponse) {
+            return $registerId;
+        }
+
         $query = Sale::query()->with('itens')->latest('data');
 
-        if ($registerId = request('register_id')) {
-            $query->where('register_id', $registerId);
-        }
+        $query->where('register_id', $registerId);
 
         if ($cashSessionId = request('cash_session_id')) {
             $query->where('cash_session_id', $cashSessionId);

@@ -143,7 +143,7 @@ export async function carregarHistoricoFechosIntegrado(filtros = {}) {
   }
 
   const resposta = await cashApi.listar({
-    register_id: filtros.register_id,
+    ...(filtros.register_id ? { register_id: filtros.register_id } : {}),
     status: filtros.status || "CLOSED",
     page: filtros.page || 1,
     per_page: filtros.per_page || 10,
