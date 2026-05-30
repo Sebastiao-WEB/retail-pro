@@ -8,7 +8,6 @@ use App\Models\Purchase;
 use App\Models\Register;
 use App\Models\Sale;
 use App\Models\SaleReversalRequest;
-use App\Models\StockLocation;
 use Livewire\Component;
 
 class Dashboard extends Component
@@ -52,7 +51,6 @@ class Dashboard extends Component
                 ->sum('total'),
             'reversoesPendentes' => SaleReversalRequest::query()->where('status', 'PENDING')->count(),
             'caixasAtivos' => Register::query()->where('is_active', true)->count(),
-            'locaisAtivos' => StockLocation::query()->where('is_active', true)->count(),
         ];
 
         $ultimasVendas = Sale::query()

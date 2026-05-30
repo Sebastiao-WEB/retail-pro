@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-7">
+    <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <article class="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/70 p-4">
             <div class="flex items-center gap-3">
                 <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700">
@@ -66,20 +66,17 @@
                 </div>
             </div>
         </article>
-        <article class="rounded-xl border border-rose-200 bg-gradient-to-br from-rose-50 to-rose-100/70 p-4">
-            <div class="flex items-center gap-3">
-                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-700">
-                    <i data-lucide="warehouse" class="h-6 w-6"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-rose-800/80">Locais de stock ativos</p>
-                    <p class="mt-1 text-xl font-bold text-rose-900">{{ $metricas['locaisAtivos'] }}</p>
-                </div>
-            </div>
-        </article>
     </section>
 
-    <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+    <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
+        @can('sales.view')
+            <a href="{{ route('sales.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
+                <i data-lucide="shopping-cart" class="mb-2 h-4 w-4 text-slate-500"></i>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Operação</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">Consultar Vendas</p>
+                <p class="text-xs text-slate-500">Ver histórico, detalhes e reversões de vendas.</p>
+            </a>
+        @endcan
         @can('registers.view')
             <a href="{{ route('registers.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="wallet" class="mb-2 h-4 w-4 text-slate-500"></i>
