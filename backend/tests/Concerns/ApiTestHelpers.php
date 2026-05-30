@@ -5,6 +5,7 @@ namespace Tests\Concerns;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Register;
+use App\Models\StockBalance;
 use App\Models\StockLocation;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -50,7 +51,7 @@ trait ApiTestHelpers
             'is_active' => true,
         ]);
 
-        Product::query()->create([
+        $product = Product::query()->create([
             'id' => (string) Str::uuid(),
             'nome' => 'Produto Teste',
             'codigo_barras' => '9999999999999',
@@ -63,7 +64,14 @@ trait ApiTestHelpers
             'is_active' => true,
         ]);
 
-        return compact('register', 'location', 'user');
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $location->id,
+            'product_id' => $product->id,
+            'quantity' => 100,
+        ]);
+
+        return compact('register', 'location', 'user', 'product');
     }
 
     protected function loginApi(User $user, ?string $registerCode = null): string

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useSessaoStore } from "../store/useSessaoStore";
-import { Clock3, Cog, LayoutGrid, ShoppingCart, UserRound } from "lucide-vue-next";
+import { Clock3, Cog, LayoutGrid, Receipt, ShoppingCart, UserRound } from "lucide-vue-next";
 import logoRetailPro from "../assets/rp.png";
 
 const route = useRoute();
@@ -13,7 +13,10 @@ let temporizadorRelogio = null;
 const secoes = [
   {
     titulo: "Principal",
-    itens: [{ nome: "Histórico de Vendas", rota: "/historico-vendas", icon: Clock3 }],
+    itens: [
+      { nome: "Histórico de Vendas", rota: "/historico-vendas", icon: Clock3 },
+      { nome: "Histórico de Fechos", rota: "/historico-fechos", icon: Receipt },
+    ],
   },
   {
     titulo: "Sistema",

@@ -323,18 +323,6 @@ export function gerarBufferEscposRelatorioFecho(payload, opcoes = {}) {
     }
   }
 
-  const vendas = relatorio.vendas || [];
-  if (vendas.length) {
-    partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
-    partes.push(linhaTexto("Vendas do turno", { negrito: true }));
-    for (const venda of vendas) {
-      const data = truncar(String(venda.dataFormatada || venda.data || ""), 16);
-      const pagamento = truncar(String(venda.metodoPagamento || ""), 10);
-      const total = formatarPrecoCurto(venda.total);
-      partes.push(linhaTexto(montarLinhaEsquerdaDireita(`${data} ${pagamento}`, total, largura)));
-    }
-  }
-
   partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
   partes.push(comandoResetFormatacao());
 

@@ -20,7 +20,6 @@ export const useSessaoStore = defineStore("sessao", {
     turnoAberto: false,
     fundoInicial: 0,
     aberturaEm: "",
-    historicoFecho: [],
   }),
   getters: {
     estaLogado: (state) => !!state.utilizador,
@@ -38,6 +37,7 @@ export const useSessaoStore = defineStore("sessao", {
         const raw = localStorage.getItem(CHAVE_SESSAO);
         if (!raw) return;
         const dados = JSON.parse(raw);
+        delete dados.historicoFecho;
         Object.assign(this, dados);
       } catch {
         // mantém estado inicial se houver erro de parsing
@@ -57,7 +57,6 @@ export const useSessaoStore = defineStore("sessao", {
         turnoAberto: this.turnoAberto,
         fundoInicial: this.fundoInicial,
         aberturaEm: this.aberturaEm,
-        historicoFecho: this.historicoFecho,
       };
       localStorage.setItem(CHAVE_SESSAO, JSON.stringify(payload));
     },
@@ -134,32 +133,27 @@ export const useSessaoStore = defineStore("sessao", {
       return { remotoOk: !!remoto?.ok, erro: remoto?.erro || "" };
     },
     async fecharTurno(relatorio) {
-      let remoto = null;
       if (temApiConfigurada()) {
         if (!this.cashSessionId) {
           return { remotoOk: false, erro: "Sessão remota não encontrada para fecho na API." };
         }
-        remoto = await fecharTurnoIntegrado(this.cashSessionId, {
+        const remoto = await fecharTurnoIntegrado(this.cashSessionId, {
           closing_balance: Number(relatorio?.dinheiroReal || 0),
           note: String(relatorio?.justificativaDiferenca || "").trim(),
-          closed_at: new Date().toISOString(),
+          closed_at: relatorio?.fechadoEm || new Date().toISOString(),
+          report_snapshot: relatorio,
         });
         if (!remoto?.ok) {
           return { remotoOk: false, erro: remoto?.erro || "Falha ao fechar sessão na API." };
         }
       }
 
-      this.historicoFecho.unshift({
-        ...relatorio,
-        fechadoEm: new Date().toISOString(),
-        cashSessionId: this.cashSessionId,
-      });
       this.turnoAberto = false;
       this.fundoInicial = 0;
       this.aberturaEm = "";
       this.cashSessionId = null;
       this.salvar();
-      return { remotoOk: !!remoto?.ok, erro: remoto?.erro || "" };
+      return { remotoOk: true, erro: "" };
     },
     async sincronizarTurnoRemoto() {
       if (!temApiConfigurada()) return { remotoOk: false };

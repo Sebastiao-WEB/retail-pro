@@ -10,6 +10,54 @@ use Illuminate\Support\Str;
 
 class CashSessionController extends Controller
 {
+    public function index(Request $request)
+    {
+        $dados = $request->validate([
+            'register_id' => ['nullable', 'uuid'],
+            'status' => ['nullable', 'in:OPEN,CLOSED'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
+
+        $query = CashSession::query()
+            ->with(['register'])
+            ->when($dados['register_id'] ?? null, fn ($q, $registerId) => $q->where('register_id', $registerId))
+            ->when($dados['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->latest('closed_at')
+            ->latest('opened_at');
+
+        $paginado = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => collect($paginado->items())->map(fn (CashSession $sessao) => $this->serializarSessao($sessao))->values(),
+            'meta' => [
+                'current_page' => $paginado->currentPage(),
+                'last_page' => $paginado->lastPage(),
+                'per_page' => $paginado->perPage(),
+                'total' => $paginado->total(),
+            ],
+        ]);
+    }
+
+    private function serializarSessao(CashSession $sessao): array
+    {
+        return [
+            'id' => $sessao->id,
+            'registerId' => $sessao->register_id,
+            'registerName' => $sessao->register?->name,
+            'status' => $sessao->status,
+            'openingBalance' => (float) $sessao->opening_balance,
+            'closingBalance' => $sessao->closing_balance !== null ? (float) $sessao->closing_balance : null,
+            'differenceAmount' => $sessao->difference_amount !== null ? (float) $sessao->difference_amount : null,
+            'openedAt' => optional($sessao->opened_at)->toISOString(),
+            'closedAt' => optional($sessao->closed_at)->toISOString(),
+            'note' => $sessao->note,
+            'reportSnapshot' => $sessao->report_snapshot,
+        ];
+    }
+
     public function active(Request $request)
     {
         $dados = $request->validate([
@@ -105,6 +153,7 @@ class CashSessionController extends Controller
             'closing_balance' => ['required', 'numeric', 'min:0'],
             'closed_at' => ['nullable', 'date'],
             'note' => ['nullable', 'string'],
+            'report_snapshot' => ['nullable', 'array'],
         ]);
 
         $sessao = CashSession::query()->find($id);
@@ -129,18 +178,12 @@ class CashSessionController extends Controller
             'difference_amount' => $closingBalance - $openingBalance,
             'closed_at' => $dados['closed_at'] ?? now(),
             'note' => $dados['note'] ?? null,
+            'report_snapshot' => $dados['report_snapshot'] ?? null,
         ]);
 
         return response()->json([
             'message' => 'Sessão de caixa fechada com sucesso.',
-            'data' => [
-                'id' => $sessao->id,
-                'status' => $sessao->status,
-                'opening_balance' => $openingBalance,
-                'closing_balance' => (float) $sessao->closing_balance,
-                'difference_amount' => (float) $sessao->difference_amount,
-                'closed_at' => optional($sessao->closed_at)->toISOString(),
-            ],
+            'data' => $this->serializarSessao($sessao->fresh(['register'])),
         ]);
     }
 

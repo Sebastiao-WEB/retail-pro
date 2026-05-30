@@ -67,8 +67,7 @@ export const useVendaStore = defineStore("vendas", {
     salvarSolicitacoes() {
       localStorage.setItem(CHAVE_REVERSOES, JSON.stringify(this.solicitacoesReversao));
     },
-    async carregarHistorico() {
-      if (this.carregado) return;
+    async sincronizarHistorico() {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
       const filtros = {};
@@ -86,7 +85,16 @@ export const useVendaStore = defineStore("vendas", {
       this.hidratarSolicitacoes();
       this.carregado = true;
     },
+    async carregarHistorico() {
+      return this.sincronizarHistorico();
+    },
     async registarVenda(novaVenda) {
+      if (temApiConfigurada()) {
+        await criarVendaIntegrada(novaVenda);
+        await this.sincronizarHistorico();
+        return;
+      }
+
       const id = novaVenda?.id || gerarIdLocal();
       const vendaLocal = {
         ...novaVenda,
@@ -94,9 +102,6 @@ export const useVendaStore = defineStore("vendas", {
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
         estado: "Concluida",
       };
-      if (temApiConfigurada()) {
-        await criarVendaIntegrada(vendaLocal);
-      }
       this.vendas.unshift(vendaLocal);
     },
     async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {

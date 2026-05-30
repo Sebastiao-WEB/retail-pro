@@ -27,6 +27,7 @@ const sessaoStore = useSessaoStore();
 const titulos = {
   pos: { titulo: "Ponto de Venda", subtitulo: "Venda rápida de balcão" },
   "historico-vendas": { titulo: "Histórico de Vendas", subtitulo: "Vendas do caixa e turno atual" },
+  "historico-fechos": { titulo: "Histórico de Fechos", subtitulo: "Fechos de caixa registados no backend" },
   configuracoes: { titulo: "Configurações", subtitulo: "Preferências do sistema" },
 };
 

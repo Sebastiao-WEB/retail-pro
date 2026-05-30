@@ -1,5 +1,6 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
@@ -32,6 +33,7 @@ import {
 } from "lucide-vue-next";
 
 const produtoStore = useProdutoStore();
+const { resultadosPesquisa, pesquisaEmCurso } = storeToRefs(produtoStore);
 const carrinhoStore = useCarrinhoStore();
 const clienteStore = useClienteStore();
 const vendaStore = useVendaStore();
@@ -61,11 +63,45 @@ const processandoFechoCaixa = ref(false);
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
-const produtosFiltrados = computed(() => {
-  if (!pesquisaAtiva.value) return [];
-  return produtoStore.produtos
-    .filter((produto) => `${produto.nome} ${produto.codigoBarras}`.toLowerCase().includes(pesquisa.value.toLowerCase()))
-    .slice(0, 5);
+
+let debouncePesquisaTimer = null;
+let sequenciaPesquisa = 0;
+
+async function executarPesquisaProdutos(termoInformado) {
+  const termo = String(termoInformado ?? pesquisa.value).trim();
+  if (!termo) {
+    produtoStore.limparPesquisa();
+    return;
+  }
+
+  const sequencia = ++sequenciaPesquisa;
+  try {
+    await produtoStore.buscarProdutos({
+      search: termo,
+      ...filtrosStockPos(),
+    });
+  } catch (erro) {
+    if (sequencia !== sequenciaPesquisa) return;
+    mostrarToastSwal(erro?.message || "Falha ao pesquisar produtos no backend.", "error");
+  }
+}
+
+function pesquisarProdutosAgora() {
+  clearTimeout(debouncePesquisaTimer);
+  executarPesquisaProdutos(pesquisa.value);
+}
+
+watch(pesquisa, (valor) => {
+  clearTimeout(debouncePesquisaTimer);
+  const termo = String(valor || "").trim();
+  if (!termo) {
+    sequenciaPesquisa += 1;
+    produtoStore.limparPesquisa();
+    return;
+  }
+  debouncePesquisaTimer = setTimeout(() => {
+    executarPesquisaProdutos(termo);
+  }, 300);
 });
 
 const clientesDisponiveis = computed(() => clienteStore.clientes);
@@ -132,6 +168,46 @@ const origemStockVenda = computed(() => ({
   codigo: sessaoStore.sourceLocationCodigo || "",
   nome: sessaoStore.sourceLocationNome || "",
 }));
+
+function filtrosStockPos() {
+  if (!temApiConfigurada() || !origemStockVenda.value.id) return {};
+  return { source_location_id: origemStockVenda.value.id };
+}
+
+function ajustarCarrinhoAoStock() {
+  for (const item of [...carrinhoStore.itens]) {
+    const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
+    if (!produto || produto.stock <= 0) {
+      carrinhoStore.removerProduto(item.produtoId);
+      continue;
+    }
+    if (item.quantidade > produto.stock) {
+      carrinhoStore.definirQuantidade(item.produtoId, produto.stock);
+    }
+  }
+}
+
+async function sincronizarStockPos() {
+  if (!temApiConfigurada()) return;
+  await produtoStore.sincronizarProdutos(filtrosStockPos());
+  ajustarCarrinhoAoStock();
+}
+
+function validarStockCarrinhoAtual() {
+  for (const item of carrinhoStore.itens) {
+    const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
+    if (!produto || produto.stock <= 0) {
+      return { ok: false, erro: `Stock indisponível para "${item.nome}".` };
+    }
+    if (item.quantidade > produto.stock) {
+      return {
+        ok: false,
+        erro: `Stock insuficiente para "${item.nome}". Disponível: ${produto.stock}.`,
+      };
+    }
+  }
+  return { ok: true };
+}
 
 function formatarMT(valor) {
   return `${new Intl.NumberFormat("pt-MZ", {
@@ -279,6 +355,20 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     return;
   }
 
+  if (temApiConfigurada()) {
+    try {
+      await sincronizarStockPos();
+    } catch (erro) {
+      mostrarToastSwal(erro?.message || "Falha ao sincronizar stock antes da venda.", "error");
+      return;
+    }
+    const validacaoStock = validarStockCarrinhoAtual();
+    if (!validacaoStock.ok) {
+      mostrarToastSwal(validacaoStock.erro, "error");
+      return;
+    }
+  }
+
   const venda = {
     ...vendaPendente.value,
     cliente: cliente.value,
@@ -333,7 +423,15 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     mostrarToastSwal(erro?.message || "Falha ao registar venda na API.", "error");
     return;
   }
-  produtoStore.aplicarVenda(venda.itens);
+  if (temApiConfigurada()) {
+    try {
+      await sincronizarStockPos();
+    } catch {
+      // A venda já foi registada; o operador pode sincronizar manualmente ao reabrir o POS.
+    }
+  } else {
+    produtoStore.aplicarVenda(venda.itens);
+  }
   carrinhoStore.limparCarrinho();
   valorPagoInteiro.value = "0";
   valorPagoDecimal.value = "00";
@@ -511,8 +609,8 @@ async function confirmarFechoCaixa() {
       mensagemSucesso = impressao?.error
         ? `Fecho concluído, mas falhou a impressão do relatório: ${impressao.error}`
         : "Fecho concluído, mas falhou a impressão do relatório.";
-      mostrarToastSwal(mensagemSucesso, "warning");
       modalFechoCaixa.value = false;
+      mostrarToastSwal(mensagemSucesso, "warning");
       processandoFechoCaixa.value = false;
       return;
     }
@@ -538,7 +636,13 @@ async function confirmarFechoCaixa() {
               <div class="flex w-24 items-center justify-center border-r border-slate-300 px-3 text-black" title="Código de barras">
                 <Barcode :size="42" :stroke-width="1.8" />
               </div>
-              <input v-model="pesquisa" type="text" placeholder="Nome ou código de barras..." class="min-w-0 flex-1 px-3 py-4 text-sm focus:outline-none" />
+              <input
+                v-model="pesquisa"
+                type="text"
+                placeholder="Nome ou código de barras..."
+                class="min-w-0 flex-1 px-3 py-4 text-sm focus:outline-none"
+                @keydown.enter.prevent="pesquisarProdutosAgora"
+              />
             </div>
           </div>
         </div>
@@ -554,10 +658,18 @@ async function confirmarFechoCaixa() {
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!produtosFiltrados.length">
+              <tr v-if="pesquisaEmCurso">
+                <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">
+                  <span class="inline-flex items-center gap-2">
+                    <LoaderCircle class="animate-spin" :size="14" />
+                    A pesquisar no backend...
+                  </span>
+                </td>
+              </tr>
+              <tr v-else-if="!resultadosPesquisa.length">
                 <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">Nenhum produto encontrado.</td>
               </tr>
-              <tr v-for="produto in produtosFiltrados" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
+              <tr v-for="produto in resultadosPesquisa" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
                 <td class="px-3 py-2 font-semibold text-slate-800">{{ produto.nome }}</td>
                 <td class="px-3 py-2 text-slate-600">{{ produto.codigoBarras }}</td>
                 <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(produto.precoVendaComIva ?? produto.precoVenda) }}</td>

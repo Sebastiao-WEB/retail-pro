@@ -82,11 +82,29 @@ describe("useSessaoStore", () => {
     const resultado = await sessaoStore.fecharTurno({
       dinheiroReal: 1500,
       justificativaDiferenca: "",
+      fechadoEm: new Date().toISOString(),
     });
+
+    expect(fecharTurnoIntegrado).toHaveBeenCalledWith(
+      "sessao-uuid-1",
+      expect.objectContaining({
+        closing_balance: 1500,
+        report_snapshot: expect.objectContaining({ dinheiroReal: 1500 }),
+      })
+    );
 
     expect(resultado.remotoOk).toBe(true);
     expect(sessaoStore.turnoAberto).toBe(false);
     expect(sessaoStore.cashSessionId).toBeNull();
+  });
+
+  it("nao persiste historico de fecho no localStorage", () => {
+    const sessaoStore = useSessaoStore();
+    sessaoStore.utilizador = "Operador";
+    sessaoStore.salvar();
+
+    const salvo = JSON.parse(localStorage.getItem("retailpro:sessao") || "{}");
+    expect(salvo.historicoFecho).toBeUndefined();
   });
 
   it("sincroniza turno remoto ativo", async () => {

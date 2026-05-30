@@ -24,6 +24,7 @@ class CashSession extends Model
         'opened_at',
         'closed_at',
         'note',
+        'report_snapshot',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class CashSession extends Model
         'difference_amount' => 'decimal:2',
         'opened_at' => 'datetime',
         'closed_at' => 'datetime',
+        'report_snapshot' => 'array',
     ];
 
     public function register()

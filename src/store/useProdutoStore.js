@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { temApiConfigurada } from "../api";
 import { carregarProdutosIntegrado } from "../services/integracaoApi";
 
 function normalizarIva(valor) {
@@ -53,21 +54,66 @@ function normalizarProduto(produto) {
 export const useProdutoStore = defineStore("produtos", {
   state: () => ({
     produtos: [],
+    resultadosPesquisa: [],
     carregado: false,
     emProcessamento: false,
+    pesquisaEmCurso: false,
   }),
   getters: {
     produtosComStockBaixo: (state) => state.produtos.filter((produto) => produto.stock <= 10),
     totalStock: (state) => state.produtos.reduce((acc, produto) => acc + produto.stock, 0),
   },
   actions: {
-    async carregarProdutos() {
-      if (this.carregado) return;
+    async sincronizarProdutos(filtros = {}) {
       this.emProcessamento = true;
-      const produtos = await carregarProdutosIntegrado();
-      this.produtos = produtos.map((produto) => normalizarProduto(produto));
-      this.carregado = true;
-      this.emProcessamento = false;
+      try {
+        const produtos = await carregarProdutosIntegrado(filtros);
+        this.produtos = produtos.map((produto) => normalizarProduto(produto));
+        this.carregado = true;
+      } finally {
+        this.emProcessamento = false;
+      }
+    },
+    async carregarProdutos(filtros = {}) {
+      return this.sincronizarProdutos(filtros);
+    },
+    limparPesquisa() {
+      this.resultadosPesquisa = [];
+      this.pesquisaEmCurso = false;
+    },
+    mesclarProdutosConsultados(produtos) {
+      produtos.forEach((produto) => {
+        const indice = this.produtos.findIndex((reg) => reg.id === produto.id);
+        if (indice === -1) {
+          this.produtos.push(produto);
+          return;
+        }
+        this.produtos[indice] = produto;
+      });
+    },
+    async buscarProdutos(filtros = {}) {
+      const termo = String(filtros.search || "").trim();
+      if (!termo) {
+        this.limparPesquisa();
+        return [];
+      }
+
+      this.pesquisaEmCurso = true;
+      try {
+        let produtos = await carregarProdutosIntegrado(filtros);
+        if (!temApiConfigurada()) {
+          const consulta = termo.toLowerCase();
+          produtos = produtos.filter((produto) =>
+            `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
+          );
+        }
+        const normalizados = produtos.map((produto) => normalizarProduto(produto));
+        this.resultadosPesquisa = normalizados.slice(0, 5);
+        this.mesclarProdutosConsultados(normalizados);
+        return this.resultadosPesquisa;
+      } finally {
+        this.pesquisaEmCurso = false;
+      }
     },
     adicionarProduto(produto) {
       this.produtos.unshift({

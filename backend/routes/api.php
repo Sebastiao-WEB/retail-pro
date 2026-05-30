@@ -48,6 +48,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('sale-reversal-requests/{saleReversalRequest}', [SaleReversalRequestController::class, 'update']);
 
         Route::post('cash-sessions/open', [CashSessionController::class, 'open']);
+        Route::get('cash-sessions', [CashSessionController::class, 'index']);
         Route::post('cash-sessions/{id}/close', [CashSessionController::class, 'close']);
         Route::get('cash-sessions/active', [CashSessionController::class, 'active']);
         Route::get('cash-sessions/{id}/movements', [CashSessionController::class, 'movements']);

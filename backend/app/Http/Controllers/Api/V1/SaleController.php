@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\StockBalance;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
@@ -72,6 +76,8 @@ class SaleController extends Controller
             'registerId' => ['nullable', 'uuid'],
             'source_location_id' => ['nullable', 'uuid'],
             'sourceLocationId' => ['nullable', 'uuid'],
+            'cash_session_id' => ['nullable', 'uuid'],
+            'cashSessionId' => ['nullable', 'uuid'],
             'metodoPagamento' => ['required', 'string', 'max:50'],
             'subtotal' => ['required', 'numeric'],
             'descontoAplicado' => ['nullable', 'numeric'],
@@ -91,11 +97,61 @@ class SaleController extends Controller
         ]);
 
         $sale = DB::transaction(function () use ($dados) {
+            $locationId = $dados['source_location_id'] ?? ($dados['sourceLocationId'] ?? null);
+            $itensComProduto = collect($dados['itens'])
+                ->filter(fn (array $item) => ! empty($item['produtoId']))
+                ->values();
+
+            if ($itensComProduto->isNotEmpty() && ! $locationId) {
+                throw ValidationException::withMessages([
+                    'source_location_id' => ['Localização de stock obrigatória para baixar inventário.'],
+                ]);
+            }
+
+            $saldosPorProduto = [];
+            foreach ($itensComProduto as $index => $item) {
+                $produtoId = $item['produtoId'];
+                $quantidade = (float) $item['quantidade'];
+
+                if ($quantidade <= 0) {
+                    throw ValidationException::withMessages([
+                        "itens.{$index}.quantidade" => ['Quantidade inválida.'],
+                    ]);
+                }
+
+                if (! isset($saldosPorProduto[$produtoId])) {
+                    $balance = StockBalance::query()
+                        ->where('location_id', $locationId)
+                        ->where('product_id', $produtoId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    $saldosPorProduto[$produtoId] = [
+                        'balance' => $balance,
+                        'reservado' => 0.0,
+                        'nome' => $item['nome'],
+                    ];
+                }
+
+                $saldosPorProduto[$produtoId]['reservado'] += $quantidade;
+            }
+
+            foreach ($saldosPorProduto as $produtoId => $info) {
+                $balance = $info['balance'];
+                $reservado = (float) $info['reservado'];
+
+                if (! $balance || (float) $balance->quantity < $reservado) {
+                    throw ValidationException::withMessages([
+                        'itens' => ["Stock insuficiente para \"{$info['nome']}\" na localização de venda."],
+                    ]);
+                }
+            }
+
             $sale = Sale::create([
                 'id' => $dados['id'] ?? (string) Str::uuid(),
                 'referencia' => $dados['referencia'] ?? ('VD-'.now()->format('Ymd-His')),
                 'register_id' => $dados['register_id'] ?? ($dados['registerId'] ?? null),
-                'source_location_id' => $dados['source_location_id'] ?? ($dados['sourceLocationId'] ?? null),
+                'source_location_id' => $locationId,
                 'cash_session_id' => $dados['cash_session_id'] ?? ($dados['cashSessionId'] ?? null),
                 'user_id' => auth('api')->id(),
                 'cliente' => $dados['cliente'],
@@ -111,6 +167,8 @@ class SaleController extends Controller
                 'data' => $dados['data'] ?? now(),
             ]);
 
+            $produtosAfetados = [];
+
             foreach ($dados['itens'] as $item) {
                 SaleItem::create([
                     'id' => (string) Str::uuid(),
@@ -124,6 +182,48 @@ class SaleController extends Controller
                     'valor_iva_unitario' => $item['valorIvaUnitario'] ?? 0,
                     'subtotal' => $item['subtotal'],
                 ]);
+
+                $produtoId = $item['produtoId'] ?? null;
+                if (! $produtoId || ! $locationId) {
+                    continue;
+                }
+
+                $quantidade = (float) $item['quantidade'];
+                if ($quantidade <= 0) {
+                    continue;
+                }
+
+                $balance = $saldosPorProduto[$produtoId]['balance'];
+                $balance->quantity = (float) $balance->quantity - $quantidade;
+                $balance->save();
+
+                StockMovement::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'product_id' => $produtoId,
+                    'from_location_id' => $locationId,
+                    'to_location_id' => null,
+                    'type' => 'OUT',
+                    'quantity' => $quantidade,
+                    'unit_cost' => (float) ($item['precoSemIva'] ?? $item['precoVenda'] ?? 0),
+                    'reference_type' => 'SALE',
+                    'reference_id' => $sale->id,
+                    'note' => 'Saída por venda '.$sale->referencia,
+                    'performed_by' => auth('api')->id(),
+                ]);
+
+                $produtosAfetados[$produtoId] = true;
+            }
+
+            foreach (array_keys($produtosAfetados) as $produtoId) {
+                $produto = Product::query()->find($produtoId);
+                if (! $produto) {
+                    continue;
+                }
+
+                $produto->stock = (float) StockBalance::query()
+                    ->where('product_id', $produtoId)
+                    ->sum('quantity');
+                $produto->save();
             }
 
             return $sale;

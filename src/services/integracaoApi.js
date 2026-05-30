@@ -24,10 +24,10 @@ function normalizarLista(resposta) {
   return [];
 }
 
-export async function carregarProdutosIntegrado() {
+export async function carregarProdutosIntegrado(filtros = {}) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) return obterProdutos();
-  return mapearLista(mapearProduto, normalizarLista(await productsApi.listar()));
+  return mapearLista(mapearProduto, normalizarLista(await productsApi.listar(filtros)));
 }
 
 export async function carregarClientesIntegrado() {
@@ -110,4 +110,49 @@ export async function obterSessaoAtivaIntegrada(registerId) {
   } catch (erro) {
     return { ok: false, erro: erro?.message || "Falha ao consultar sessão ativa na API." };
   }
+}
+
+function mapearHistoricoFechoSessao(item) {
+  if (!item || typeof item !== "object") return item;
+  const snapshot = item.reportSnapshot || item.report_snapshot || {};
+
+  return {
+    ...snapshot,
+    cashSessionId: item.id || snapshot.cashSessionId || null,
+    caixa: snapshot.caixa || item.registerName || "",
+    utilizador: snapshot.utilizador || snapshot.operador || "",
+    fechadoEm: snapshot.fechadoEm || item.closedAt || item.closed_at || "",
+    aberturaEm: snapshot.aberturaEm || item.openedAt || item.opened_at || "",
+    fundoInicial: Number(snapshot.fundoInicial ?? item.openingBalance ?? 0),
+    totalVendido: Number(snapshot.totalVendido ?? 0),
+    totalTransacoes: Number(snapshot.totalTransacoes ?? 0),
+    ticketMedio: Number(snapshot.ticketMedio ?? 0),
+    vendasDinheiro: Number(snapshot.vendasDinheiro ?? 0),
+    vendasTransferencia: Number(snapshot.vendasTransferencia ?? 0),
+    dinheiroEsperado: Number(snapshot.dinheiroEsperado ?? 0),
+    dinheiroReal: Number(snapshot.dinheiroReal ?? item.closingBalance ?? 0),
+    diferenca: Number(snapshot.diferenca ?? item.differenceAmount ?? 0),
+    justificativaDiferenca: String(snapshot.justificativaDiferenca || item.note || ""),
+  };
+}
+
+export async function carregarHistoricoFechosIntegrado(filtros = {}) {
+  garantirBackendDisponivel();
+  if (!temApiConfigurada()) {
+    throw new Error("Histórico de fechos disponível apenas com backend API.");
+  }
+
+  const resposta = await cashApi.listar({
+    register_id: filtros.register_id,
+    status: filtros.status || "CLOSED",
+    page: filtros.page || 1,
+    per_page: filtros.per_page || 10,
+  });
+
+  const lista = Array.isArray(resposta?.data) ? resposta.data : [];
+
+  return {
+    fechos: lista.map(mapearHistoricoFechoSessao),
+    meta: resposta?.meta || {},
+  };
 }

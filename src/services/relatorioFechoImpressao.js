@@ -36,9 +36,11 @@ async function sincronizarConfiguracaoEmpresaRemota(configuracao) {
 
 export function montarPayloadRelatorioFecho(dados, configuracao, opcoes = {}) {
   const fechadoEm = dados.fechadoEm || new Date().toISOString();
+  const titulo = opcoes.segundaVia ? "2a via - Relatorio de Fecho de Caixa" : "Relatorio de Fecho de Caixa";
 
   return {
-    titulo: "Relatorio de Fecho de Caixa",
+    titulo,
+    segundaVia: !!opcoes.segundaVia,
     larguraTalao: opcoes.larguraTalao || configuracao?.larguraTalao || "80mm",
     empresa: {
       nome: String(configuracao?.nomeEmpresa || "RetailPro POS"),
@@ -62,13 +64,6 @@ export function montarPayloadRelatorioFecho(dados, configuracao, opcoes = {}) {
       dinheiroReal: Number(dados.dinheiroReal || 0),
       diferenca: Number(dados.diferenca || 0),
       justificativaDiferenca: String(dados.justificativaDiferenca || "").trim(),
-      vendas: (dados.auditoriaVendas || []).map((venda) => ({
-        data: venda.data,
-        dataFormatada: formatarDataHora(venda.data),
-        metodoPagamento: String(venda.metodoPagamento || ""),
-        total: Number(venda.total || 0),
-        cliente: String(venda.cliente || ""),
-      })),
     },
   };
 }

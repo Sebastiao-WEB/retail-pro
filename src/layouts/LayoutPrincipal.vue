@@ -3,14 +3,12 @@ import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import CabecalhoApp from "../components/CabecalhoApp.vue";
 import SidebarApp from "../components/SidebarApp.vue";
-import { useProdutoStore } from "../store/useProdutoStore";
 import { useClienteStore } from "../store/useClienteStore";
 import { useVendaStore } from "../store/useVendaStore";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { mostrarToastSwal } from "../services/toast";
 
 const router = useRouter();
-const produtoStore = useProdutoStore();
 const clienteStore = useClienteStore();
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
@@ -22,13 +20,9 @@ onMounted(async () => {
     return;
   }
   try {
-    await Promise.all([
-      produtoStore.carregarProdutos(),
-      clienteStore.carregarClientes(),
-      vendaStore.carregarHistorico(),
-    ]);
+    await Promise.all([clienteStore.carregarClientes(), vendaStore.sincronizarHistorico()]);
   } catch (erro) {
-    mostrarToastSwal(erro?.message || "Falha ao carregar dados do backend.", "error");
+    mostrarToastSwal(erro?.message || "Falha ao sincronizar dados do backend.", "error");
   }
 });
 </script>

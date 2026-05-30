@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\CashSession;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\StockBalance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Concerns\ApiTestHelpers;
@@ -19,7 +20,7 @@ class SaleApiTest extends TestCase
     {
         $ambiente = $this->criarAmbienteApi();
         $token = $this->loginApi($ambiente['user']);
-        $produto = Product::query()->first();
+        $produto = $ambiente['product'];
 
         $sessao = CashSession::query()->create([
             'id' => (string) Str::uuid(),
@@ -61,6 +62,64 @@ class SaleApiTest extends TestCase
             'cash_session_id' => $sessao->id,
             'register_id' => $ambiente['register']->id,
         ]);
+
+        $produto->refresh();
+        $this->assertSame(98.0, (float) $produto->stock);
+
+        $this->assertDatabaseHas('stock_balances', [
+            'location_id' => $ambiente['location']->id,
+            'product_id' => $produto->id,
+            'quantity' => 98,
+        ]);
+
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $produto->id,
+            'from_location_id' => $ambiente['location']->id,
+            'type' => 'OUT',
+            'reference_type' => 'SALE',
+            'quantity' => 2,
+        ]);
+    }
+
+    public function test_rejeita_venda_quando_stock_insuficiente(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+
+        StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->update(['quantity' => 1]);
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 200,
+            'total' => 200,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 2,
+                    'precoVenda' => 100,
+                    'subtotal' => 200,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertStatus(422);
+        $this->assertDatabaseCount('sales', 0);
+        $this->assertDatabaseCount('stock_movements', 0);
+
+        $saldo = StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->first();
+
+        $this->assertSame(1.0, (float) $saldo->quantity);
     }
 
     public function test_lista_vendas_filtradas_por_cash_session_id(): void

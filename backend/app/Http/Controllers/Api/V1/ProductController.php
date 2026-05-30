@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\StockBalance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -15,6 +16,8 @@ class ProductController extends Controller
     public function index()
     {
         $search = request()->string('search')->toString();
+        $locationId = request()->string('source_location_id')->toString()
+            ?: request()->string('location_id')->toString();
 
         $query = Product::query()->where('is_active', true);
 
@@ -25,7 +28,18 @@ class ProductController extends Controller
             });
         }
 
-        $produtos = $query->orderBy('nome')->get()->map(function (Product $produto) {
+        $produtos = $query->orderBy('nome')->get();
+        $stocksPorProduto = [];
+
+        if ($locationId !== '') {
+            $stocksPorProduto = StockBalance::query()
+                ->where('location_id', $locationId)
+                ->whereIn('product_id', $produtos->pluck('id'))
+                ->pluck('quantity', 'product_id')
+                ->all();
+        }
+
+        $lista = $produtos->map(function (Product $produto) use ($locationId, $stocksPorProduto) {
             return [
                 'id' => $produto->id,
                 'nome' => $produto->nome,
@@ -36,11 +50,13 @@ class ProductController extends Controller
                 'ivaTipo' => $produto->iva_tipo,
                 'ivaValor' => (float) $produto->iva_valor,
                 'ivaPercentual' => (float) $produto->iva_percentual,
-                'stock' => (float) $produto->stock,
+                'stock' => $locationId !== ''
+                    ? (float) ($stocksPorProduto[$produto->id] ?? 0)
+                    : (float) $produto->stock,
             ];
         });
 
-        return response()->json(['data' => $produtos]);
+        return response()->json(['data' => $lista]);
     }
 
     /**
