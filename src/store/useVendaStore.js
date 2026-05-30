@@ -40,7 +40,6 @@ function gerarReferenciaVenda(venda, indice = 0) {
 export const useVendaStore = defineStore("vendas", {
   state: () => ({
     vendas: [],
-    compras: [],
     solicitacoesReversao: [],
     carregado: false,
   }),
@@ -75,13 +74,12 @@ export const useVendaStore = defineStore("vendas", {
         if (sessaoStore.cashSessionId) filtros.cash_session_id = sessaoStore.cashSessionId;
         else if (sessaoStore.registerId) filtros.register_id = sessaoStore.registerId;
       }
-      const { vendas, compras } = await carregarHistoricoIntegrado(filtros);
+      const { vendas } = await carregarHistoricoIntegrado(filtros);
       this.vendas = vendas.map((venda, indice) => ({
         ...venda,
         referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
         estado: venda.estado || "Concluida",
       }));
-      this.compras = compras;
       this.hidratarSolicitacoes();
       this.carregado = true;
     },
@@ -145,12 +143,6 @@ export const useVendaStore = defineStore("vendas", {
       solicitacao.decisaoPor = gerente || "Gerente";
       solicitacao.dataDecisao = new Date().toISOString();
       this.salvarSolicitacoes();
-    },
-    registarCompra(novaCompra) {
-      this.compras.unshift({
-        ...novaCompra,
-        id: Date.now(),
-      });
     },
   },
 });

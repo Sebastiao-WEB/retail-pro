@@ -1,7 +1,7 @@
 <div class="space-y-4">
     <div class="rounded-lg border border-slate-200 bg-white p-4">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Recarregar stock</p>
-        <p class="text-sm text-slate-500">Entrada rápida de stock para reposição operacional do POS.</p>
+        <p class="text-sm text-slate-500">Entrada de stock com registo permanente no histórico de movimentos.</p>
     </div>
 
     <div class="rounded-lg border border-slate-200 bg-white p-4">
@@ -46,6 +46,50 @@
     </div>
 
     <div>{{ $products->links() }}</div>
+
+    <section class="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Histórico de recargas</p>
+            <p class="text-sm text-slate-500">Todas as entradas de stock ficam registadas e não podem ser apagadas desta vista.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr class="text-left text-xs uppercase tracking-wide text-slate-500">
+                        <th class="px-3 py-2">Data</th>
+                        <th class="px-3 py-2">Produto</th>
+                        <th class="px-3 py-2">Qtd</th>
+                        <th class="px-3 py-2">Custo unit.</th>
+                        <th class="px-3 py-2">Total</th>
+                        <th class="px-3 py-2">Fornecedor</th>
+                        <th class="px-3 py-2">Localização</th>
+                        <th class="px-3 py-2">Operador</th>
+                        <th class="px-3 py-2">Nota</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($reloadHistory as $reload)
+                        <tr class="border-t border-slate-100">
+                            <td class="px-3 py-2">{{ optional($reload->created_at)->format('d/m/Y H:i') }}</td>
+                            <td class="px-3 py-2 font-medium">{{ $reload->product?->nome ?? '---' }}</td>
+                            <td class="px-3 py-2">{{ number_format((float) $reload->quantity, 2, ',', '.') }}</td>
+                            <td class="px-3 py-2">{{ number_format((float) $reload->unit_cost, 2, ',', '.') }} MZN</td>
+                            <td class="px-3 py-2">{{ number_format((float) $reload->quantity * (float) $reload->unit_cost, 2, ',', '.') }} MZN</td>
+                            <td class="px-3 py-2">{{ $reload->reloadRecord?->fornecedor ?? '---' }}</td>
+                            <td class="px-3 py-2">{{ $reload->toLocation?->name ?? '---' }}</td>
+                            <td class="px-3 py-2">{{ $reload->performedBy?->name ?? '---' }}</td>
+                            <td class="px-3 py-2">{{ $reload->note ?: '---' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="9" class="px-3 py-6 text-center text-slate-500">Ainda não existem recargas registadas.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div>{{ $reloadHistory->links() }}</div>
+    </section>
 
     @can('stock.reload')
         @if ($reloadModalOpen)

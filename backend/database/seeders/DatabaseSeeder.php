@@ -38,7 +38,6 @@ class DatabaseSeeder extends Seeder
             'customers.view', 'customers.manage',
             'sales.view',
             'cash_sessions.view',
-            'purchases.view', 'purchases.manage',
             'reversals.view', 'reversals.manage',
         ];
         $permissionModels = collect();
@@ -63,7 +62,6 @@ class DatabaseSeeder extends Seeder
             'customers.view', 'customers.manage',
             'sales.view',
             'cash_sessions.view',
-            'purchases.view', 'purchases.manage',
             'reversals.view', 'reversals.manage',
         ];
         $managerRole->syncPermissions(

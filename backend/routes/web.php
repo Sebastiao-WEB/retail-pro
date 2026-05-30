@@ -6,7 +6,6 @@ use App\Livewire\Admin\CustomersPage;
 use App\Livewire\Admin\CompanySettingsPage;
 use App\Livewire\Admin\Dashboard;
 use App\Livewire\Admin\ProductsPage;
-use App\Livewire\Admin\PurchasesPage;
 use App\Livewire\Admin\RegistersPage;
 use App\Livewire\Admin\ReversalsPage;
 use App\Livewire\Admin\RolesPermissionsPage;
@@ -29,7 +28,6 @@ Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
     Route::get('/vendas', SalesPage::class)->middleware('permission:sales.view')->name('sales.index');
     Route::get('/sessoes-caixa-activas', CashSessionsActivePage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.active');
     Route::get('/historico-fechos-caixa', CashSessionsClosedPage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.closed');
-    Route::get('/compras', PurchasesPage::class)->middleware('permission:purchases.view')->name('purchases.index');
     Route::get('/reversoes', ReversalsPage::class)->middleware('permission:reversals.view')->name('reversals.index');
     Route::get('/caixas', RegistersPage::class)->middleware('permission:registers.view')->name('registers.index');
     Route::get('/armazens-localizacoes', StockLocationsPage::class)->middleware('permission:stock_locations.view')->name('stock-locations.index');

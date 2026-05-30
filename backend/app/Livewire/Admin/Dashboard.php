@@ -4,10 +4,10 @@ namespace App\Livewire\Admin;
 
 use App\Models\Customer;
 use App\Models\Product;
-use App\Models\Purchase;
 use App\Models\Register;
 use App\Models\Sale;
 use App\Models\SaleReversalRequest;
+use App\Models\StockMovement;
 use Livewire\Component;
 
 class Dashboard extends Component
@@ -46,9 +46,10 @@ class Dashboard extends Component
             'vendasHoje' => $totalVendasHoje,
             'totalProdutos' => Product::query()->where('is_active', true)->count(),
             'totalClientes' => Customer::query()->where('is_active', true)->count(),
-            'comprasMes' => (float) Purchase::query()
-                ->where('data', '>=', now()->startOfMonth())
-                ->sum('total'),
+            'recargasMes' => (int) StockMovement::query()
+                ->stockReloads()
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->count(),
             'reversoesPendentes' => SaleReversalRequest::query()->where('status', 'PENDING')->count(),
             'caixasAtivos' => Register::query()->where('is_active', true)->count(),
         ];

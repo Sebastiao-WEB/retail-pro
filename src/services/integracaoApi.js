@@ -5,18 +5,16 @@ import {
   productsApi,
   customersApi,
   salesApi,
-  purchasesApi,
   cashApi,
 } from "../api";
 import { ApiError } from "../api/httpClient";
 import {
   mapearCliente,
-  mapearCompra,
   mapearLista,
   mapearProduto,
   mapearVenda,
 } from "../api/mappers";
-import { obterClientes, obterCompras, obterProdutos, obterVendas } from "./dadosMockados";
+import { obterClientes, obterProdutos, obterVendas } from "./dadosMockados";
 
 function normalizarLista(resposta) {
   if (Array.isArray(resposta)) return resposta;
@@ -39,16 +37,12 @@ export async function carregarClientesIntegrado() {
 export async function carregarHistoricoIntegrado(filtros = {}) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) {
-    const [vendas, compras] = await Promise.all([obterVendas(), obterCompras()]);
-    return { vendas, compras };
+    const vendas = await obterVendas();
+    return { vendas };
   }
-  const [vendasResp, comprasResp] = await Promise.all([
-    salesApi.listar(filtros),
-    purchasesApi.listar(filtros),
-  ]);
+  const vendasResp = await salesApi.listar(filtros);
   return {
     vendas: mapearLista(mapearVenda, normalizarLista(vendasResp)),
-    compras: mapearLista(mapearCompra, normalizarLista(comprasResp)),
   };
 }
 

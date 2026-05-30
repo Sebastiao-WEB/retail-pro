@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin;
 
-use App\Models\Product;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
 use Livewire\Component;
@@ -13,8 +12,12 @@ class StockMovementsPage extends Component
     use WithPagination;
 
     public string $search = '';
+
     public string $typeFilter = '';
+
     public string $locationFilter = '';
+
+    public bool $reloadsOnly = false;
 
     public function updatedSearch(): void
     {
@@ -31,10 +34,16 @@ class StockMovementsPage extends Component
         $this->resetPage();
     }
 
+    public function updatedReloadsOnly(): void
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
         $movements = StockMovement::query()
-            ->with(['product'])
+            ->with(['product', 'fromLocation', 'toLocation', 'performedBy', 'reloadRecord'])
+            ->when($this->reloadsOnly, fn ($q) => $q->stockReloads())
             ->when($this->search !== '', function ($q) {
                 $q->whereHas('product', function ($productQuery) {
                     $productQuery
@@ -57,7 +66,6 @@ class StockMovementsPage extends Component
             ->with([
                 'movements' => $movements,
                 'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-                'products' => Product::query()->where('is_active', true)->orderBy('nome')->get(['id', 'nome']),
             ]);
     }
 }

@@ -36,11 +36,11 @@
         <article class="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100/70 p-4">
             <div class="flex items-center gap-3">
                 <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-700">
-                    <i data-lucide="package-plus" class="h-6 w-6"></i>
+                    <i data-lucide="rotate-cw" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-cyan-800/80">Compras do mês</p>
-                    <p class="mt-1 text-xl font-bold text-cyan-900">{{ number_format($metricas['comprasMes'], 2, ',', '.') }} MZN</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-cyan-800/80">Recargas do mês</p>
+                    <p class="mt-1 text-xl font-bold text-cyan-900">{{ $metricas['recargasMes'] }}</p>
                 </div>
             </div>
         </article>
@@ -98,7 +98,7 @@
                 <i data-lucide="rotate-cw" class="mb-2 h-4 w-4 text-slate-500"></i>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Operação</p>
                 <p class="mt-1 text-sm font-semibold text-slate-900">Recarregar Stock</p>
-                <p class="text-xs text-slate-500">Entrada rápida de stock com rastreio em compras.</p>
+                <p class="text-xs text-slate-500">Entrada de stock com histórico completo de recargas.</p>
             </a>
         @endcan
         @can('products.view')
@@ -109,12 +109,12 @@
                 <p class="text-xs text-slate-500">Atualizar preços, stock e estado de venda.</p>
             </a>
         @endcan
-        @can('purchases.view')
-            <a href="{{ route('purchases.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
-                <i data-lucide="package-plus" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Operação</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Registrar Compras</p>
-                <p class="text-xs text-slate-500">Entrada formal de mercadoria com totais e itens.</p>
+        @can('stock.movements.view')
+            <a href="{{ route('stock.movements') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
+                <i data-lucide="arrow-right-left" class="mb-2 h-4 w-4 text-slate-500"></i>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Stock</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">Histórico de Movimentos</p>
+                <p class="text-xs text-slate-500">Consultar recargas, saídas, transferências e ajustes.</p>
             </a>
         @endcan
     </section>

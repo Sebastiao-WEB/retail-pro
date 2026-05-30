@@ -5,7 +5,6 @@ use App\Http\Controllers\Api\V1\CashSessionController;
 use App\Http\Controllers\Api\V1\CompanyProfileController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\ProductController;
-use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\RegisterController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\SaleReversalRequestController;
@@ -52,11 +51,6 @@ Route::prefix('v1')->group(function () {
         Route::post('cash-sessions/{id}/close', [CashSessionController::class, 'close']);
         Route::get('cash-sessions/active', [CashSessionController::class, 'active']);
         Route::get('cash-sessions/{id}/movements', [CashSessionController::class, 'movements']);
-
-        Route::get('purchases', [PurchaseController::class, 'index']);
-        Route::post('purchases', [PurchaseController::class, 'store']);
-        Route::put('purchases/{purchase}', [PurchaseController::class, 'update']);
-        Route::delete('purchases/{purchase}', [PurchaseController::class, 'destroy']);
 
         Route::get('registers', [RegisterController::class, 'index']);
         Route::post('registers', [RegisterController::class, 'store']);

@@ -36,4 +36,31 @@ class StockMovement extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function performedBy()
+    {
+        return $this->belongsTo(User::class, 'performed_by');
+    }
+
+    public function fromLocation()
+    {
+        return $this->belongsTo(StockLocation::class, 'from_location_id');
+    }
+
+    public function toLocation()
+    {
+        return $this->belongsTo(StockLocation::class, 'to_location_id');
+    }
+
+    public function reloadRecord()
+    {
+        return $this->belongsTo(Purchase::class, 'reference_id');
+    }
+
+    public function scopeStockReloads($query)
+    {
+        return $query
+            ->where('type', 'IN')
+            ->whereIn('reference_type', ['PURCHASE', 'STOCK_RELOAD']);
+    }
 }

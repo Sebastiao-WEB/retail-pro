@@ -105,7 +105,7 @@ class StockReloadPage extends Component
                 'type' => 'IN',
                 'quantity' => $quantidade,
                 'unit_cost' => $custoUnitario,
-                'reference_type' => 'PURCHASE',
+                'reference_type' => 'STOCK_RELOAD',
                 'reference_id' => $purchase->id,
                 'note' => $dados['note'] ?: 'Recarregamento manual de stock',
                 'performed_by' => auth()->id(),
@@ -136,10 +136,17 @@ class StockReloadPage extends Component
             ->orderBy('nome')
             ->paginate(12);
 
+        $reloadHistory = StockMovement::query()
+            ->stockReloads()
+            ->with(['product', 'toLocation', 'performedBy', 'reloadRecord'])
+            ->latest()
+            ->paginate(10, ['*'], 'historyPage');
+
         return view('livewire.admin.stock-reload-page')
             ->layout('components.layouts.desktop', ['title' => 'Recarregar Stock | RetailPro'])
             ->with([
                 'products' => $products,
+                'reloadHistory' => $reloadHistory,
                 'locations' => StockLocation::query()
                     ->where('is_active', true)
                     ->orderBy('is_saleable', 'desc')

@@ -67,7 +67,7 @@ class StockController extends Controller
                 'type' => 'IN',
                 'quantity' => $quantity,
                 'unit_cost' => $unitCost,
-                'reference_type' => 'PURCHASE',
+                'reference_type' => 'STOCK_RELOAD',
                 'reference_id' => $purchase->id,
                 'note' => $dados['note'] ?? 'Recarregamento via API',
                 'performed_by' => auth('api')->id(),
