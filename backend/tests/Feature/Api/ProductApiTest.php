@@ -46,4 +46,21 @@ class ProductApiTest extends TestCase
         $this->assertCount(1, $resposta->json('data'));
         $this->assertSame('Produto Teste', $resposta->json('data.0.nome'));
     }
+
+    public function test_filtra_produto_por_codigo_barras_exacto(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['codigo_barras' => '7891234567890']);
+
+        $resposta = $this->getJson(
+            '/api/v1/products?barcode=7891234567890&source_location_id='.$ambiente['location']->id,
+            $this->authHeaders($token)
+        );
+
+        $resposta->assertOk();
+        $this->assertCount(1, $resposta->json('data'));
+        $this->assertSame($produto->id, $resposta->json('data.0.id'));
+    }
 }

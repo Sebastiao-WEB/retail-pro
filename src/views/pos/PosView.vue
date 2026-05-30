@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
 import BotaoBase from "../../components/BotaoBase.vue";
@@ -11,10 +11,14 @@ import { useVendaStore } from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
-import { temApiConfigurada } from "../../api";
+import { temApiConfigurada, ApiError } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao, enviarAbrirGaveta } from "../../services/talaoImpressao";
 import { enviarRelatorioFechoParaImpressao } from "../../services/relatorioFechoImpressao";
+import {
+  criarEstadoLeitorCodigoBarras,
+  processarTeclaLeitorCodigoBarras,
+} from "../../utils/leitorCodigoBarras";
 import {
   Barcode,
   Check,
@@ -42,6 +46,8 @@ const sessaoStore = useSessaoStore();
 const route = useRoute();
 
 const pesquisa = ref("");
+const pesquisaInputRef = ref(null);
+const estadoLeitorCodigo = criarEstadoLeitorCodigoBarras();
 const cliente = ref("Cliente Geral");
 const descontoAtivo = ref(false);
 const valorPagoInteiro = ref("0");
@@ -61,11 +67,21 @@ const listaPreVisualizacaoRef = ref(null);
 const processandoAberturaCaixa = ref(false);
 const processandoFechoCaixa = ref(false);
 const menuPosAtivo = computed(() => (route.query?.secao === "caixa" ? "caixa" : "venda"));
+const modalBloqueiaLeitor = computed(
+  () =>
+    modalImpressaoAberto.value ||
+    modalFechoCaixa.value ||
+    modalSolicitarReversaoAberto.value ||
+    modalAberturaCaixa.value
+);
+const pesquisaDeveTerFoco = computed(() => menuPosAtivo.value === "venda" && !modalBloqueiaLeitor.value);
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 
 let debouncePesquisaTimer = null;
 let sequenciaPesquisa = 0;
+let intervaloStockRemoto = null;
+const INTERVALO_SYNC_STOCK_MS = 30_000;
 
 async function executarPesquisaProdutos(termoInformado) {
   const termo = String(termoInformado ?? pesquisa.value).trim();
@@ -86,12 +102,138 @@ async function executarPesquisaProdutos(termoInformado) {
   }
 }
 
+function limparCampoPesquisa({ manterEstadoLeitor = false } = {}) {
+  clearTimeout(debouncePesquisaTimer);
+  sequenciaPesquisa += 1;
+  pesquisa.value = "";
+  produtoStore.limparPesquisa();
+  if (!manterEstadoLeitor) {
+    Object.assign(estadoLeitorCodigo, criarEstadoLeitorCodigoBarras());
+  }
+}
+
+function aoTeclaCampoPesquisa(event, { capturaGlobal = false } = {}) {
+  const { estado, acao, valor } = processarTeclaLeitorCodigoBarras(estadoLeitorCodigo, event);
+  Object.assign(estadoLeitorCodigo, estado);
+
+  if (acao === "confirmar-leitor") {
+    event.preventDefault();
+    void processarLeituraCodigoBarras();
+    return acao;
+  }
+
+  if (acao === "confirmar-manual") {
+    event.preventDefault();
+    pesquisarProdutosAgora();
+    return acao;
+  }
+
+  if (acao === "iniciar-leitor") {
+    event.preventDefault();
+    limparCampoPesquisa({ manterEstadoLeitor: true });
+    pesquisa.value = valor;
+    return acao;
+  }
+
+  if (capturaGlobal && (acao === "continuar-leitor" || acao === "normal") && event.key.length === 1) {
+    event.preventDefault();
+    pesquisa.value += event.key;
+    return acao;
+  }
+
+  return acao;
+}
+
+function capturarTeclasPosGlobais(event) {
+  if (!pesquisaDeveTerFoco.value) return;
+  if (event.target === pesquisaInputRef.value) return;
+
+  const teclaRelevante =
+    event.key === "Enter" || (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey);
+  if (!teclaRelevante) return;
+
+  event.preventDefault();
+  pesquisaInputRef.value?.focus({ preventScroll: true });
+  aoTeclaCampoPesquisa(event, { capturaGlobal: true });
+}
+
+async function processarLeituraCodigoBarras() {
+  const codigo = pesquisa.value.trim();
+  if (!codigo) return;
+
+  clearTimeout(debouncePesquisaTimer);
+  sequenciaPesquisa += 1;
+
+  const filtros = filtrosStockPos();
+  await produtoStore.garantirCatalogoPos(filtros);
+
+  const produto = await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros);
+
+  if (!produto) {
+    mostrarToastSwal(`Produto não encontrado para o código ${codigo}.`, "error");
+    limparCampoPesquisa();
+    await focarCampoPesquisa();
+    return;
+  }
+
+  if (temApiConfigurada() && origemStockVenda.value.id) {
+    await produtoStore.atualizarStockRemoto([produto.id], filtros);
+  }
+
+  const produtoAtualizado = obterProdutoAtualizado(produto);
+
+  if (!sessaoStore.turnoAberto) {
+    mostrarToastSwal("Abra o caixa antes de registar vendas.", "error");
+    limparCampoPesquisa();
+    await focarCampoPesquisa();
+    return;
+  }
+
+  if (!podeAdicionarProduto(produtoAtualizado)) {
+    if (produtoAtualizado.stock <= 0) {
+      mostrarToastSwal(`Sem stock para "${produtoAtualizado.nome}".`, "error");
+    } else {
+      mostrarErroStock("Não é possível adicionar acima do stock disponível.");
+    }
+    limparCampoPesquisa();
+    await focarCampoPesquisa();
+    return;
+  }
+
+  await adicionarAoCarrinho(produtoAtualizado);
+  limparCampoPesquisa();
+  await focarCampoPesquisa();
+}
+
+async function focarCampoPesquisa() {
+  if (!pesquisaDeveTerFoco.value) return;
+
+  await nextTick();
+
+  const tentarFoco = () => {
+    const input = pesquisaInputRef.value;
+    if (!input || !pesquisaDeveTerFoco.value) return false;
+    input.focus({ preventScroll: true });
+    return document.activeElement === input;
+  };
+
+  if (tentarFoco()) return;
+
+  [50, 150, 350, 700].forEach((atraso) => {
+    window.setTimeout(() => {
+      tentarFoco();
+    }, atraso);
+  });
+}
+
 function pesquisarProdutosAgora() {
   clearTimeout(debouncePesquisaTimer);
   executarPesquisaProdutos(pesquisa.value);
 }
 
 watch(pesquisa, (valor) => {
+  if (estadoLeitorCodigo.modoLeitorCodigo) return;
+
   clearTimeout(debouncePesquisaTimer);
   const termo = String(valor || "").trim();
   if (!termo) {
@@ -102,6 +244,28 @@ watch(pesquisa, (valor) => {
   debouncePesquisaTimer = setTimeout(() => {
     executarPesquisaProdutos(termo);
   }, 300);
+});
+
+watch(menuPosAtivo, (secao) => {
+  if (secao === "venda") {
+    void sincronizarStockPos();
+    void focarCampoPesquisa();
+    iniciarSincronizacaoStockPeriodica();
+    return;
+  }
+  pararSincronizacaoStockPeriodica();
+});
+
+watch(modalAberturaCaixa, (aberto) => {
+  if (!aberto) {
+    void focarCampoPesquisa();
+  }
+});
+
+watch(modalBloqueiaLeitor, (bloqueado) => {
+  if (!bloqueado) {
+    void focarCampoPesquisa();
+  }
 });
 
 const clientesDisponiveis = computed(() => clienteStore.clientes);
@@ -189,8 +353,43 @@ function ajustarCarrinhoAoStock() {
 
 async function sincronizarStockPos() {
   if (!temApiConfigurada()) return;
-  await produtoStore.sincronizarProdutos(filtrosStockPos());
+  await produtoStore.garantirCatalogoPos(filtrosStockPos());
   ajustarCarrinhoAoStock();
+}
+
+function idsProdutosCarrinho() {
+  return [...new Set(carrinhoStore.itens.map((item) => item.produtoId).filter(Boolean))];
+}
+
+async function atualizarStockRemoto(productIds = null) {
+  if (!temApiConfigurada() || !origemStockVenda.value.id) return;
+
+  const ids = productIds?.length ? productIds : idsProdutosCarrinho();
+  if (!ids.length) return;
+
+  await produtoStore.atualizarStockRemoto(ids, filtrosStockPos());
+  ajustarCarrinhoAoStock();
+}
+
+function obterProdutoAtualizado(produto) {
+  return produtoStore.produtos.find((reg) => reg.id === produto.id) || produto;
+}
+
+function iniciarSincronizacaoStockPeriodica() {
+  pararSincronizacaoStockPeriodica();
+  if (!temApiConfigurada() || menuPosAtivo.value !== "venda") return;
+
+  intervaloStockRemoto = window.setInterval(() => {
+    if (!sessaoStore.turnoAberto || modalBloqueiaLeitor.value) return;
+    void atualizarStockRemoto();
+  }, INTERVALO_SYNC_STOCK_MS);
+}
+
+function pararSincronizacaoStockPeriodica() {
+  if (intervaloStockRemoto) {
+    window.clearInterval(intervaloStockRemoto);
+    intervaloStockRemoto = null;
+  }
 }
 
 function validarStockCarrinhoAtual() {
@@ -243,21 +442,38 @@ function mostrarToast(texto, tipo = "erro") {
 }
 
 async function adicionarAoCarrinho(produto) {
-  if (!podeAdicionarProduto(produto)) {
-    mostrarErroStock("Não é possível adicionar acima do stock disponível.");
+  if (temApiConfigurada() && origemStockVenda.value.id) {
+    await produtoStore.atualizarStockRemoto([produto.id], filtrosStockPos());
+  }
+
+  const produtoAtualizado = obterProdutoAtualizado(produto);
+
+  if (!podeAdicionarProduto(produtoAtualizado)) {
+    if (produtoAtualizado.stock <= 0) {
+      mostrarErroStock(`Sem stock disponível para "${produtoAtualizado.nome}".`);
+    } else {
+      mostrarErroStock("Não é possível adicionar acima do stock disponível.");
+    }
     return;
   }
-  carrinhoStore.adicionarProduto(produto);
+
+  carrinhoStore.adicionarProduto(produtoAtualizado);
   await nextTick();
   if (listaPreVisualizacaoRef.value) {
     listaPreVisualizacaoRef.value.scrollTop = 0;
   }
 }
 
-function atualizarQuantidade(produtoId, valor) {
+async function atualizarQuantidade(produtoId, valor) {
+  const item = carrinhoStore.itens.find((reg) => reg.produtoId === produtoId);
   const quantidade = Number.parseInt(valor, 10);
-  const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
   const quantidadeFinal = Number.isNaN(quantidade) ? 1 : quantidade;
+
+  if (item && quantidadeFinal > item.quantidade && temApiConfigurada() && origemStockVenda.value.id) {
+    await produtoStore.atualizarStockRemoto([produtoId], filtrosStockPos());
+  }
+
+  const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
   const limiteStock = produto?.stock ?? quantidadeFinal;
   if (quantidadeFinal > limiteStock) {
     carrinhoStore.definirQuantidade(produtoId, limiteStock);
@@ -357,7 +573,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
   if (temApiConfigurada()) {
     try {
-      await sincronizarStockPos();
+      await atualizarStockRemoto(idsProdutosCarrinho());
     } catch (erro) {
       mostrarToastSwal(erro?.message || "Falha ao sincronizar stock antes da venda.", "error");
       return;
@@ -432,7 +648,20 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   try {
     await vendaStore.registarVenda(venda);
   } catch (erro) {
-    mostrarToastSwal(erro?.message || "Falha ao registar venda na API.", "error");
+    const mensagemStock =
+      erro instanceof ApiError && erro.status === 422
+        ? erro.message || "Stock insuficiente para concluir a venda."
+        : erro?.message || "Falha ao registar venda na API.";
+
+    if (temApiConfigurada()) {
+      try {
+        await atualizarStockRemoto(idsProdutosCarrinho());
+      } catch {
+        // Mantém mensagem principal da venda rejeitada.
+      }
+    }
+
+    mostrarToastSwal(mensagemStock, "error");
     return;
   }
   if (temApiConfigurada()) {
@@ -518,6 +747,7 @@ async function confirmarSolicitacaoReversao() {
 }
 
 onMounted(async () => {
+  window.addEventListener("keydown", capturarTeclasPosGlobais, true);
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
   if (temApiConfigurada()) {
@@ -534,6 +764,22 @@ onMounted(async () => {
   if (!sessaoStore.turnoAberto) {
     modalAberturaCaixa.value = true;
   }
+  if (menuPosAtivo.value === "venda") {
+    await sincronizarStockPos();
+    await focarCampoPesquisa();
+    iniciarSincronizacaoStockPeriodica();
+  }
+});
+
+onActivated(() => {
+  if (menuPosAtivo.value === "venda") {
+    void focarCampoPesquisa();
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", capturarTeclasPosGlobais, true);
+  pararSincronizacaoStockPeriodica();
 });
 
 async function abrirTurnoCaixa() {
@@ -553,10 +799,13 @@ async function abrirTurnoCaixa() {
     } else {
       mostrarToastSwal(`Caixa aberto localmente. API de sessão indisponível: ${resultado.erro || "erro não detalhado"}`, "warning");
     }
+    await sincronizarStockPos();
   } else {
     mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)}.`, "success");
   }
   processandoAberturaCaixa.value = false;
+  await focarCampoPesquisa();
+  iniciarSincronizacaoStockPeriodica();
 }
 
 function abrirFechoCaixa() {
@@ -649,11 +898,15 @@ async function confirmarFechoCaixa() {
                 <Barcode :size="42" :stroke-width="1.8" />
               </div>
               <input
+                ref="pesquisaInputRef"
                 v-model="pesquisa"
                 type="text"
                 placeholder="Nome ou código de barras..."
                 class="min-w-0 flex-1 px-3 py-4 text-sm focus:outline-none"
-                @keydown.enter.prevent="pesquisarProdutosAgora"
+                autocomplete="off"
+                spellcheck="false"
+                :autofocus="pesquisaDeveTerFoco"
+                @keydown="aoTeclaCampoPesquisa"
               />
             </div>
           </div>

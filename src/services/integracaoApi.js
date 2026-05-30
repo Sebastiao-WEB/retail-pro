@@ -5,6 +5,7 @@ import {
   productsApi,
   customersApi,
   salesApi,
+  stockApi,
   cashApi,
 } from "../api";
 import { ApiError } from "../api/httpClient";
@@ -26,6 +27,21 @@ export async function carregarProdutosIntegrado(filtros = {}) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) return obterProdutos();
   return mapearLista(mapearProduto, normalizarLista(await productsApi.listar(filtros)));
+}
+
+export async function consultarStockRemotoIntegrado({ location_id, product_ids = [] }) {
+  garantirBackendDisponivel();
+  if (!temApiConfigurada()) return {};
+
+  const resposta = await stockApi.consultarDisponibilidade({ location_id, product_ids });
+  const dados = resposta?.data;
+  if (!dados || typeof dados !== "object" || Array.isArray(dados)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(dados).map(([productId, quantity]) => [productId, Number(quantity || 0)])
+  );
 }
 
 export async function carregarClientesIntegrado() {

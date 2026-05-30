@@ -92,4 +92,41 @@ class StockController extends Controller
             ],
         ]);
     }
+
+    public function availability(Request $request)
+    {
+        $dados = $request->validate([
+            'location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
+            'product_ids' => ['required', 'string'],
+        ]);
+
+        $productIds = collect(explode(',', $dados['product_ids']))
+            ->map(fn (string $id) => trim($id))
+            ->filter(fn (string $id) => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($productIds === []) {
+            return response()->json(['data' => []]);
+        }
+
+        if (count($productIds) > 100) {
+            return response()->json([
+                'message' => 'Limite de 100 produtos por consulta de stock.',
+            ], 422);
+        }
+
+        $balances = StockBalance::query()
+            ->where('location_id', $dados['location_id'])
+            ->whereIn('product_id', $productIds)
+            ->pluck('quantity', 'product_id');
+
+        $data = [];
+        foreach ($productIds as $productId) {
+            $data[$productId] = (float) ($balances[$productId] ?? 0);
+        }
+
+        return response()->json(['data' => $data]);
+    }
 }

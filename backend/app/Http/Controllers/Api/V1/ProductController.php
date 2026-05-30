@@ -16,12 +16,15 @@ class ProductController extends Controller
     public function index()
     {
         $search = request()->string('search')->toString();
+        $barcode = request()->string('barcode')->toString();
         $locationId = request()->string('source_location_id')->toString()
             ?: request()->string('location_id')->toString();
 
         $query = Product::query()->where('is_active', true);
 
-        if ($search !== '') {
+        if ($barcode !== '') {
+            $query->where('codigo_barras', $barcode);
+        } elseif ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('nome', 'like', "%{$search}%")
                     ->orWhere('codigo_barras', 'like', "%{$search}%");
