@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\BalanceSheetPdfController;
+use App\Livewire\Admin\BalanceSheetsPage;
 use App\Livewire\Admin\CashSessionsActivePage;
 use App\Livewire\Admin\CashSessionsClosedPage;
 use App\Livewire\Admin\CustomersPage;
@@ -26,6 +28,8 @@ Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
     Route::get('/produtos', ProductsPage::class)->middleware('permission:products.view')->name('products.index');
     Route::get('/clientes', CustomersPage::class)->middleware('permission:customers.view')->name('customers.index');
     Route::get('/vendas', SalesPage::class)->middleware('permission:sales.view')->name('sales.index');
+    Route::get('/balanco-patrimonial', BalanceSheetsPage::class)->middleware('permission:balance_sheets.view')->name('balance-sheets.index');
+    Route::get('/balanco-patrimonial/{balanceSheet}/pdf', BalanceSheetPdfController::class)->middleware('permission:balance_sheets.view')->name('balance-sheets.pdf');
     Route::get('/sessoes-caixa-activas', CashSessionsActivePage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.active');
     Route::get('/historico-fechos-caixa', CashSessionsClosedPage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.closed');
     Route::get('/reversoes', ReversalsPage::class)->middleware('permission:reversals.view')->name('reversals.index');
