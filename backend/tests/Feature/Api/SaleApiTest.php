@@ -163,4 +163,88 @@ class SaleApiTest extends TestCase
         $this->assertCount(1, $resposta->json('data'));
         $this->assertSame('VD-TEST-A', $resposta->json('data.0.referencia'));
     }
+
+    public function test_gera_referencias_unicas_quando_nao_informadas(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+
+        $payload = [
+            'cliente' => 'Cliente Geral',
+            'caixa' => 'Caixa Teste',
+            'operador' => 'Operador Teste',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'valorPago' => 100,
+            'troco' => 0,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 100,
+                    'subtotal' => 100,
+                ],
+            ],
+        ];
+
+        $primeira = $this->postJson('/api/v1/sales', $payload, $this->authHeaders($token));
+        $segunda = $this->postJson('/api/v1/sales', $payload, $this->authHeaders($token));
+
+        $primeira->assertCreated();
+        $segunda->assertCreated();
+
+        $referenciaA = $primeira->json('data.referencia');
+        $referenciaB = $segunda->json('data.referencia');
+
+        $this->assertNotSame($referenciaA, $referenciaB);
+        $this->assertMatchesRegularExpression('/^VD-\d{8}-\d{6}-[A-Z0-9]{4}$/', $referenciaA);
+    }
+
+    public function test_reutiliza_venda_quando_id_ja_existe(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $saleId = (string) Str::uuid();
+
+        $payload = [
+            'id' => $saleId,
+            'cliente' => 'Cliente Geral',
+            'caixa' => 'Caixa Teste',
+            'operador' => 'Operador Teste',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'valorPago' => 100,
+            'troco' => 0,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 100,
+                    'subtotal' => 100,
+                ],
+            ],
+        ];
+
+        $primeira = $this->postJson('/api/v1/sales', $payload, $this->authHeaders($token));
+        $segunda = $this->postJson('/api/v1/sales', $payload, $this->authHeaders($token));
+
+        $primeira->assertCreated();
+        $segunda->assertCreated();
+
+        $this->assertDatabaseCount('sales', 1);
+        $this->assertSame($saleId, $segunda->json('data.id'));
+
+        $produto->refresh();
+        $this->assertSame(99.0, (float) $produto->stock);
+    }
 }

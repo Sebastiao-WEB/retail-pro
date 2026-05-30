@@ -38,20 +38,24 @@ async function aoClicar(evento) {
   const handlers = normalizarHandlersClique(attrs.onClick);
   if (!handlers.length) return;
 
-  const retornos = handlers.map((handler) => {
-    try {
-      return handler(evento);
-    } catch (erro) {
-      return Promise.reject(erro);
-    }
-  });
-
-  const promessas = retornos.filter((resultado) => resultado && typeof resultado.then === "function");
-  if (!promessas.length) return;
-
   carregandoInterno.value = true;
-  await Promise.allSettled(promessas);
-  carregandoInterno.value = false;
+
+  try {
+    const retornos = handlers.map((handler) => {
+      try {
+        return handler(evento);
+      } catch (erro) {
+        return Promise.reject(erro);
+      }
+    });
+
+    const promessas = retornos.filter((resultado) => resultado && typeof resultado.then === "function");
+    if (promessas.length) {
+      await Promise.allSettled(promessas);
+    }
+  } finally {
+    carregandoInterno.value = false;
+  }
 }
 </script>
 

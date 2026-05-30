@@ -104,6 +104,12 @@ class SaleController extends Controller
 
         $sale = DB::transaction(function () use ($dados) {
             $locationId = $dados['source_location_id'] ?? ($dados['sourceLocationId'] ?? null);
+            $saleId = $dados['id'] ?? (string) Str::uuid();
+
+            if ($saleId !== '' && Sale::query()->where('id', $saleId)->exists()) {
+                return Sale::query()->with('itens')->findOrFail($saleId);
+            }
+
             $itensComProduto = collect($dados['itens'])
                 ->filter(fn (array $item) => ! empty($item['produtoId']))
                 ->values();
@@ -154,8 +160,8 @@ class SaleController extends Controller
             }
 
             $sale = Sale::create([
-                'id' => $dados['id'] ?? (string) Str::uuid(),
-                'referencia' => $dados['referencia'] ?? ('VD-'.now()->format('Ymd-His')),
+                'id' => $saleId,
+                'referencia' => $this->gerarReferenciaUnica($dados['referencia'] ?? null),
                 'register_id' => $dados['register_id'] ?? ($dados['registerId'] ?? null),
                 'source_location_id' => $locationId,
                 'cash_session_id' => $dados['cash_session_id'] ?? ($dados['cashSessionId'] ?? null),
@@ -283,4 +289,22 @@ class SaleController extends Controller
 
     public function update(Request $request, string $id) {}
     public function destroy(string $id) {}
+
+    private function gerarReferenciaUnica(?string $preferida = null): string
+    {
+        $preferida = trim((string) $preferida);
+        if ($preferida !== '' && ! Sale::query()->where('referencia', $preferida)->exists()) {
+            return $preferida;
+        }
+
+        do {
+            $referencia = sprintf(
+                'VD-%s-%s',
+                now()->format('Ymd-His'),
+                strtoupper(Str::random(4))
+            );
+        } while (Sale::query()->where('referencia', $referencia)->exists());
+
+        return $referencia;
+    }
 }

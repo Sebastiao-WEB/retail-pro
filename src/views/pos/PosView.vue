@@ -55,6 +55,8 @@ const valorPagoDecimal = ref("00");
 const modalImpressaoAberto = ref(false);
 const vendaPendente = ref(null);
 const imprimindoAgora = ref(false);
+const processandoConclusaoVenda = ref(false);
+const vendasEmRegisto = new Set();
 const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
@@ -566,6 +568,13 @@ function validarOrigemStock() {
   return false;
 }
 
+function gerarIdVenda() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `local-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
+
 function finalizarVenda() {
   if (!sessaoStore.turnoAberto) {
     mostrarToast("Abra o caixa antes de finalizar vendas.", "erro");
@@ -577,6 +586,7 @@ function finalizarVenda() {
     return;
   }
   vendaPendente.value = {
+    id: gerarIdVenda(),
     cliente: cliente.value,
     itens: carrinhoStore.itens.map((item) => ({ ...item })),
     caixa: sessaoStore.caixaAtribuido,
@@ -609,128 +619,162 @@ function limparCarrinhoAtual() {
 }
 
 async function concluirVenda(opcoes = { imprimir: true }) {
+  if (processandoConclusaoVenda.value) return;
   if (opcoes.imprimir && imprimindoAgora.value) return;
-  if (!vendaPendente.value) return;
-  if (!validarOrigemStock()) return;
-  if (carrinhoStore.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < carrinhoStore.total) {
-    mostrarToastSwal("Valor pago insuficiente para concluir a venda.", "error");
-    return;
-  }
 
-  if (temApiConfigurada()) {
-    try {
-      await atualizarStockRemoto(idsProdutosCarrinho());
-    } catch (erro) {
-      mostrarToastSwal(erro?.message || "Falha ao sincronizar stock antes da venda.", "error");
-      return;
-    }
-    const validacaoStock = validarStockCarrinhoAtual();
-    if (!validacaoStock.ok) {
-      mostrarToastSwal(validacaoStock.erro, "error");
-      return;
-    }
-  }
+  const pendente = vendaPendente.value;
+  if (!pendente) return;
+  if (pendente.id && vendasEmRegisto.has(pendente.id)) return;
 
-  const venda = {
-    ...vendaPendente.value,
-    cliente: cliente.value,
-    itens: carrinhoStore.itens.map((item) => ({ ...item })),
-    subtotal: carrinhoStore.subtotal,
-    descontoTipo: carrinhoStore.descontoTipo,
-    descontoValor: carrinhoStore.descontoValor,
-    descontoAplicado: carrinhoStore.valorDesconto,
-    total: carrinhoStore.total,
-    metodoPagamento: carrinhoStore.metodoPagamento,
-    valorPago: valorPagoNumerico.value,
-    troco: troco.value,
-    registerId: sessaoStore.registerId,
-    registerCodigo: sessaoStore.registerCodigo,
-    cashSessionId: sessaoStore.cashSessionId,
-    sourceLocationId: origemStockVenda.value.id,
-    sourceLocationCodigo: origemStockVenda.value.codigo,
-    sourceLocationNome: origemStockVenda.value.nome,
-    register_id: sessaoStore.registerId,
-    source_location_id: origemStockVenda.value.id,
-    cash_session_id: sessaoStore.cashSessionId,
-    cashSessionId: sessaoStore.cashSessionId,
-  };
-  if (opcoes.imprimir) {
-    if (!window.api?.imprimirTalao) {
-      mostrarToastSwal("API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.", "error");
-      return;
-    }
-    if (!configuracaoStore.impressoraPadrao) {
-      mostrarToastSwal("Defina a impressora padrão em Configurações para imprimir.", "error");
-      return;
-    }
-    imprimindoAgora.value = true;
-    const pagamentoDinheiro = carrinhoStore.metodoPagamento === "Dinheiro";
-    const resultado = await enviarTalaoParaImpressao({
-      venda,
-      configuracao: configuracaoStore,
-      opcoes: {
-        copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
-        corteAutomatico: !!configuracaoStore.corteAutomatico,
-        abrirGaveta: pagamentoDinheiro && !!configuracaoStore.abrirGavetaAutomatico,
-      },
-    });
-    imprimindoAgora.value = false;
-    if (!resultado?.ok) {
-      mostrarToastSwal(resultado?.error || "Falha ao imprimir talão.", "error");
-      return;
-    }
-  } else if (
-    carrinhoStore.metodoPagamento === "Dinheiro" &&
-    configuracaoStore.abrirGavetaAutomatico &&
-    window.api?.abrirGaveta &&
-    configuracaoStore.impressoraPadrao
-  ) {
-    const resultadoGaveta = await enviarAbrirGaveta({ configuracao: configuracaoStore });
-    if (!resultadoGaveta?.ok) {
-      mostrarToastSwal(resultadoGaveta?.error || "Falha ao abrir gaveta.", "warning");
-    }
-  }
+  processandoConclusaoVenda.value = true;
+  if (pendente.id) vendasEmRegisto.add(pendente.id);
 
   try {
-    await vendaStore.registarVenda(venda);
-  } catch (erro) {
-    const mensagemStock =
-      erro instanceof ApiError && erro.status === 422
-        ? erro.message || "Stock insuficiente para concluir a venda."
-        : erro?.message || "Falha ao registar venda na API.";
+    const itensPendentes = Array.isArray(pendente.itens) ? pendente.itens : [];
+    if (!itensPendentes.length) {
+      mostrarToastSwal("O carrinho ficou vazio. Adicione produtos antes de concluir a venda.", "error");
+      modalImpressaoAberto.value = false;
+      vendaPendente.value = null;
+      return;
+    }
+
+    if (!validarOrigemStock()) return;
+
+    const totalPendente = Number(pendente.total ?? 0);
+    if (pendente.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < totalPendente) {
+      mostrarToastSwal("Valor pago insuficiente para concluir a venda.", "error");
+      return;
+    }
+
+    const idsPendentes = [...new Set(itensPendentes.map((item) => item.produtoId).filter(Boolean))];
 
     if (temApiConfigurada()) {
       try {
-        await atualizarStockRemoto(idsProdutosCarrinho());
-      } catch {
-        // Mantém mensagem principal da venda rejeitada.
+        await atualizarStockRemoto(idsPendentes);
+      } catch (erro) {
+        mostrarToastSwal(erro?.message || "Falha ao sincronizar stock antes da venda.", "error");
+        return;
+      }
+      for (const item of itensPendentes) {
+        const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
+        if (!produto || produto.stock <= 0) {
+          mostrarToastSwal(`Stock indisponível para "${item.nome}".`, "error");
+          return;
+        }
+        if (item.quantidade > produto.stock) {
+          mostrarToastSwal(`Stock insuficiente para "${item.nome}". Disponível: ${produto.stock}.`, "error");
+          return;
+        }
       }
     }
 
-    mostrarToastSwal(mensagemStock, "error");
-    return;
-  }
-  if (temApiConfigurada()) {
-    try {
-      await sincronizarStockPos();
-    } catch {
-      // A venda já foi registada; o operador pode sincronizar manualmente ao reabrir o POS.
-    }
-  } else {
-    produtoStore.aplicarVenda(venda.itens);
-  }
-  carrinhoStore.limparCarrinho();
-  valorPagoInteiro.value = "0";
-  valorPagoDecimal.value = "00";
-  modalImpressaoAberto.value = false;
+    const venda = {
+      ...pendente,
+      cliente: cliente.value,
+      itens: itensPendentes.map((item) => ({ ...item })),
+      subtotal: pendente.subtotal,
+      descontoTipo: pendente.descontoTipo,
+      descontoValor: pendente.descontoValor,
+      descontoAplicado: pendente.descontoAplicado,
+      total: totalPendente,
+      metodoPagamento: pendente.metodoPagamento,
+      valorPago: valorPagoNumerico.value,
+      troco: troco.value,
+      registerId: sessaoStore.registerId,
+      registerCodigo: sessaoStore.registerCodigo,
+      cashSessionId: sessaoStore.cashSessionId,
+      sourceLocationId: origemStockVenda.value.id,
+      sourceLocationCodigo: origemStockVenda.value.codigo,
+      sourceLocationNome: origemStockVenda.value.nome,
+      register_id: sessaoStore.registerId,
+      source_location_id: origemStockVenda.value.id,
+      cash_session_id: sessaoStore.cashSessionId,
+    };
 
-  mostrarToastSwal(
-    opcoes.imprimir
-      ? `Venda realizada e enviada para impressão em ${configuracaoStore.impressoraPadrao}.`
-      : "Venda realizada com sucesso.",
-    "success"
-  );
-  vendaPendente.value = null;
+    if (opcoes.imprimir) {
+      if (!window.api?.imprimirTalao) {
+        mostrarToastSwal("API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.", "error");
+        return;
+      }
+      if (!configuracaoStore.impressoraPadrao) {
+        mostrarToastSwal("Defina a impressora padrão em Configurações para imprimir.", "error");
+        return;
+      }
+      imprimindoAgora.value = true;
+      const pagamentoDinheiro = pendente.metodoPagamento === "Dinheiro";
+      const resultado = await enviarTalaoParaImpressao({
+        venda,
+        configuracao: configuracaoStore,
+        opcoes: {
+          copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
+          corteAutomatico: !!configuracaoStore.corteAutomatico,
+          abrirGaveta: pagamentoDinheiro && !!configuracaoStore.abrirGavetaAutomatico,
+        },
+      });
+      imprimindoAgora.value = false;
+      if (!resultado?.ok) {
+        mostrarToastSwal(resultado?.error || "Falha ao imprimir talão.", "error");
+        return;
+      }
+    } else if (
+      pendente.metodoPagamento === "Dinheiro" &&
+      configuracaoStore.abrirGavetaAutomatico &&
+      window.api?.abrirGaveta &&
+      configuracaoStore.impressoraPadrao
+    ) {
+      const resultadoGaveta = await enviarAbrirGaveta({ configuracao: configuracaoStore });
+      if (!resultadoGaveta?.ok) {
+        mostrarToastSwal(resultadoGaveta?.error || "Falha ao abrir gaveta.", "warning");
+      }
+    }
+
+    try {
+      await vendaStore.registarVenda(venda);
+    } catch (erro) {
+      const mensagemStock =
+        erro instanceof ApiError && erro.status === 422
+          ? erro.message || "Stock insuficiente para concluir a venda."
+          : erro?.message || "Falha ao registar venda na API.";
+
+      if (temApiConfigurada()) {
+        try {
+          await atualizarStockRemoto(idsPendentes);
+        } catch {
+          // Mantém mensagem principal da venda rejeitada.
+        }
+      }
+
+      mostrarToastSwal(mensagemStock, "error");
+      return;
+    }
+
+    if (temApiConfigurada()) {
+      try {
+        await sincronizarStockPos();
+      } catch {
+        // A venda já foi registada; o operador pode sincronizar manualmente ao reabrir o POS.
+      }
+    } else {
+      produtoStore.aplicarVenda(venda.itens);
+    }
+
+    carrinhoStore.limparCarrinho();
+    valorPagoInteiro.value = "0";
+    valorPagoDecimal.value = "00";
+    modalImpressaoAberto.value = false;
+    vendaPendente.value = null;
+
+    mostrarToastSwal(
+      opcoes.imprimir
+        ? `Venda realizada e enviada para impressão em ${configuracaoStore.impressoraPadrao}.`
+        : "Venda realizada com sucesso.",
+      "success"
+    );
+  } finally {
+    if (pendente?.id) vendasEmRegisto.delete(pendente.id);
+    processandoConclusaoVenda.value = false;
+    imprimindoAgora.value = false;
+  }
 }
 
 async function reimprimirVenda(venda) {
@@ -1438,14 +1482,14 @@ async function confirmarFechoCaixa() {
             <span>Cancelar</span>
           </span>
         </BotaoBase>
-        <BotaoBase :disabled="imprimindoAgora" variante="aviso" title="Concluir sem imprimir" aria-label="Concluir sem imprimir" @click="concluirVenda({ imprimir: false })">
+        <BotaoBase :disabled="processandoConclusaoVenda || imprimindoAgora" variante="aviso" title="Concluir sem imprimir" aria-label="Concluir sem imprimir" @click="concluirVenda({ imprimir: false })">
           <Check :size="16" :stroke-width="2.2" />
         </BotaoBase>
         <BotaoBase
-          :disabled="!configuracaoStore.impressoraPadrao || imprimindoAgora"
+          :disabled="!configuracaoStore.impressoraPadrao || imprimindoAgora || processandoConclusaoVenda"
           variante="sucesso"
-          :title="imprimindoAgora ? 'A imprimir...' : 'Imprimir e concluir'"
-          :aria-label="imprimindoAgora ? 'A imprimir...' : 'Imprimir e concluir'"
+          :title="imprimindoAgora || processandoConclusaoVenda ? 'A concluir...' : 'Imprimir e concluir'"
+          :aria-label="imprimindoAgora || processandoConclusaoVenda ? 'A concluir...' : 'Imprimir e concluir'"
           @click="concluirVenda({ imprimir: true })"
         >
           <LoaderCircle v-if="imprimindoAgora" class="animate-spin" :size="16" :stroke-width="2.2" />
