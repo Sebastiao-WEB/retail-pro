@@ -8,12 +8,12 @@
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Nome da Empresa</label>
-                <input wire:model.defer="nomeEmpresa" type="text" class="rp-input" placeholder="Empresa Demo Lda">
+                <input wire:model.defer="nomeEmpresa" type="text" class="rp-input" placeholder="Empresa Demo Lda" @disabled(! auth()->user()?->can('settings.manage'))>
                 @error('nomeEmpresa') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">NUIT</label>
-                <input wire:model.defer="nif" type="text" class="rp-input" placeholder="400000099">
+                <input wire:model.defer="nif" type="text" class="rp-input" placeholder="400000099" @disabled(! auth()->user()?->can('settings.manage'))>
                 @error('nif') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
         </div>
@@ -21,47 +21,50 @@
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Email Comercial</label>
-                <input wire:model.defer="email" type="text" class="rp-input" placeholder="geral@empresa.co.mz">
+                <input wire:model.defer="email" type="text" class="rp-input" placeholder="geral@empresa.co.mz" @disabled(! auth()->user()?->can('settings.manage'))>
                 @error('email') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Telefone</label>
-                <input wire:model.defer="telefone" type="text" class="rp-input" placeholder="+258 21 000 000">
+                <input wire:model.defer="telefone" type="text" class="rp-input" placeholder="+258 21 000 000" @disabled(! auth()->user()?->can('settings.manage'))>
                 @error('telefone') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div class="mt-3">
             <label class="mb-1 block text-xs font-semibold text-slate-600">Endereço</label>
-            <input wire:model.defer="endereco" type="text" class="rp-input" placeholder="Av. 25 de Setembro, 420, Maputo, Moçambique">
+            <input wire:model.defer="endereco" type="text" class="rp-input" placeholder="Av. 25 de Setembro, 420, Maputo, Moçambique" @disabled(! auth()->user()?->can('settings.manage'))>
             @error('endereco') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Banco</label>
-                <input wire:model.defer="banco" type="text" class="rp-input" placeholder="BCI">
+                <input wire:model.defer="banco" type="text" class="rp-input" placeholder="BCI" @disabled(! auth()->user()?->can('settings.manage'))>
                 @error('banco') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">IBAN / Nº Conta</label>
-                <input wire:model.defer="iban" type="text" class="rp-input" placeholder="MZ59 ...">
+                <input wire:model.defer="iban" type="text" class="rp-input" placeholder="MZ59 ..." @disabled(! auth()->user()?->can('settings.manage'))>
                 @error('iban') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div class="mt-3">
             <label class="mb-1 block text-xs font-semibold text-slate-600">Rodapé dos talões / facturas</label>
-            <textarea wire:model.defer="rodapeFacturas" rows="3" class="rp-input" placeholder="Obrigado pela sua preferência."></textarea>
+            <textarea wire:model.defer="rodapeFacturas" rows="3" class="rp-input" placeholder="Obrigado pela sua preferência." @disabled(! auth()->user()?->can('settings.manage'))></textarea>
             @error('rodapeFacturas') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        <div class="mt-4 flex justify-end border-t border-slate-100 pt-3">
-            <button type="button" wire:click="salvar" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black hover:brightness-95">
-                <i data-lucide="save" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
-                Guardar configurações
-            </button>
-        </div>
+        @can('settings.manage')
+            <div class="mt-4 flex justify-end border-t border-slate-100 pt-3">
+                <button type="button" wire:click="salvar" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black hover:brightness-95">
+                    <i data-lucide="save" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
+                    Guardar configurações
+                </button>
+            </div>
+        @else
+            <p class="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">Modo de consulta — não possui permissão para editar configurações.</p>
+        @endcan
     </div>
 </div>
-

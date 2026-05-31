@@ -23,6 +23,8 @@ class CompanySettingsPage extends Component
 
     public function salvar(): void
     {
+        abort_unless(auth()->user()?->can('settings.manage'), 403);
+
         $dados = $this->validate([
             'nomeEmpresa' => ['required', 'string', 'max:255'],
             'nif' => ['nullable', 'string', 'max:32'],
@@ -75,6 +77,8 @@ class CompanySettingsPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('settings.view'), 403);
+
         return view('livewire.admin.company-settings-page')
             ->layout('components.layouts.desktop', ['title' => 'Configurações | RetailPro']);
     }

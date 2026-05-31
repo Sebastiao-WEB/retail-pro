@@ -92,6 +92,8 @@ class RegistersPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('registers.view'), 403);
+
         $registers = Register::query()
             ->with('sourceLocation')
             ->when($this->search !== '', function ($q) {

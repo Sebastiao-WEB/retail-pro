@@ -121,6 +121,8 @@ class StockLocationsPage extends Component
 
     public function render(StockByLocationService $stockService)
     {
+        abort_unless(auth()->user()?->can('stock_locations.view'), 403);
+
         $locations = StockLocation::query()
             ->with('register')
             ->withSum(['balances as total_quantity' => fn ($q) => $q->where('quantity', '>', 0)], 'quantity')

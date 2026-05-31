@@ -134,6 +134,8 @@ class ProductsPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('products.view'), 403);
+
         $produtos = Product::query()
             ->when($this->search !== '', function ($q) {
                 $q->where(function ($inner) {

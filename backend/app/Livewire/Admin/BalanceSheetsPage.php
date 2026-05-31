@@ -146,6 +146,8 @@ class BalanceSheetsPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('balance_sheets.view'), 403);
+
         $balances = BalanceSheet::query()
             ->with('preparedBy')
             ->when($this->search !== '', function ($q) {

@@ -125,6 +125,8 @@ class StockReloadPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('stock.reload'), 403);
+
         $products = Product::query()
             ->where('is_active', true)
             ->when($this->search !== '', function ($q) {

@@ -43,6 +43,8 @@ class CashSessionsClosedPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('cash_sessions.view'), 403);
+
         $fechos = CashSession::query()
             ->with(['register', 'user'])
             ->where('status', 'CLOSED')

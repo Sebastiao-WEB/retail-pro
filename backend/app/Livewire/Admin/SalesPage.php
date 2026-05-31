@@ -106,7 +106,7 @@ class SalesPage extends Component
 
     public function exportCsv(): StreamedResponse
     {
-        abort_unless(auth()->user()?->can('sales.view'), 403);
+        abort_unless(auth()->user()?->can('sales.export'), 403);
 
         $filename = 'vendas-'.now()->format('Ymd-His').'.csv';
 
@@ -153,6 +153,8 @@ class SalesPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('sales.view'), 403);
+
         $vendas = $this->vendasQuery()
             ->latest('data')
             ->paginate(12);

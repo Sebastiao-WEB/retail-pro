@@ -7,10 +7,12 @@
                 Total filtrado: {{ number_format($totalFiltrado, 2, ',', '.') }} MT
             </p>
         </div>
-        <button type="button" wire:click="exportCsv" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-            <i data-lucide="download" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
-            Exportar CSV
-        </button>
+        @can('sales.export')
+            <button type="button" wire:click="exportCsv" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <i data-lucide="download" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
+                Exportar CSV
+            </button>
+        @endcan
     </div>
 
     <div class="rounded-lg border border-slate-200 bg-white p-4">

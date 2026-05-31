@@ -49,6 +49,8 @@ class Dashboard extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('dashboard.view'), 403);
+
         [$inicio, $fim] = $this->periodRange();
 
         $totalVendasPeriodo = (float) $this->salesBaseQuery()

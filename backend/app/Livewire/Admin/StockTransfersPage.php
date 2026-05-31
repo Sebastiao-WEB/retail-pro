@@ -133,6 +133,8 @@ class StockTransfersPage extends Component
 
     public function render(StockByLocationService $stockService)
     {
+        abort_unless(auth()->user()?->can('stock.transfers.view'), 403);
+
         $disponivelOrigem = null;
         if ($this->from_location_id !== '' && $this->product_id !== '') {
             $disponivelOrigem = $stockService->quantidadeDisponivel($this->from_location_id, $this->product_id);

@@ -26,7 +26,7 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->middleware('permission:dashboard.view')->name('dashboard');
     Route::get('/produtos', ProductsPage::class)->middleware('permission:products.view')->name('products.index');
     Route::get('/clientes', CustomersPage::class)->middleware('permission:customers.view')->name('customers.index');
@@ -44,7 +44,7 @@ Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
     Route::get('/recarregar-stock', StockReloadPage::class)->middleware('permission:stock.reload')->name('stock.reload');
     Route::get('/movimentos-stock', StockMovementsPage::class)->middleware('permission:stock.movements.view')->name('stock.movements');
     Route::get('/transferencias-stock', StockTransfersPage::class)->middleware('permission:stock.transfers.view')->name('stock.transfers');
-    Route::get('/configuracoes', CompanySettingsPage::class)->middleware('permission:dashboard.view')->name('settings.company');
+    Route::get('/configuracoes', CompanySettingsPage::class)->middleware('permission:settings.view')->name('settings.company');
     Route::get('/utilizadores', UsersPage::class)->middleware('permission:users.view')->name('users.index');
     Route::get('/roles-permissoes', RolesPermissionsPage::class)->middleware('permission:roles.view')->name('roles.permissions');
 });

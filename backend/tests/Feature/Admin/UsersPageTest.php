@@ -19,15 +19,16 @@ class UsersPageTest extends TestCase
         parent::setUp();
 
         Permission::findOrCreate('users.manage', 'web');
+        Permission::findOrCreate('users.view', 'web');
         $role = Role::findOrCreate('ADMIN', 'web');
-        $role->givePermissionTo(['users.manage']);
+        $role->givePermissionTo(['users.manage', 'users.view']);
     }
 
     public function test_admin_nao_pode_desactivar_a_propria_conta(): void
     {
         $admin = User::factory()->create(['role' => 'ADMIN', 'is_active' => true]);
         $admin->assignRole('ADMIN');
-        $admin->givePermissionTo('users.manage');
+        $admin->givePermissionTo(['users.manage', 'users.view']);
 
         Livewire::actingAs($admin)
             ->test(UsersPage::class)
@@ -47,7 +48,7 @@ class UsersPageTest extends TestCase
             'email' => 'admin_teste@example.com',
         ]);
         $admin->assignRole('ADMIN');
-        $admin->givePermissionTo('users.manage');
+        $admin->givePermissionTo(['users.manage', 'users.view']);
 
         Livewire::actingAs($admin)
             ->test(UsersPage::class)

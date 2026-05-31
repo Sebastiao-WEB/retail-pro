@@ -105,6 +105,8 @@ class CustomersPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('customers.view'), 403);
+
         $clientes = Customer::query()
             ->when($this->search !== '', function ($q) {
                 $q->where(function ($inner) {

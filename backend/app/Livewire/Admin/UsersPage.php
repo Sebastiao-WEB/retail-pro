@@ -223,6 +223,8 @@ class UsersPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('users.view'), 403);
+
         $users = User::query()
             ->with(['registers', 'sourceLocation'])
             ->when($this->search !== '', function ($q) {

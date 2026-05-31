@@ -30,11 +30,13 @@
             <nav class="flex-1 overflow-auto px-3 py-4">
                 <div class="mb-5">
                     <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">POS</p>
-                    <a href="{{ route('dashboard') }}"
-                       class="{{ request()->routeIs('dashboard') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
-                        <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
-                        <span>Painel administrativo</span>
-                    </a>
+                    @can('dashboard.view')
+                        <a href="{{ route('dashboard') }}"
+                           class="{{ request()->routeIs('dashboard') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
+                            <i data-lucide="layout-dashboard" class="h-4 w-4"></i>
+                            <span>Painel administrativo</span>
+                        </a>
+                    @endcan
                     @can('sales.view')
                         <a href="{{ route('sales.index') }}"
                            class="{{ request()->routeIs('sales.*') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
@@ -142,7 +144,7 @@
                             <span>Roles & Permissões</span>
                         </a>
                     @endcan
-                    @can('dashboard.view')
+                    @can('settings.view')
                         <a href="{{ route('settings.company') }}"
                            class="{{ request()->routeIs('settings.company') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
                             <i data-lucide="settings" class="h-4 w-4"></i>
