@@ -107,10 +107,10 @@ class ReversalsPage extends Component
         try {
             if ($this->decisionStatus === 'APPROVED') {
                 $reversalService->approve($pedido, $dados['decisionReason'] ?? null, auth()->id());
-                session()->flash('toast', ['type' => 'success', 'message' => 'Reversão aprovada e stock estornado.']);
+                session()->flash('toast', ['type' => 'success', 'message' => __('toasts.reversal_approved')]);
             } else {
                 $reversalService->reject($pedido, $dados['decisionReason'] ?? null, auth()->id());
-                session()->flash('toast', ['type' => 'success', 'message' => 'Solicitação rejeitada.']);
+                session()->flash('toast', ['type' => 'success', 'message' => __('toasts.reversal_rejected')]);
             }
         } catch (\Throwable $e) {
             session()->flash('toast', ['type' => 'error', 'message' => $e->getMessage()]);
@@ -165,7 +165,7 @@ class ReversalsPage extends Component
         $registers = Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
 
         return view('livewire.admin.reversals-page')
-            ->layout('components.layouts.desktop', ['title' => 'Reversões | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.reversals')])
             ->with([
                 'reversoes' => $reversoes,
                 'totais' => $totais,

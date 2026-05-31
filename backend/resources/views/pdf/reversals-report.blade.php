@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="{{ \App\Support\SupportedLocales::htmlLang(app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Relatório de reversões</title>
+    <title>{{ __('pdf.reversals_report.title') }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1e293b; }
         .header { text-align: center; margin-bottom: 14px; border-bottom: 2px solid #d8b65a; padding-bottom: 10px; }
@@ -36,56 +36,56 @@
 <body>
     <div class="header">
         <h1>{{ $empresa?->name ?? 'RetailPro' }}</h1>
-        <p>NUIT: {{ $empresa?->nif ?? '—' }} · {{ $empresa?->address ?? '' }}</p>
-        <p><strong>RELATÓRIO DE REVERSÕES DE VENDAS</strong></p>
+        <p>{{ __('pdf.reversals_report.nuit') }}: {{ $empresa?->nif ?? '—' }} · {{ $empresa?->address ?? '' }}</p>
+        <p><strong>{{ __('pdf.reversals_report.heading') }}</strong></p>
     </div>
 
     <div class="meta">
         <table>
             <tr>
-                <td><strong>Período:</strong> {{ $relatorio['periodo_inicio']->format('d/m/Y') }} a {{ $relatorio['periodo_fim']->format('d/m/Y') }}</td>
-                <td><strong>Intervalos:</strong> {{ $relatorio['tipo_intervalo_label'] }}</td>
+                <td><strong>{{ __('pdf.reversals_report.period') }}:</strong> {{ $relatorio['periodo_inicio']->format('d/m/Y') }} {{ __('pdf.reversals_report.period_to') }} {{ $relatorio['periodo_fim']->format('d/m/Y') }}</td>
+                <td><strong>{{ __('pdf.reversals_report.intervals') }}:</strong> {{ $relatorio['tipo_intervalo_label'] }}</td>
             </tr>
             <tr>
-                <td><strong>Caixa:</strong> {{ $caixa?->name ?? 'Todos' }}</td>
-                <td><strong>Estado:</strong> {{ $relatorio['status_filter'] ?? 'Todos' }}</td>
+                <td><strong>{{ __('pdf.reversals_report.register') }}:</strong> {{ $caixa?->name ?? __('pdf.reversals_report.all_registers') }}</td>
+                <td><strong>{{ __('pdf.reversals_report.status') }}:</strong> {{ $relatorio['status_filter'] ? \App\Support\Translations::reversalStatus($relatorio['status_filter']) : __('pdf.reversals_report.all_statuses') }}</td>
             </tr>
         </table>
     </div>
 
     <table class="summary">
         <tr>
-            <td class="label">Total solicitações</td>
+            <td class="label">{{ __('pdf.reversals_report.total_requests') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['total'], 0, ',', '.') }}</td>
         </tr>
         <tr class="pendentes">
-            <td class="label">Pendentes</td>
+            <td class="label">{{ __('pdf.reversals_report.pending') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['pendentes'], 0, ',', '.') }}</td>
         </tr>
         <tr class="aprovadas">
-            <td class="label">Aprovadas</td>
+            <td class="label">{{ __('pdf.reversals_report.approved') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['aprovadas'], 0, ',', '.') }}</td>
         </tr>
         <tr class="rejeitadas">
-            <td class="label">Rejeitadas</td>
+            <td class="label">{{ __('pdf.reversals_report.rejected') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['rejeitadas'], 0, ',', '.') }}</td>
         </tr>
         <tr class="aprovadas">
-            <td class="label">Valor total revertido (aprovadas)</td>
+            <td class="label">{{ __('pdf.reversals_report.total_reversed_value') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['valor_revertido'], 2, ',', '.') }} MT</td>
         </tr>
     </table>
 
-    <div class="section-title">Resumo por intervalo ({{ $relatorio['tipo_intervalo_label'] }})</div>
+    <div class="section-title">{{ __('pdf.reversals_report.interval_summary', ['type' => $relatorio['tipo_intervalo_label']]) }}</div>
     <table class="lines">
         <thead>
             <tr>
-                <th>Intervalo</th>
-                <th class="num">Total</th>
-                <th class="num">Pendentes</th>
-                <th class="num">Aprovadas</th>
-                <th class="num">Rejeitadas</th>
-                <th class="num">Valor revertido</th>
+                <th>{{ __('pdf.reversals_report.interval') }}</th>
+                <th class="num">{{ __('pdf.reversals_report.total_requests') }}</th>
+                <th class="num">{{ __('pdf.reversals_report.pending') }}</th>
+                <th class="num">{{ __('pdf.reversals_report.approved') }}</th>
+                <th class="num">{{ __('pdf.reversals_report.rejected') }}</th>
+                <th class="num">{{ __('pdf.reversals_report.reversed_value') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -102,7 +102,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <td>Total do período</td>
+                <td>{{ __('pdf.reversals_report.period_total') }}</td>
                 <td class="num">{{ $relatorio['totais']['total'] }}</td>
                 <td class="num">{{ $relatorio['totais']['pendentes'] }}</td>
                 <td class="num">{{ $relatorio['totais']['aprovadas'] }}</td>
@@ -117,21 +117,21 @@
             <div class="interval-block">
                 <div class="interval-header">
                     {{ $intervalo['label'] }} —
-                    {{ $intervalo['totais']['total'] }} solicitação(ões) ·
-                    {{ number_format($intervalo['totais']['valor_revertido'], 2, ',', '.') }} MT revertidos
+                    {{ __('pdf.reversals_report.requests_count', ['count' => $intervalo['totais']['total']]) }} ·
+                    {{ __('pdf.reversals_report.reversed_amount', ['amount' => number_format($intervalo['totais']['valor_revertido'], 2, ',', '.')]) }}
                 </div>
                 <table class="lines">
                     <thead>
                         <tr>
-                            <th>Referência</th>
-                            <th>Estado</th>
-                            <th>Operador</th>
-                            <th>Cliente</th>
-                            <th>Caixa</th>
-                            <th class="num">Valor venda</th>
-                            <th>Solicitado</th>
-                            <th>Decidido</th>
-                            <th>Motivo</th>
+                            <th>{{ __('pdf.reversals_report.reference') }}</th>
+                            <th>{{ __('pdf.reversals_report.status') }}</th>
+                            <th>{{ __('pdf.reversals_report.operator') }}</th>
+                            <th>{{ __('pdf.reversals_report.client') }}</th>
+                            <th>{{ __('pdf.reversals_report.register') }}</th>
+                            <th class="num">{{ __('pdf.reversals_report.sale_value') }}</th>
+                            <th>{{ __('pdf.reversals_report.requested_at') }}</th>
+                            <th>{{ __('pdf.reversals_report.decided_at') }}</th>
+                            <th>{{ __('pdf.reversals_report.reason') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -139,7 +139,7 @@
                             <tr>
                                 <td>{{ $reversao['referencia'] }}</td>
                                 <td class="status-{{ strtolower($reversao['status']) === 'pending' ? 'pending' : (strtolower($reversao['status']) === 'approved' ? 'approved' : 'rejected') }}">
-                                    {{ $reversao['status'] }}
+                                    {{ $reversao['status_label'] ?? \App\Support\Translations::reversalStatus($reversao['status']) }}
                                 </td>
                                 <td>{{ $reversao['operador'] }}</td>
                                 <td>{{ $reversao['cliente'] }}</td>
@@ -157,11 +157,11 @@
     @endforeach
 
     @if ($relatorio['totais']['total'] === 0)
-        <p class="empty">Sem solicitações de reversão no período seleccionado.</p>
+        <p class="empty">{{ __('pdf.reversals_report.no_requests') }}</p>
     @endif
 
     <div class="footer">
-        Documento gerado em {{ now()->format('d/m/Y H:i') }}
+        {{ __('pdf.reversals_report.footer', ['datetime' => now()->format('d/m/Y H:i')]) }}
     </div>
 </body>
 </html>

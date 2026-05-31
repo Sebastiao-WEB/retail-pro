@@ -59,7 +59,7 @@ class CustomersPage extends Component
         ]);
 
         Customer::query()->updateOrCreate(['id' => $this->editingId], $dados);
-        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Cliente atualizado.' : 'Cliente criado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? __('toasts.customer_updated') : __('toasts.customer_created')]);
         $this->closeModal();
     }
 
@@ -84,7 +84,7 @@ class CustomersPage extends Component
 
         $this->confirmDeleteOpen = false;
         $this->deleteId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Cliente desativado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.customer_disabled')]);
     }
 
     public function closeModal(): void
@@ -120,7 +120,7 @@ class CustomersPage extends Component
             ->paginate(10);
 
         return view('livewire.admin.customers-page')
-            ->layout('components.layouts.desktop', ['title' => 'Clientes | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.customers')])
             ->with(['clientes' => $clientes]);
     }
 }

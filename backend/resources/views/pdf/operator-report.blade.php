@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="{{ \App\Support\SupportedLocales::htmlLang(app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Relatório por operador</title>
+    <title>{{ __('pdf.operator_report.title') }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1e293b; }
         .header { text-align: center; margin-bottom: 14px; border-bottom: 2px solid #d8b65a; padding-bottom: 10px; }
@@ -36,48 +36,48 @@
 <body>
     <div class="header">
         <h1>{{ $empresa?->name ?? 'RetailPro' }}</h1>
-        <p>NUIT: {{ $empresa?->nif ?? '—' }} · {{ $empresa?->address ?? '' }}</p>
-        <p><strong>RELATÓRIO DE VENDAS POR OPERADOR</strong></p>
+        <p>{{ __('pdf.operator_report.nuit') }}: {{ $empresa?->nif ?? '—' }} · {{ $empresa?->address ?? '' }}</p>
+        <p><strong>{{ __('pdf.operator_report.heading') }}</strong></p>
     </div>
 
     <div class="meta">
         <table>
             <tr>
-                <td><strong>Período:</strong> {{ $relatorio['periodo_inicio']->format('d/m/Y') }} a {{ $relatorio['periodo_fim']->format('d/m/Y') }}</td>
-                <td><strong>Caixa:</strong> {{ $caixa?->name ?? 'Todos' }}</td>
+                <td><strong>{{ __('pdf.operator_report.period') }}:</strong> {{ $relatorio['periodo_inicio']->format('d/m/Y') }} {{ __('pdf.operator_report.period_to') }} {{ $relatorio['periodo_fim']->format('d/m/Y') }}</td>
+                <td><strong>{{ __('pdf.operator_report.register') }}:</strong> {{ $caixa?->name ?? __('pdf.operator_report.all_registers') }}</td>
             </tr>
         </table>
     </div>
 
     <table class="summary">
         <tr>
-            <td class="label">Total vendas</td>
+            <td class="label">{{ __('pdf.operator_report.total_sales') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['vendas'], 2, ',', '.') }} MT</td>
         </tr>
         <tr>
-            <td class="label">Custo vendido</td>
+            <td class="label">{{ __('pdf.operator_report.cost_sold') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['custo'], 2, ',', '.') }} MT</td>
         </tr>
         <tr class="lucro">
-            <td class="label">Lucro total</td>
+            <td class="label">{{ __('pdf.operator_report.total_profit') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['lucro'], 2, ',', '.') }} MT</td>
         </tr>
         <tr>
-            <td class="label">Nº vendas</td>
+            <td class="label">{{ __('pdf.operator_report.num_sales') }}</td>
             <td class="value">{{ number_format($relatorio['totais']['num_vendas'], 0, ',', '.') }}</td>
         </tr>
     </table>
 
-    <div class="section-title">Resumo por operador</div>
+    <div class="section-title">{{ __('pdf.operator_report.operator_summary') }}</div>
     <table class="lines">
         <thead>
             <tr>
-                <th>#</th>
-                <th>Operador</th>
-                <th class="num">Vendas</th>
-                <th class="num">Custo</th>
-                <th class="num">Lucro</th>
-                <th class="num">Nº</th>
+                <th>{{ __('pdf.operator_report.rank') }}</th>
+                <th>{{ __('pdf.operator_report.operator') }}</th>
+                <th class="num">{{ __('pdf.operator_report.sales') }}</th>
+                <th class="num">{{ __('pdf.operator_report.cost') }}</th>
+                <th class="num">{{ __('pdf.operator_report.profit') }}</th>
+                <th class="num">{{ __('pdf.operator_report.num') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -91,7 +91,7 @@
                     <td class="num">{{ $operador['num_vendas'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="6">Sem vendas no período.</td></tr>
+                <tr><td colspan="6">{{ __('pdf.operator_report.no_sales') }}</td></tr>
             @endforelse
         </tbody>
     </table>
@@ -100,9 +100,9 @@
         <div class="operator-block">
             <div class="operator-header">
                 {{ $operador['nome'] }} —
-                Vendas {{ number_format($operador['total_vendas'], 2, ',', '.') }} MT ·
-                Lucro {{ number_format($operador['total_lucro'], 2, ',', '.') }} MT ·
-                {{ $operador['num_vendas'] }} venda(s)
+                {{ __('pdf.operator_report.sales') }} {{ number_format($operador['total_vendas'], 2, ',', '.') }} MT ·
+                {{ __('pdf.operator_report.profit') }} {{ number_format($operador['total_lucro'], 2, ',', '.') }} MT ·
+                {{ __('pdf.operator_report.sales_count', ['count' => $operador['num_vendas']]) }}
             </div>
 
             @foreach ($operador['vendas'] as $venda)
@@ -112,19 +112,19 @@
                         · {{ optional($venda['data'])->format('d/m/Y H:i') }}
                         · {{ $venda['cliente'] }}
                         · {{ $venda['caixa'] ?? '—' }}
-                        · {{ $venda['metodo_pagamento'] }}
-                        · Total {{ number_format($venda['total'], 2, ',', '.') }} MT
-                        · Lucro {{ number_format($venda['lucro'], 2, ',', '.') }} MT
+                        · {{ \App\Support\Translations::paymentMethod($venda['metodo_pagamento']) }}
+                        · {{ __('pdf.operator_report.total') }} {{ number_format($venda['total'], 2, ',', '.') }} MT
+                        · {{ __('pdf.operator_report.profit') }} {{ number_format($venda['lucro'], 2, ',', '.') }} MT
                     </div>
                     <table class="items">
                         <thead>
                             <tr>
-                                <th>Produto</th>
-                                <th>Cód. barras</th>
-                                <th class="num">Qtd</th>
-                                <th class="num">Venda</th>
-                                <th class="num">Custo</th>
-                                <th class="num">Lucro</th>
+                                <th>{{ __('pdf.operator_report.product') }}</th>
+                                <th>{{ __('pdf.operator_report.barcode') }}</th>
+                                <th class="num">{{ __('pdf.operator_report.qty') }}</th>
+                                <th class="num">{{ __('pdf.operator_report.sale') }}</th>
+                                <th class="num">{{ __('pdf.operator_report.cost') }}</th>
+                                <th class="num">{{ __('pdf.operator_report.profit') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -146,7 +146,7 @@
     @endforeach
 
     <div class="footer">
-        Documento gerado em {{ now()->format('d/m/Y H:i') }}
+        {{ __('pdf.operator_report.footer', ['datetime' => now()->format('d/m/Y H:i')]) }}
     </div>
 </body>
 </html>

@@ -86,7 +86,7 @@ class OperatorReportsPage extends Component
         $registers = Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
 
         return view('livewire.admin.operator-reports-page')
-            ->layout('components.layouts.desktop', ['title' => 'Relatório por Operador | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.operator_reports')])
             ->with([
                 'relatorio' => $relatorio,
                 'operadorSelecionado' => $operadorSelecionado,

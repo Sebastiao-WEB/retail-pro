@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import CabecalhoApp from "../components/CabecalhoApp.vue";
 import SidebarApp from "../components/SidebarApp.vue";
 import { useClienteStore } from "../store/useClienteStore";
@@ -9,6 +10,7 @@ import { useSessaoStore } from "../store/useSessaoStore";
 import { mostrarToastSwal } from "../services/toast";
 
 const router = useRouter();
+const { t } = useI18n();
 const clienteStore = useClienteStore();
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
@@ -22,7 +24,7 @@ onMounted(async () => {
   try {
     await Promise.all([clienteStore.carregarClientes(), vendaStore.sincronizarHistorico()]);
   } catch (erro) {
-    mostrarToastSwal(erro?.message || "Falha ao sincronizar dados do backend.", "error");
+    mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
   }
 });
 </script>

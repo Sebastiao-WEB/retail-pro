@@ -105,8 +105,8 @@ class ProductsPage extends Component
         session()->flash('toast', [
             'type' => 'success',
             'message' => $this->editingId
-                ? 'Produto atualizado.'
-                : 'Produto criado. Use Recarregar stock para entrar mercadoria.',
+                ? __('toasts.product_updated')
+                : __('toasts.product_created_reload'),
         ]);
         $this->closeModal();
     }
@@ -148,7 +148,7 @@ class ProductsPage extends Component
             ->paginate(10);
 
         return view('livewire.admin.products-page')
-            ->layout('components.layouts.desktop', ['title' => 'Produtos | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.products')])
             ->with(['produtos' => $produtos]);
     }
 }

@@ -68,7 +68,7 @@ class CashSessionsActivePage extends Component
         }
 
         return view('livewire.admin.cash-sessions-active-page')
-            ->layout('components.layouts.desktop', ['title' => 'Sessões de caixa activas | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.cash_sessions_active')])
             ->with([
                 'sessoes' => $sessoes,
                 'detalhe' => $detalhe,

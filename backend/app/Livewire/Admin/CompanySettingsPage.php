@@ -48,7 +48,7 @@ class CompanySettingsPage extends Component
             'invoice_footer' => $dados['rodapeFacturas'] ?: null,
         ])->save();
 
-        session()->flash('toast', ['type' => 'success', 'message' => 'Configurações da empresa atualizadas.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.company_settings_saved')]);
         $this->carregarPerfil();
     }
 
@@ -80,7 +80,7 @@ class CompanySettingsPage extends Component
         abort_unless(auth()->user()?->can('settings.view'), 403);
 
         return view('livewire.admin.company-settings-page')
-            ->layout('components.layouts.desktop', ['title' => 'Configurações | RetailPro']);
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.settings')]);
     }
 }
 

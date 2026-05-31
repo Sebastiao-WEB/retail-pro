@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import { useVendaStore } from "../../store/useVendaStore";
@@ -8,8 +9,10 @@ import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao, formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda } from "../../services/talaoImpressao";
 import { temApiConfigurada } from "../../api";
+import { intlLocale } from "../../services/localeStorage.js";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
 
+const { t, locale } = useI18n();
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
@@ -51,7 +54,13 @@ const solicitacoesPendentesPorVenda = computed(() => {
 });
 
 function formatarData(valor) {
-  return new Date(valor).toLocaleString("pt-MZ");
+  return new Date(valor).toLocaleString(intlLocale(locale.value));
+}
+
+function traduzirMetodoPagamento(metodo) {
+  if (metodo === "Dinheiro") return t("pos.payment.cash");
+  if (metodo === "Transferência") return t("pos.payment.transfer");
+  return metodo;
 }
 
 function abrirDetalhes(venda) {
@@ -74,12 +83,12 @@ async function reimprimirVenda(venda) {
       },
     });
     if (!resultado?.ok) {
-      mostrarToastSwal(resultado?.error || "Falha ao reimprimir recibo.", "error");
+      mostrarToastSwal(resultado?.error || t("history.sales.toast.reprintFailed"), "error");
       return;
     }
-    mostrarToastSwal(`Recibo reenviado para impressao RAW em ${configuracaoStore.impressoraPadrao}.`, "success");
+    mostrarToastSwal(t("history.sales.toast.reprintSuccess", { printer: configuracaoStore.impressoraPadrao }), "success");
   } catch {
-    mostrarToastSwal("Falha ao reimprimir recibo.", "error");
+    mostrarToastSwal(t("history.sales.toast.reprintFailed"), "error");
   } finally {
     imprimindoAgora.value = false;
   }
@@ -87,11 +96,11 @@ async function reimprimirVenda(venda) {
 
 function abrirSolicitacaoReversao(venda) {
   if (venda.estado === "Revertida") {
-    mostrarToastSwal("Venda já foi revertida.", "error");
+    mostrarToastSwal(t("history.sales.toast.alreadyReverted"), "error");
     return;
   }
   if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    mostrarToastSwal("Já existe solicitação de reversão pendente para esta venda.", "error");
+    mostrarToastSwal(t("history.sales.toast.reversalPending"), "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -105,16 +114,16 @@ async function solicitarReversao() {
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
     referencia: venda.referencia || String(venda.id),
-    solicitadoPor: sessaoStore.utilizador || "Operador",
+    solicitadoPor: sessaoStore.utilizador || t("common.operator"),
     motivo: motivoReversao.value.trim(),
   });
   if (!resultado.ok) {
-    mostrarToastSwal(resultado.erro || "Não foi possível solicitar reversão.", "error");
+    mostrarToastSwal(resultado.erro || t("history.sales.toast.reversalFailed"), "error");
     return;
   }
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
-  mostrarToastSwal("Solicitação de reversão enviada ao gerente para aprovação.", "success");
+  mostrarToastSwal(t("history.sales.toast.reversalSent"), "success");
 }
 </script>
 
@@ -123,10 +132,10 @@ async function solicitarReversao() {
     <div class="rp-card p-4">
       <div class="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
         <div>
-          <h3 class="text-base font-bold text-slate-900">Histórico de vendas do caixa</h3>
+          <h3 class="text-base font-bold text-slate-900">{{ t("history.sales.title") }}</h3>
           <p class="text-xs text-slate-500">
-            Caixa: <strong>{{ sessaoStore.caixaAtribuido || "Sem caixa" }}</strong> ·
-            Turno: <strong>{{ sessaoStore.aberturaEm ? formatarData(sessaoStore.aberturaEm) : "não iniciado" }}</strong>
+            {{ t("history.sales.registerLabel") }} <strong>{{ sessaoStore.caixaAtribuido || t("common.noRegister") }}</strong> ·
+            {{ t("history.sales.shiftLabel") }} <strong>{{ sessaoStore.aberturaEm ? formatarData(sessaoStore.aberturaEm) : t("history.sales.shiftNotStarted") }}</strong>
           </p>
         </div>
       </div>
@@ -135,26 +144,26 @@ async function solicitarReversao() {
         <table class="min-w-full text-sm">
           <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th class="px-3 py-2">Referência</th>
-              <th class="px-3 py-2">Data</th>
-              <th class="px-3 py-2">Cliente</th>
-              <th class="px-3 py-2">Pagamento</th>
-              <th class="px-3 py-2">Estado</th>
-              <th class="px-3 py-2">Total</th>
-              <th class="px-3 py-2 text-right">Ações</th>
+              <th class="px-3 py-2">{{ t("common.reference") }}</th>
+              <th class="px-3 py-2">{{ t("common.date") }}</th>
+              <th class="px-3 py-2">{{ t("common.client") }}</th>
+              <th class="px-3 py-2">{{ t("common.payment") }}</th>
+              <th class="px-3 py-2">{{ t("common.status") }}</th>
+              <th class="px-3 py-2">{{ t("common.total") }}</th>
+              <th class="px-3 py-2 text-right">{{ t("common.actions") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!vendasDoTurnoCaixa.length">
               <td colspan="7" class="px-3 py-8 text-center text-xs text-slate-500">
-                Sem vendas no turno atual deste caixa.
+                {{ t("history.sales.empty") }}
               </td>
             </tr>
             <tr v-for="venda in vendasDoTurnoCaixa" :key="venda.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
               <td class="px-3 py-2 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
               <td class="px-3 py-2 text-slate-600">{{ formatarData(venda.data) }}</td>
               <td class="px-3 py-2 font-semibold text-slate-800">{{ venda.cliente }}</td>
-              <td class="px-3 py-2 text-slate-600">{{ venda.metodoPagamento }}</td>
+              <td class="px-3 py-2 text-slate-600">{{ traduzirMetodoPagamento(venda.metodoPagamento) }}</td>
               <td class="px-3 py-2">
                 <span
                   class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
@@ -166,7 +175,7 @@ async function solicitarReversao() {
                         : 'bg-emerald-100 text-emerald-700'
                   "
                 >
-                  {{ venda.estado === "Revertida" ? "Revertida" : solicitacoesPendentesPorVenda.has(venda.id) ? "Reversão pendente" : "Concluída" }}
+                  {{ venda.estado === "Revertida" ? t("history.sales.statusReverted") : solicitacoesPendentesPorVenda.has(venda.id) ? t("history.sales.statusReversalPending") : t("history.sales.statusCompleted") }}
                 </span>
               </td>
               <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(venda.total) }}</td>
@@ -174,16 +183,16 @@ async function solicitarReversao() {
                 <div class="flex justify-end gap-2">
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                    title="Detalhes"
-                    aria-label="Detalhes"
+                    :title="t('common.details')"
+                    :aria-label="t('common.details')"
                     @click="abrirDetalhes(venda)"
                   >
                     <Eye :size="15" />
                   </button>
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Solicitar reversão"
-                    aria-label="Solicitar reversão"
+                    :title="t('history.sales.requestReversal')"
+                    :aria-label="t('history.sales.requestReversal')"
                     :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
                     @click="abrirSolicitacaoReversao(venda)"
                   >
@@ -191,8 +200,8 @@ async function solicitarReversao() {
                   </button>
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
-                    title="Reimprimir"
-                    aria-label="Reimprimir"
+                    :title="t('common.reprint')"
+                    :aria-label="t('common.reprint')"
                     @click="reimprimirVenda(venda)"
                   >
                     <Printer :size="15" />
@@ -207,25 +216,25 @@ async function solicitarReversao() {
     </div>
   </section>
 
-  <ModalBase :aberto="modalDetalhesAberto" :mostrar-fechar="false" titulo="Detalhes da venda" @fechar="modalDetalhesAberto = false">
+  <ModalBase :aberto="modalDetalhesAberto" :mostrar-fechar="false" :titulo="t('history.sales.detailsModal.title')" @fechar="modalDetalhesAberto = false">
     <div v-if="vendaSelecionada" class="space-y-3">
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-        <p><strong>Data:</strong> {{ formatarData(vendaSelecionada.data) }}</p>
-        <p><strong>Cliente:</strong> {{ vendaSelecionada.cliente }}</p>
-        <p><strong>Caixa:</strong> {{ vendaSelecionada.caixa || sessaoStore.caixaAtribuido }}</p>
-        <p><strong>Operador:</strong> {{ vendaSelecionada.operador || sessaoStore.utilizador }}</p>
-        <p><strong>Método:</strong> {{ vendaSelecionada.metodoPagamento }}</p>
+        <p><strong>{{ t("common.date") }}:</strong> {{ formatarData(vendaSelecionada.data) }}</p>
+        <p><strong>{{ t("common.client") }}:</strong> {{ vendaSelecionada.cliente }}</p>
+        <p><strong>{{ t("common.register") }}:</strong> {{ vendaSelecionada.caixa || sessaoStore.caixaAtribuido }}</p>
+        <p><strong>{{ t("common.operator") }}:</strong> {{ vendaSelecionada.operador || sessaoStore.utilizador }}</p>
+        <p><strong>{{ t("common.method") }}:</strong> {{ traduzirMetodoPagamento(vendaSelecionada.metodoPagamento) }}</p>
       </div>
 
       <div class="overflow-hidden rounded-lg border border-slate-200">
         <table class="min-w-full text-sm">
           <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th class="px-3 py-2">Item</th>
-              <th class="px-3 py-2">Qtd</th>
-              <th class="px-3 py-2">IVA %</th>
-              <th class="px-3 py-2">IVA MT</th>
-              <th class="px-3 py-2">Subtotal</th>
+              <th class="px-3 py-2">{{ t("common.item") }}</th>
+              <th class="px-3 py-2">{{ t("common.qty") }}</th>
+              <th class="px-3 py-2">{{ t("common.ivaPercent") }}</th>
+              <th class="px-3 py-2">{{ t("common.ivaAmount") }}</th>
+              <th class="px-3 py-2">{{ t("common.subtotal") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -241,10 +250,10 @@ async function solicitarReversao() {
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-        <p><strong>Subtotal:</strong> {{ formatarMT(vendaSelecionada.subtotal || vendaSelecionada.total) }}</p>
-        <p><strong>Total IVA:</strong> {{ formatarMT(obterTotalIvaVenda(vendaSelecionada)) }}</p>
-        <p><strong>Desconto:</strong> - {{ formatarMT(vendaSelecionada.descontoAplicado || 0) }}</p>
-        <p><strong>Total:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
+        <p><strong>{{ t("common.subtotal") }}:</strong> {{ formatarMT(vendaSelecionada.subtotal || vendaSelecionada.total) }}</p>
+        <p><strong>{{ t("history.sales.detailsModal.totalIva") }}</strong> {{ formatarMT(obterTotalIvaVenda(vendaSelecionada)) }}</p>
+        <p><strong>{{ t("common.discount") }}:</strong> - {{ formatarMT(vendaSelecionada.descontoAplicado || 0) }}</p>
+        <p><strong>{{ t("common.total") }}:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
       </div>
     </div>
     <template #footer>
@@ -252,27 +261,27 @@ async function solicitarReversao() {
         <BotaoBase variante="perigo" @click="modalDetalhesAberto = false">
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
-            <span>Cancelar</span>
+            <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
       </div>
     </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalSolicitarReversaoAberto" :mostrar-fechar="false" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
+  <ModalBase :aberto="modalSolicitarReversaoAberto" :mostrar-fechar="false" :titulo="t('history.sales.reversalModal.title')" @fechar="modalSolicitarReversaoAberto = false">
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
           <TriangleAlert :size="14" />
         </span>
         <div>
-          <p class="font-semibold text-slate-900">Deseja realmente solicitar a reversão desta venda?</p>
-          <p class="text-xs text-slate-600">Referência: {{ vendaParaReversao?.referencia || vendaParaReversao?.id }}</p>
+          <p class="font-semibold text-slate-900">{{ t("history.sales.reversalModal.question") }}</p>
+          <p class="text-xs text-slate-600">{{ t("history.sales.reversalModal.referenceLabel") }} {{ vendaParaReversao?.referencia || vendaParaReversao?.id }}</p>
         </div>
       </div>
       <div>
-        <label class="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</label>
-        <textarea v-model="motivoReversao" rows="2" class="rp-input" placeholder="Ex: item lançado por engano, cliente desistiu..." />
+        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("history.sales.reversalModal.reasonOptional") }}</label>
+        <textarea v-model="motivoReversao" rows="2" class="rp-input" :placeholder="t('history.sales.reversalModal.reasonPlaceholder')" />
       </div>
     </div>
     <template #footer>
@@ -280,13 +289,13 @@ async function solicitarReversao() {
         <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
-            <span>Cancelar</span>
+            <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
         <BotaoBase variante="sucesso" @click="solicitarReversao">
           <span class="inline-flex items-center gap-1.5">
             <Check :size="14" />
-            <span>Confirmar solicitação</span>
+            <span>{{ t("history.sales.reversalModal.confirm") }}</span>
           </span>
         </BotaoBase>
       </div>

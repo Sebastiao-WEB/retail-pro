@@ -6,6 +6,7 @@ import {
   solicitarReversaoIntegrada,
 } from "../services/integracaoApi";
 import { useSessaoStore } from "./useSessaoStore";
+import { t } from "../services/i18nHelper.js";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
 
@@ -105,7 +106,7 @@ export const useVendaStore = defineStore("vendas", {
     async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
       const existePendente = this.solicitacoesReversao.some((item) => item.vendaId === vendaId && item.estado === "Pendente");
       if (existePendente) {
-        return { ok: false, erro: "Já existe uma solicitação pendente para esta venda." };
+        return { ok: false, erro: t("api.reversalAlreadyPending") };
       }
       const remoto = await solicitarReversaoIntegrada({ venda_id: vendaId, reason: motivo || "" });
       if (remoto?.ok === false && remoto?.erro) {

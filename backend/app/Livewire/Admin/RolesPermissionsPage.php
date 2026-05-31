@@ -70,7 +70,7 @@ class RolesPermissionsPage extends Component
         $role->syncPermissions($permissions);
         $this->loadRolePermissions();
 
-        session()->flash('toast', ['type' => 'success', 'message' => 'Permissões da role atualizadas.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.role_permissions_saved')]);
     }
 
     public function saveUserAccess(): void
@@ -105,7 +105,7 @@ class RolesPermissionsPage extends Component
             ->get();
         $user->syncPermissions($permissions);
 
-        session()->flash('toast', ['type' => 'success', 'message' => 'Acessos do utilizador atualizados.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.user_access_saved')]);
     }
 
     private function loadRolePermissions(): void
@@ -120,9 +120,9 @@ class RolesPermissionsPage extends Component
     private function roleLabels(): array
     {
         return [
-            'ADMIN' => 'Administrador',
-            'MANAGER' => 'Gestor',
-            'CASHIER' => 'Caixa',
+            'ADMIN' => __('app.roles.ADMIN'),
+            'MANAGER' => __('app.roles.MANAGER'),
+            'CASHIER' => __('app.roles.CASHIER'),
         ];
     }
 
@@ -131,7 +131,7 @@ class RolesPermissionsPage extends Component
         abort_unless(auth()->user()?->can('roles.view'), 403);
 
         return view('livewire.admin.roles-permissions-page')
-            ->layout('components.layouts.desktop', ['title' => 'Roles e Permissões | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.roles')])
             ->with([
                 'roles' => Role::query()->where('guard_name', 'web')->orderBy('name')->get(['id', 'name']),
                 'permissionGroups' => PermissionCatalog::groups(),

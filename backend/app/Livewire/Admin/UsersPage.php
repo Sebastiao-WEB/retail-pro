@@ -153,7 +153,7 @@ class UsersPage extends Component
 
         $user->syncRoles([$dados['role']]);
 
-        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Utilizador atualizado.' : 'Utilizador criado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? __('toasts.user_updated') : __('toasts.user_created')]);
         $this->closeModal();
     }
 
@@ -164,7 +164,7 @@ class UsersPage extends Component
         if ($this->isCurrentUser($id)) {
             session()->flash('toast', [
                 'type' => 'error',
-                'message' => 'Não pode desactivar a sua própria conta enquanto está autenticado.',
+                'message' => __('toasts.cannot_disable_self_session'),
             ]);
 
             return;
@@ -181,7 +181,7 @@ class UsersPage extends Component
         if ($this->disableId && $this->isCurrentUser($this->disableId)) {
             session()->flash('toast', [
                 'type' => 'error',
-                'message' => 'Não pode desactivar a sua própria conta enquanto está autenticado.',
+                'message' => __('toasts.cannot_disable_self_session'),
             ]);
             $this->confirmDisableOpen = false;
             $this->disableId = null;
@@ -194,7 +194,7 @@ class UsersPage extends Component
         }
         $this->confirmDisableOpen = false;
         $this->disableId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Utilizador desativado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.user_disabled')]);
     }
 
     public function closeModal(): void
@@ -239,7 +239,7 @@ class UsersPage extends Component
             ->paginate(10);
 
         return view('livewire.admin.users-page')
-            ->layout('components.layouts.desktop', ['title' => 'Utilizadores e Gerentes | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.users')])
             ->with([
                 'users' => $users,
                 'registers' => Register::query()->with('sourceLocation')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),

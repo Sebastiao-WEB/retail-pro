@@ -27,8 +27,8 @@ class RolesPermissionsPageTest extends TestCase
 
     public function test_utilizador_com_roles_view_acede_a_pagina_em_modo_leitura(): void
     {
-        $user = User::factory()->create(['role' => 'MANAGER']);
-        $user->assignRole('MANAGER');
+        $user = User::factory()->create(['role' => 'CASHIER']);
+        $user->assignRole('CASHIER');
         $user->givePermissionTo('roles.view');
 
         Livewire::actingAs($user)

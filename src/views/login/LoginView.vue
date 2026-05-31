@@ -1,7 +1,9 @@
 <script setup>
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
+import SeletorIdioma from "../../components/SeletorIdioma.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { authApi, modoApiAtivo, temApiConfigurada } from "../../api";
 import { ApiError } from "../../api/httpClient";
@@ -9,6 +11,7 @@ import { mostrarToastSwal } from "../../services/toast";
 import { LogIn, LoaderCircle } from "lucide-vue-next";
 import logoRetailPro from "../../assets/rp.png";
 
+const { t } = useI18n();
 const router = useRouter();
 const sessaoStore = useSessaoStore();
 const carregando = ref(false);
@@ -19,7 +22,7 @@ const form = reactive({
   username: "",
   senha: "",
   codigo: "",
-  caixa: "Caixa 01",
+  caixa: t("login.register01"),
 });
 
 const apiMode = modoApiAtivo();
@@ -67,7 +70,7 @@ async function entrar() {
 
   if (!temApiConfigurada()) {
     if (modoApiAtivo()) {
-      mostrarToastSwal("Modo API ativo, mas VITE_API_URL não está configurado.", "error");
+      mostrarToastSwal(t("login.toast.apiModeNoUrl"), "error");
       return;
     }
     sessaoStore.login({
@@ -97,7 +100,7 @@ async function entrar() {
         return entrar();
       }
       if (aguardandoSelecaoCaixa.value) {
-        mostrarToastSwal("Seleccione o caixa em que vai operar.", "info");
+        mostrarToastSwal(t("login.toast.selectRegister"), "info");
         carregando.value = false;
         return;
       }
@@ -106,8 +109,8 @@ async function entrar() {
     const mensagemOriginal = String(erro?.message || "");
     const mensagem =
       mensagemOriginal.toLowerCase().includes("failed to fetch")
-        ? "Falha de conexão com o servidor."
-        : mensagemOriginal || "Falha ao autenticar com o backend.";
+        ? t("login.toast.connectionFailed")
+        : mensagemOriginal || t("login.toast.authFailed");
     mostrarToastSwal(mensagem, "error");
   } finally {
     carregando.value = false;
@@ -116,51 +119,55 @@ async function entrar() {
 </script>
 
 <template>
-  <section class="flex min-h-screen items-center justify-center bg-[var(--bg-app)] p-6">
+  <section class="relative flex min-h-screen items-center justify-center bg-[var(--bg-app)] p-6">
+    <div class="absolute right-6 top-6">
+      <SeletorIdioma />
+    </div>
+
     <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div class="mb-[-20px] text-center">
-        <img :src="logoRetailPro" alt="RetailPro POS" class="mx-auto h-45 w-auto object-contain" />
+        <img :src="logoRetailPro" :alt="t('login.logoAlt')" class="mx-auto h-45 w-auto object-contain" />
       </div>
 
       <form class="space-y-3" @submit.prevent="entrar">
         <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Utilizador</label>
-          <input v-model="form.username" class="rp-input" placeholder="username" :disabled="aguardandoSelecaoCaixa" />
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("login.username") }}</label>
+          <input v-model="form.username" class="rp-input" :placeholder="t('login.usernamePlaceholder')" :disabled="aguardandoSelecaoCaixa" />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Senha / PIN</label>
-          <input v-model="form.senha" type="password" class="rp-input" placeholder="••••••" :disabled="aguardandoSelecaoCaixa" />
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("login.password") }}</label>
+          <input v-model="form.senha" type="password" class="rp-input" :placeholder="t('login.passwordPlaceholder')" :disabled="aguardandoSelecaoCaixa" />
         </div>
         <div v-if="apiMode && aguardandoSelecaoCaixa">
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa para operar</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("login.registerToOperate") }}</label>
           <select v-model="form.codigo" class="rp-input">
-            <option value="">Seleccione o caixa...</option>
+            <option value="">{{ t("login.selectRegister") }}</option>
             <option v-for="caixa in caixasDisponiveis" :key="caixa.id" :value="caixa.code">
               {{ caixa.code }} — {{ caixa.name }}
             </option>
           </select>
         </div>
         <div v-else-if="apiMode">
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Código do caixa (se tiver mais do que um)</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("login.registerCode") }}</label>
           <input
             v-model="form.codigo"
             class="rp-input"
-            placeholder="Ex: CX-01 ou Caixa 01"
+            :placeholder="t('login.registerCodePlaceholder')"
           />
         </div>
         <div v-if="!apiMode">
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa atribuído</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("login.assignedRegister") }}</label>
           <select v-model="form.caixa" class="rp-input">
-            <option>Caixa 01</option>
-            <option>Caixa 02</option>
-            <option>Caixa 03</option>
+            <option>{{ t("login.register01") }}</option>
+            <option>{{ t("login.register02") }}</option>
+            <option>{{ t("login.register03") }}</option>
           </select>
         </div>
         <BotaoBase tipo="submit" bloco variante="aviso" :disabled="carregando || (aguardandoSelecaoCaixa && !form.codigo)">
           <span class="inline-flex items-center gap-1.5">
             <LoaderCircle v-if="carregando" class="animate-spin" :size="14" />
             <LogIn v-else :size="14" />
-            <span>{{ carregando ? "A autenticar..." : aguardandoSelecaoCaixa ? "Confirmar caixa" : "Entrar no sistema" }}</span>
+            <span>{{ carregando ? t("login.authenticating") : aguardandoSelecaoCaixa ? t("login.confirmRegister") : t("login.enterSystem") }}</span>
           </span>
         </BotaoBase>
       </form>

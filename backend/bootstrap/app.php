@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->appendToGroup('web', EnsureUserIsActive::class);
+        $middleware->prependToGroup('web', \App\Http\Middleware\SetLocaleFromCookie::class);
         $middleware->appendToGroup('api', EnsureUserIsActive::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

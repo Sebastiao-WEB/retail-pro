@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SaleReversalRequest;
+use App\Support\Translations;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -120,6 +121,7 @@ class ReversalReportBuilder
             'caixa' => $venda?->caixa ?? $venda?->register?->name ?? '—',
             'venda_data' => $venda?->data,
             'status' => $item->status,
+            'status_label' => Translations::reversalStatus($item->status),
             'reason' => $item->reason,
             'requested_at' => $item->requested_at,
             'decided_at' => $item->decided_at,
@@ -219,10 +221,6 @@ class ReversalReportBuilder
 
     private function labelTipoIntervalo(string $tipo): string
     {
-        return match ($tipo) {
-            'daily' => 'Diário',
-            'weekly' => 'Semanal',
-            'monthly' => 'Mensal',
-        };
+        return Translations::intervalType($tipo);
     }
 }

@@ -63,7 +63,7 @@ class BalanceSheetsPage extends Component
         $balance = $builder->create($dados, auth()->id());
         $this->createModalOpen = false;
         $this->openEditModal($balance->id);
-        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço calculado com recargas, vendas e stock do período.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.balance_calculated')]);
     }
 
     public function openEditModal(string $id): void
@@ -92,14 +92,14 @@ class BalanceSheetsPage extends Component
 
         $balance = $this->obterBalanceEmEdicao();
         if ($balance->isFinalized()) {
-            session()->flash('toast', ['type' => 'error', 'message' => 'Balanço finalizado não pode ser alterado.']);
+            session()->flash('toast', ['type' => 'error', 'message' => __('toasts.balance_locked')]);
 
             return;
         }
 
         $builder->syncAutomaticLines($balance);
         $this->openEditModal($balance->id);
-        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço recalculado com dados actuais.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.balance_recalculated')]);
     }
 
     public function guardar(): void
@@ -121,7 +121,7 @@ class BalanceSheetsPage extends Component
             'notas' => $this->notas ?: null,
         ]);
 
-        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço actualizado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.balance_updated')]);
     }
 
     public function finalizar(): void
@@ -141,7 +141,7 @@ class BalanceSheetsPage extends Component
         ]);
 
         $this->closeEditModal();
-        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço finalizado. Pode gerar o PDF.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.balance_finalized')]);
     }
 
     public function render()
@@ -165,7 +165,7 @@ class BalanceSheetsPage extends Component
         }
 
         return view('livewire.admin.balance-sheets-page')
-            ->layout('components.layouts.desktop', ['title' => 'Balanço de Fecho | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.balance_sheets')])
             ->with([
                 'balances' => $balances,
                 'balanceEmEdicao' => $balanceEmEdicao,

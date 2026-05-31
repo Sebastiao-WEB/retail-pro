@@ -1,31 +1,31 @@
 <div class="space-y-4">
     <div class="rounded-lg border border-slate-200 bg-white p-4">
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Gestão de roles e permissões</p>
-        <p class="text-sm text-slate-500">Controle central de acessos por perfil e por utilizador.</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('permissions.page_title') }}</p>
+        <p class="text-sm text-slate-500">{{ __('permissions.page_subtitle') }}</p>
     </div>
 
     <section class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Permissões por role</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('permissions.by_role') }}</p>
                 <p class="text-sm text-slate-500">
                     @if ($canManage)
-                        Selecione a role e marque as permissões.
+                        {{ __('permissions.by_role_edit') }}
                     @else
-                        Visualização das permissões atribuídas a cada role.
+                        {{ __('permissions.by_role_view') }}
                     @endif
                 </p>
             </div>
             <select wire:model.live="selectedRole" class="rp-input max-w-xs" @disabled(! $canManage)>
                 @foreach ($roles as $role)
-                    <option value="{{ $role->name }}">{{ $roleLabels[$role->name] ?? $role->name }} ({{ $role->name }})</option>
+                    <option value="{{ $role->name }}">{{ ($roleLabels[$role->name] ?? $role->name) }} ({{ $role->name }})</option>
                 @endforeach
             </select>
         </div>
 
         @if ($selectedRole === 'ADMIN')
             <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                A role Administrador mantém sempre as permissões críticas de sistema (utilizadores, roles e configurações).
+                {{ __('permissions.admin_locked_notice') }}
             </div>
         @endif
 
@@ -37,7 +37,6 @@
                         @foreach ($group['permissions'] as $permissionName => $permissionLabel)
                             @php
                                 $isLocked = $selectedRole === 'ADMIN' && in_array($permissionName, $adminLockedPermissions, true);
-                                $isChecked = in_array($permissionName, $rolePermissions, true);
                             @endphp
                             <label @class([
                                 'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm',
@@ -67,7 +66,7 @@
             <div class="mt-4 flex justify-end border-t border-slate-100 pt-3">
                 <button type="button" wire:click="saveRolePermissions" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black hover:brightness-95">
                     <i data-lucide="shield-check" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
-                    Guardar permissões da role
+                    {{ __('permissions.save_role') }}
                 </button>
             </div>
         @endif
@@ -75,32 +74,32 @@
 
     <section class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="mb-3">
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Acesso por utilizador</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('permissions.by_user') }}</p>
             <p class="text-sm text-slate-500">
                 @if ($canManage)
-                    Ajuste a role e permissões directas do utilizador (excepto a sua própria conta).
+                    {{ __('permissions.by_user_edit') }}
                 @else
-                    Consulta da role e permissões directas de cada utilizador.
+                    {{ __('permissions.by_user_view') }}
                 @endif
             </p>
         </div>
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-                <label class="mb-1 block text-xs font-semibold text-slate-600">Utilizador</label>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('permissions.user_label') }}</label>
                 <select wire:model.live="selectedUser" class="rp-input">
-                    <option value="">Selecione...</option>
+                    <option value="">{{ __('app.select') }}</option>
                     @foreach ($users as $user)
                         <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->username }})</option>
                     @endforeach
                 </select>
             </div>
             <div>
-                <label class="mb-1 block text-xs font-semibold text-slate-600">Role</label>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('permissions.role_label') }}</label>
                 <select wire:model.defer="selectedUserRole" class="rp-input" @disabled(! $canManage || $selectedUser === '')>
-                    <option value="ADMIN">Administrador (ADMIN)</option>
-                    <option value="MANAGER">Gestor (MANAGER)</option>
-                    <option value="CASHIER">Caixa (CASHIER)</option>
+                    @foreach ($roleLabels as $roleCode => $roleLabel)
+                        <option value="{{ $roleCode }}">{{ $roleLabel }} ({{ $roleCode }})</option>
+                    @endforeach
                 </select>
             </div>
         </div>
@@ -138,12 +137,12 @@
                 <div class="mt-4 flex justify-end border-t border-slate-100 pt-3">
                     <button type="button" wire:click="saveUserAccess" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black hover:brightness-95">
                         <i data-lucide="user-cog" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
-                        Guardar acesso do utilizador
+                        {{ __('permissions.save_user') }}
                     </button>
                 </div>
             @endif
         @else
-            <p class="mt-3 text-sm text-slate-500">Seleccione um utilizador para ver ou editar os acessos.</p>
+            <p class="mt-3 text-sm text-slate-500">{{ __('permissions.select_user_hint') }}</p>
         @endif
     </section>
 </div>

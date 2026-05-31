@@ -1,3 +1,4 @@
+import './locale.js';
 import Swal from 'sweetalert2';
 import { createIcons, icons } from 'lucide';
 

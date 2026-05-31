@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="{{ \App\Support\SupportedLocales::htmlLang(app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Balanço {{ $balance->referencia }}</title>
+    <title>{{ __('pdf.balance_sheet.title', ['referencia' => $balance->referencia]) }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1e293b; }
         .header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #d8b65a; padding-bottom: 10px; }
@@ -29,69 +29,69 @@
 <body>
     <div class="header">
         <h1>{{ $empresa?->name ?? 'RetailPro' }}</h1>
-        <p>NUIT: {{ $empresa?->nif ?? '—' }} · {{ $empresa?->address ?? '' }}</p>
-        <p><strong>BALANÇO DE FECHO</strong></p>
+        <p>{{ __('pdf.balance_sheet.nuit') }}: {{ $empresa?->nif ?? '—' }} · {{ $empresa?->address ?? '' }}</p>
+        <p><strong>{{ __('pdf.balance_sheet.heading') }}</strong></p>
         <p>{{ $balance->titulo }}</p>
     </div>
 
     <div class="meta">
         <table>
             <tr>
-                <td><strong>Referência:</strong> {{ $balance->referencia }}</td>
-                <td><strong>Data de fecho:</strong> {{ $balance->data_referencia->format('d/m/Y') }}</td>
+                <td><strong>{{ __('pdf.balance_sheet.reference') }}:</strong> {{ $balance->referencia }}</td>
+                <td><strong>{{ __('pdf.balance_sheet.closing_date') }}:</strong> {{ $balance->data_referencia->format('d/m/Y') }}</td>
             </tr>
             <tr>
-                <td><strong>Período:</strong> {{ optional($balance->periodo_inicio)->format('d/m/Y') ?? '—' }} a {{ optional($balance->periodo_fim)->format('d/m/Y') ?? '—' }}</td>
-                <td><strong>Estado:</strong> {{ $balance->status === 'FINALIZED' ? 'Finalizado' : 'Rascunho' }}</td>
+                <td><strong>{{ __('pdf.balance_sheet.period') }}:</strong> {{ optional($balance->periodo_inicio)->format('d/m/Y') ?? '—' }} {{ __('pdf.balance_sheet.period_to') }} {{ optional($balance->periodo_fim)->format('d/m/Y') ?? '—' }}</td>
+                <td><strong>{{ __('pdf.balance_sheet.status') }}:</strong> {{ \App\Support\Translations::balanceStatus($balance->status) }}</td>
             </tr>
             <tr>
-                <td colspan="2"><strong>Elaborado por:</strong> {{ $balance->preparedBy?->name ?? '—' }}</td>
+                <td colspan="2"><strong>{{ __('pdf.balance_sheet.prepared_by') }}:</strong> {{ $balance->preparedBy?->name ?? '—' }}</td>
             </tr>
         </table>
     </div>
 
     <table class="summary">
         <tr>
-            <td class="label">Stock recarregado (custo)</td>
-            <td class="value">{{ number_format((float) $balance->total_recargas_valor, 2, ',', '.') }} MT ({{ number_format((float) $balance->total_recargas_qtd, 0, ',', '.') }} un.)</td>
+            <td class="label">{{ __('pdf.balance_sheet.stock_reloaded_cost') }}</td>
+            <td class="value">{{ number_format((float) $balance->total_recargas_valor, 2, ',', '.') }} MT ({{ number_format((float) $balance->total_recargas_qtd, 0, ',', '.') }} {{ __('pdf.balance_sheet.units') }})</td>
         </tr>
         <tr>
-            <td class="label">Vendas do período</td>
-            <td class="value">{{ number_format((float) $balance->total_vendas_valor, 2, ',', '.') }} MT ({{ number_format((float) $balance->total_vendas_qtd, 0, ',', '.') }} un.)</td>
+            <td class="label">{{ __('pdf.balance_sheet.period_sales') }}</td>
+            <td class="value">{{ number_format((float) $balance->total_vendas_valor, 2, ',', '.') }} MT ({{ number_format((float) $balance->total_vendas_qtd, 0, ',', '.') }} {{ __('pdf.balance_sheet.units') }})</td>
         </tr>
         <tr>
-            <td class="label">Custo dos produtos vendidos</td>
+            <td class="label">{{ __('pdf.balance_sheet.cost_of_goods_sold') }}</td>
             <td class="value">{{ number_format((float) $balance->total_custo_vendas, 2, ',', '.') }} MT</td>
         </tr>
         <tr class="lucro">
-            <td class="label">Lucro do período</td>
+            <td class="label">{{ __('pdf.balance_sheet.period_profit') }}</td>
             <td class="value">{{ number_format((float) $balance->total_lucro, 2, ',', '.') }} MT</td>
         </tr>
         <tr>
-            <td class="label">Stock em loja (valor de compra)</td>
-            <td class="value">{{ number_format((float) $balance->total_stock_valor_compra, 2, ',', '.') }} MT ({{ number_format((float) $balance->total_stock_qtd, 0, ',', '.') }} un.)</td>
+            <td class="label">{{ __('pdf.balance_sheet.stock_store_purchase') }}</td>
+            <td class="value">{{ number_format((float) $balance->total_stock_valor_compra, 2, ',', '.') }} MT ({{ number_format((float) $balance->total_stock_qtd, 0, ',', '.') }} {{ __('pdf.balance_sheet.units') }})</td>
         </tr>
         <tr>
-            <td class="label">Stock em loja (valor de venda)</td>
+            <td class="label">{{ __('pdf.balance_sheet.stock_store_sale') }}</td>
             <td class="value">{{ number_format((float) $balance->total_stock_valor_venda, 2, ',', '.') }} MT</td>
         </tr>
     </table>
 
-    <div class="section-title">Detalhe por produto</div>
+    <div class="section-title">{{ __('pdf.balance_sheet.product_detail') }}</div>
     <table class="lines">
         <thead>
             <tr>
-                <th>Produto</th>
-                <th>Cód. barras</th>
-                <th class="num">Rec. qtd</th>
-                <th class="num">Rec. MT</th>
-                <th class="num">Vend. qtd</th>
-                <th class="num">Vend. MT</th>
-                <th class="num">Custo</th>
-                <th class="num">Lucro</th>
-                <th class="num">Stock qtd</th>
-                <th class="num">Stock custo</th>
-                <th class="num">Stock venda</th>
+                <th>{{ __('pdf.balance_sheet.product') }}</th>
+                <th>{{ __('pdf.balance_sheet.barcode') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.reload_qty') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.reload_amount') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.sold_qty') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.sold_amount') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.cost') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.profit') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.stock_qty') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.stock_cost') }}</th>
+                <th class="num">{{ __('pdf.balance_sheet.stock_sale') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -110,13 +110,13 @@
                     <td class="num">{{ number_format((float) $linha->valor_stock_venda, 2, ',', '.') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="11">Sem movimentos no período.</td></tr>
+                <tr><td colspan="11">{{ __('pdf.balance_sheet.no_movements') }}</td></tr>
             @endforelse
         </tbody>
         @if ($balance->lines->isNotEmpty())
             <tfoot>
                 <tr>
-                    <td>Totais</td>
+                    <td>{{ __('pdf.balance_sheet.totals') }}</td>
                     <td></td>
                     <td class="num">{{ number_format((float) $balance->total_recargas_qtd, 0, ',', '.') }}</td>
                     <td class="num">{{ number_format((float) $balance->total_recargas_valor, 2, ',', '.') }}</td>
@@ -133,21 +133,21 @@
     </table>
 
     @if ($balance->locationLines->isNotEmpty())
-        <div class="section-title">Stock por localização (auditoria)</div>
+        <div class="section-title">{{ __('pdf.balance_sheet.stock_by_location') }}</div>
         @foreach ($balance->locationLines->groupBy('location_id') as $linhasLocal)
             @php $cabecalho = $linhasLocal->first(); @endphp
             <p style="margin: 8px 0 4px; font-weight: bold; font-size: 10px;">
                 {{ $cabecalho->local_codigo }} — {{ $cabecalho->local_nome }}
-                ({{ number_format((float) $linhasLocal->sum('quantity'), 0, ',', '.') }} un.)
+                ({{ number_format((float) $linhasLocal->sum('quantity'), 0, ',', '.') }} {{ __('pdf.balance_sheet.units') }})
             </p>
             <table class="lines" style="margin-bottom: 10px;">
                 <thead>
                     <tr>
-                        <th>Produto</th>
-                        <th>Cód. barras</th>
-                        <th class="num">Qtd</th>
-                        <th class="num">Valor custo</th>
-                        <th class="num">Valor venda</th>
+                        <th>{{ __('pdf.balance_sheet.product') }}</th>
+                        <th>{{ __('pdf.balance_sheet.barcode') }}</th>
+                        <th class="num">{{ __('pdf.balance_sheet.qty') }}</th>
+                        <th class="num">{{ __('pdf.balance_sheet.cost_value') }}</th>
+                        <th class="num">{{ __('pdf.balance_sheet.sale_value') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -167,12 +167,12 @@
 
     @if ($balance->notas)
         <div class="notas">
-            <strong>Notas:</strong> {{ $balance->notas }}
+            <strong>{{ __('pdf.balance_sheet.notes') }}:</strong> {{ $balance->notas }}
         </div>
     @endif
 
     <div class="footer">
-        Documento gerado em {{ now()->format('d/m/Y H:i') }} · Valores calculados automaticamente a partir de recargas, vendas e stock actual
+        {{ __('pdf.balance_sheet.footer', ['datetime' => now()->format('d/m/Y H:i')]) }}
     </div>
 </body>
 </html>

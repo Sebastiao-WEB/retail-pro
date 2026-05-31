@@ -171,7 +171,7 @@ class SalesPage extends Component
         $totalFiltrado = (float) (clone $this->vendasQuery())->sum('total');
 
         return view('livewire.admin.sales-page')
-            ->layout('components.layouts.desktop', ['title' => 'Vendas | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.sales')])
             ->with([
                 'vendas' => $vendas,
                 'detalhe' => $detalhe,

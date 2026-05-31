@@ -10,80 +10,34 @@ class PermissionCatalog
     /** @return array<string, array{label: string, permissions: array<string, string>}> */
     public static function groups(): array
     {
-        return [
-            'dashboard' => [
-                'label' => 'Painel',
-                'permissions' => [
-                    'dashboard.view' => 'Ver painel administrativo',
-                ],
-            ],
-            'sales' => [
-                'label' => 'Vendas',
-                'permissions' => [
-                    'sales.view' => 'Ver histórico de vendas',
-                    'sales.export' => 'Exportar vendas (CSV)',
-                ],
-            ],
-            'reports' => [
-                'label' => 'Relatórios',
-                'permissions' => [
-                    'balance_sheets.view' => 'Ver balanços de fecho',
-                    'balance_sheets.manage' => 'Criar e gerir balanços',
-                    'operator_reports.view' => 'Ver relatório por operador',
-                ],
-            ],
-            'cash' => [
-                'label' => 'Caixa',
-                'permissions' => [
-                    'cash_sessions.view' => 'Ver sessões e fechos de caixa',
-                    'reversals.view' => 'Ver solicitações de reversão',
-                    'reversals.manage' => 'Aprovar ou rejeitar reversões',
-                ],
-            ],
+        $structure = [
+            'dashboard' => ['dashboard.view'],
+            'sales' => ['sales.view', 'sales.export'],
+            'reports' => ['balance_sheets.view', 'balance_sheets.manage', 'operator_reports.view'],
+            'cash' => ['cash_sessions.view', 'reversals.view', 'reversals.manage'],
             'stock' => [
-                'label' => 'Stock',
-                'permissions' => [
-                    'stock.reload' => 'Recarregar stock',
-                    'stock.movements.view' => 'Ver movimentos de stock',
-                    'stock.transfers.view' => 'Ver transferências',
-                    'stock.transfers.manage' => 'Registar transferências',
-                    'stock_locations.view' => 'Ver armazéns e localizações',
-                    'stock_locations.manage' => 'Gerir armazéns e localizações',
-                ],
+                'stock.reload', 'stock.movements.view', 'stock.transfers.view',
+                'stock.transfers.manage', 'stock_locations.view', 'stock_locations.manage',
             ],
-            'catalog' => [
-                'label' => 'Catálogo',
-                'permissions' => [
-                    'products.view' => 'Ver produtos',
-                    'products.manage' => 'Gerir produtos',
-                    'customers.view' => 'Ver clientes',
-                    'customers.manage' => 'Gerir clientes',
-                ],
-            ],
-            'registers' => [
-                'label' => 'Caixas POS',
-                'permissions' => [
-                    'registers.view' => 'Ver caixas',
-                    'registers.manage' => 'Gerir caixas',
-                ],
-            ],
-            'users' => [
-                'label' => 'Utilizadores e acessos',
-                'permissions' => [
-                    'users.view' => 'Ver utilizadores',
-                    'users.manage' => 'Gerir utilizadores',
-                    'roles.view' => 'Ver roles e permissões',
-                    'roles.manage' => 'Gerir roles e permissões',
-                ],
-            ],
-            'settings' => [
-                'label' => 'Configurações',
-                'permissions' => [
-                    'settings.view' => 'Ver configurações da empresa',
-                    'settings.manage' => 'Editar configurações da empresa',
-                ],
-            ],
+            'catalog' => ['products.view', 'products.manage', 'customers.view', 'customers.manage'],
+            'registers' => ['registers.view', 'registers.manage'],
+            'users' => ['users.view', 'users.manage', 'roles.view', 'roles.manage'],
+            'settings' => ['settings.view', 'settings.manage'],
         ];
+
+        /** @var array<string, string> $itemLabels */
+        $itemLabels = trans('permissions.items');
+
+        return collect($structure)->mapWithKeys(function (array $permissions, string $groupKey) use ($itemLabels) {
+            return [
+                $groupKey => [
+                    'label' => trans("permissions.groups.{$groupKey}"),
+                    'permissions' => collect($permissions)->mapWithKeys(
+                        fn (string $name) => [$name => $itemLabels[$name] ?? $name]
+                    )->all(),
+                ],
+            ];
+        })->all();
     }
 
     /** @return list<string> */
@@ -97,16 +51,11 @@ class PermissionCatalog
 
     public static function label(string $name): string
     {
-        foreach (self::groups() as $group) {
-            if (isset($group['permissions'][$name])) {
-                return $group['permissions'][$name];
-            }
-        }
+        $items = trans('permissions.items');
 
-        return $name;
+        return is_array($items) ? ($items[$name] ?? $name) : $name;
     }
 
-    /** Permissões que a role ADMIN deve manter sempre. */
     /** @return list<string> */
     public static function adminLockedPermissions(): array
     {

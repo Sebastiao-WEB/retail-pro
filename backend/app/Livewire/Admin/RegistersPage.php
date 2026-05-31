@@ -54,7 +54,7 @@ class RegistersPage extends Component
 
         Register::query()->updateOrCreate(['id' => $this->editingId], $dados);
 
-        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Caixa atualizado.' : 'Caixa criado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? __('toasts.register_updated') : __('toasts.register_created')]);
         $this->closeModal();
     }
 
@@ -73,7 +73,7 @@ class RegistersPage extends Component
         }
         $this->confirmDeleteOpen = false;
         $this->deleteId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Caixa desativado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.register_disabled')]);
     }
 
     public function closeModal(): void
@@ -105,7 +105,7 @@ class RegistersPage extends Component
             ->paginate(10);
 
         return view('livewire.admin.registers-page')
-            ->layout('components.layouts.desktop', ['title' => 'Caixas | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.registers')])
             ->with(['registers' => $registers]);
     }
 }

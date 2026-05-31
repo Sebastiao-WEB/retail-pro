@@ -9,6 +9,7 @@ import {
   cashApi,
 } from "../api";
 import { ApiError } from "../api/httpClient";
+import { t } from "./i18nHelper.js";
 import {
   mapearCliente,
   mapearLista,
@@ -75,7 +76,7 @@ export async function solicitarReversaoIntegrada(payload) {
     await salesApi.solicitarReversao(payload);
     return { ok: true };
   } catch (erro) {
-    return { ok: false, erro: erro?.message || "Falha ao solicitar reversão na API." };
+    return { ok: false, erro: erro?.message || t("api.reversalFailed") };
   }
 }
 
@@ -96,7 +97,7 @@ export async function abrirTurnoIntegrado(payload) {
     if (erro instanceof ApiError && erro.status === 409 && erro.payload?.data?.id) {
       return { ok: true, data: erro.payload.data, reutilizada: true };
     }
-    return { ok: false, erro: erro?.message || "Falha ao abrir sessão de caixa na API." };
+    return { ok: false, erro: erro?.message || t("api.openSessionFailed") };
   }
 }
 
@@ -107,7 +108,7 @@ export async function fecharTurnoIntegrado(id, payload) {
     const resposta = await cashApi.fecharSessao(id, payload);
     return { ok: true, data: normalizarObjeto(resposta) };
   } catch (erro) {
-    return { ok: false, erro: erro?.message || "Falha ao fechar sessão de caixa na API." };
+    return { ok: false, erro: erro?.message || t("api.closeSessionFailed") };
   }
 }
 
@@ -118,7 +119,7 @@ export async function obterSessaoAtivaIntegrada(registerId) {
     const resposta = await cashApi.sessaoAtiva(registerId || undefined);
     return { ok: true, data: normalizarObjeto(resposta) };
   } catch (erro) {
-    return { ok: false, erro: erro?.message || "Falha ao consultar sessão ativa na API." };
+    return { ok: false, erro: erro?.message || t("api.activeSessionFailed") };
   }
 }
 
@@ -149,7 +150,7 @@ function mapearHistoricoFechoSessao(item) {
 export async function carregarHistoricoFechosIntegrado(filtros = {}) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) {
-    throw new Error("Histórico de fechos disponível apenas com backend API.");
+    throw new Error(t("api.closingsHistoryApiOnly"));
   }
 
   const resposta = await cashApi.listar({

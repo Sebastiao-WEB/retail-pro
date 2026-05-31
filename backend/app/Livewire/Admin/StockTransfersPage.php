@@ -128,7 +128,7 @@ class StockTransfersPage extends Component
         });
 
         $this->closeModal();
-        session()->flash('toast', ['type' => 'success', 'message' => 'Transferência concluída com sucesso.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.transfer_completed')]);
     }
 
     public function render(StockByLocationService $stockService)
@@ -146,7 +146,7 @@ class StockTransfersPage extends Component
             ->paginate(12);
 
         return view('livewire.admin.stock-transfers-page')
-            ->layout('components.layouts.desktop', ['title' => 'Transferências de Stock | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.stock_transfers')])
             ->with([
                 'transfers' => $transfers,
                 'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),

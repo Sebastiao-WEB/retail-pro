@@ -90,10 +90,10 @@ class Dashboard extends Component
         $dadosPagamentos = $metodosPagamento->pluck('total')->map(fn ($item) => (int) $item)->values();
 
         $periodoRotulo = match ($this->period) {
-            'today' => 'Vendas hoje',
-            '30d' => 'Vendas (30 dias)',
-            'month' => 'Vendas do mês',
-            default => 'Vendas (7 dias)',
+            'today' => __('app.periods.sales_today'),
+            '30d' => __('app.periods.sales_30d'),
+            'month' => __('app.periods.sales_month'),
+            default => __('app.periods.sales_7d'),
         };
 
         $metricas = [
@@ -120,7 +120,7 @@ class Dashboard extends Component
 
         return view('livewire.admin.dashboard')
             ->layout('components.layouts.desktop', [
-                'title' => 'Dashboard | RetailPro',
+                'title' => __('pages.titles.dashboard'),
             ])
             ->with([
                 'metricas' => $metricas,
@@ -131,11 +131,12 @@ class Dashboard extends Component
                 'dadosPagamentos' => $dadosPagamentos,
                 'registers' => $registers,
                 'periodoGraficoRotulo' => match ($this->period) {
-                    'today' => 'Vendas de hoje',
-                    '30d' => 'Vendas dos últimos 30 dias',
-                    'month' => 'Vendas do mês',
-                    default => 'Vendas dos últimos 7 dias',
+                    'today' => __('app.periods.chart_today'),
+                    '30d' => __('app.periods.chart_30d'),
+                    'month' => __('app.periods.chart_month'),
+                    default => __('app.periods.chart_7d'),
                 },
+                'chartSalesLabel' => __('pages.dashboard.chart_sales'),
             ]);
     }
 }

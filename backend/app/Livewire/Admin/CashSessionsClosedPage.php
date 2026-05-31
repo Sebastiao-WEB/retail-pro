@@ -69,7 +69,7 @@ class CashSessionsClosedPage extends Component
         }
 
         return view('livewire.admin.cash-sessions-closed-page')
-            ->layout('components.layouts.desktop', ['title' => 'Histórico de fechos | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.cash_sessions_closed')])
             ->with([
                 'fechos' => $fechos,
                 'detalhe' => $detalhe,

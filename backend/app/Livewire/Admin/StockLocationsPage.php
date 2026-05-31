@@ -80,7 +80,7 @@ class StockLocationsPage extends Component
         ]);
 
         StockLocation::query()->updateOrCreate(['id' => $this->editingId], $dados);
-        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Localização atualizada.' : 'Localização criada.']);
+        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? __('toasts.location_updated') : __('toasts.location_created')]);
         $this->closeModal();
     }
 
@@ -99,7 +99,7 @@ class StockLocationsPage extends Component
         }
         $this->confirmDeleteOpen = false;
         $this->deleteId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Localização desativada.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.location_disabled')]);
     }
 
     public function closeModal(): void
@@ -143,7 +143,7 @@ class StockLocationsPage extends Component
         }
 
         return view('livewire.admin.stock-locations-page')
-            ->layout('components.layouts.desktop', ['title' => 'Armazéns/Localizações | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.stock_locations')])
             ->with([
                 'locations' => $locations,
                 'registers' => Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
