@@ -3,9 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Models\BalanceSheet;
-use App\Models\BalanceSheetLine;
 use App\Services\BalanceSheetBuilder;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -31,21 +29,10 @@ class BalanceSheetsPage extends Component
 
     public string $notas = '';
 
-    /** @var array<string, string> */
-    public array $lineValues = [];
-
-    public string $novaSecao = 'ACTIVO';
-
-    public string $novaRubrika = '';
-
-    public string $novaGrupo = 'CIRCULANTE';
-
-    public string $novaValor = '0';
-
     public function mount(): void
     {
         $this->data_referencia = now()->toDateString();
-        $this->periodo_inicio = now()->startOfYear()->toDateString();
+        $this->periodo_inicio = now()->startOfMonth()->toDateString();
         $this->periodo_fim = now()->toDateString();
     }
 
@@ -68,31 +55,28 @@ class BalanceSheetsPage extends Component
         $dados = $this->validate([
             'titulo' => ['required', 'string', 'max:255'],
             'data_referencia' => ['required', 'date'],
-            'periodo_inicio' => ['nullable', 'date'],
-            'periodo_fim' => ['nullable', 'date', 'after_or_equal:periodo_inicio'],
+            'periodo_inicio' => ['required', 'date'],
+            'periodo_fim' => ['required', 'date', 'after_or_equal:periodo_inicio'],
             'notas' => ['nullable', 'string'],
         ]);
 
         $balance = $builder->create($dados, auth()->id());
         $this->createModalOpen = false;
         $this->openEditModal($balance->id);
-        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço criado com rubricas automáticas.']);
+        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço calculado com recargas, vendas e stock do período.']);
     }
 
     public function openEditModal(string $id): void
     {
         abort_unless(auth()->user()?->can('balance_sheets.view'), 403);
 
-        $balance = BalanceSheet::query()->with('lines')->findOrFail($id);
+        $balance = BalanceSheet::query()->with('lines.product')->findOrFail($id);
         $this->editingId = $balance->id;
         $this->titulo = $balance->titulo;
         $this->data_referencia = $balance->data_referencia->toDateString();
         $this->periodo_inicio = optional($balance->periodo_inicio)->toDateString() ?? '';
         $this->periodo_fim = optional($balance->periodo_fim)->toDateString() ?? '';
         $this->notas = (string) ($balance->notas ?? '');
-        $this->lineValues = $balance->lines->mapWithKeys(fn (BalanceSheetLine $line) => [
-            $line->id => number_format((float) $line->valor, 2, '.', ''),
-        ])->all();
         $this->editModalOpen = true;
     }
 
@@ -100,10 +84,9 @@ class BalanceSheetsPage extends Component
     {
         $this->editModalOpen = false;
         $this->editingId = null;
-        $this->lineValues = [];
     }
 
-    public function recalcularAutomaticos(BalanceSheetBuilder $builder): void
+    public function recalcular(BalanceSheetBuilder $builder): void
     {
         abort_unless(auth()->user()?->can('balance_sheets.manage'), 403);
 
@@ -115,12 +98,11 @@ class BalanceSheetsPage extends Component
         }
 
         $builder->syncAutomaticLines($balance);
-        $balance->recalculateTotals();
         $this->openEditModal($balance->id);
-        session()->flash('toast', ['type' => 'success', 'message' => 'Rubricas automáticas recalculadas.']);
+        session()->flash('toast', ['type' => 'success', 'message' => 'Balanço recalculado com dados actuais.']);
     }
 
-    public function guardarLinhas(): void
+    public function guardar(): void
     {
         abort_unless(auth()->user()?->can('balance_sheets.manage'), 403);
 
@@ -129,82 +111,17 @@ class BalanceSheetsPage extends Component
             return;
         }
 
-        foreach ($this->lineValues as $lineId => $valor) {
-            $line = $balance->lines->firstWhere('id', $lineId);
-            if (! $line || ($line->automatico && ! auth()->user()?->can('balance_sheets.manage'))) {
-                continue;
-            }
-            $line->valor = max(0, (float) str_replace(',', '.', (string) $valor));
-            $line->save();
-        }
+        $this->validate([
+            'titulo' => ['required', 'string', 'max:255'],
+            'notas' => ['nullable', 'string'],
+        ]);
 
-        $balance->fill([
+        $balance->update([
             'titulo' => $this->titulo,
             'notas' => $this->notas ?: null,
-        ])->save();
+        ]);
 
-        $balance->recalculateTotals();
-        $this->openEditModal($balance->id);
         session()->flash('toast', ['type' => 'success', 'message' => 'Balanço actualizado.']);
-    }
-
-    public function adicionarLinhaManual(): void
-    {
-        abort_unless(auth()->user()?->can('balance_sheets.manage'), 403);
-
-        $balance = $this->obterBalanceEmEdicao();
-        if ($balance->isFinalized()) {
-            return;
-        }
-
-        $dados = $this->validate([
-            'novaSecao' => ['required', 'in:ACTIVO,PASSIVO,CAPITAL'],
-            'novaRubrika' => ['required', 'string', 'max:255'],
-            'novaGrupo' => ['nullable', 'string', 'max:50'],
-            'novaValor' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
-        $ordemBase = (int) $balance->lines()->where('secao', $dados['novaSecao'])->max('ordem');
-
-        BalanceSheetLine::query()->create([
-            'id' => (string) Str::uuid(),
-            'balance_sheet_id' => $balance->id,
-            'secao' => $dados['novaSecao'],
-            'grupo' => $dados['novaGrupo'] ?: null,
-            'rubrika' => $dados['novaRubrika'],
-            'valor' => (float) ($dados['novaValor'] ?? 0),
-            'automatico' => false,
-            'ordem' => $ordemBase + 1,
-        ]);
-
-        $balance->recalculateTotals();
-        $this->novaRubrika = '';
-        $this->novaValor = '0';
-        $this->openEditModal($balance->id);
-        session()->flash('toast', ['type' => 'success', 'message' => 'Rubrica manual adicionada.']);
-    }
-
-    public function removerLinha(string $lineId): void
-    {
-        abort_unless(auth()->user()?->can('balance_sheets.manage'), 403);
-
-        $balance = $this->obterBalanceEmEdicao();
-        if ($balance->isFinalized()) {
-            return;
-        }
-
-        $line = BalanceSheetLine::query()
-            ->where('balance_sheet_id', $balance->id)
-            ->where('id', $lineId)
-            ->where('automatico', false)
-            ->first();
-
-        if ($line) {
-            $line->delete();
-            $balance->recalculateTotals();
-            $this->openEditModal($balance->id);
-            session()->flash('toast', ['type' => 'success', 'message' => 'Rubrica removida.']);
-        }
     }
 
     public function finalizar(): void
@@ -216,17 +133,7 @@ class BalanceSheetsPage extends Component
             return;
         }
 
-        $this->guardarLinhas();
-
-        $balance->refresh();
-        $balance->recalculateTotals();
-
-        if (! $balance->isBalanced()) {
-            session()->flash('toast', [
-                'type' => 'warning',
-                'message' => 'Balanço desbalanceado. Ajuste passivo/capital antes de finalizar ou finalize mesmo assim.',
-            ]);
-        }
+        $this->guardar();
 
         $balance->update([
             'status' => 'FINALIZED',
@@ -252,11 +159,11 @@ class BalanceSheetsPage extends Component
 
         $balanceEmEdicao = null;
         if ($this->editingId) {
-            $balanceEmEdicao = BalanceSheet::query()->with('lines')->find($this->editingId);
+            $balanceEmEdicao = BalanceSheet::query()->with('lines.product')->find($this->editingId);
         }
 
         return view('livewire.admin.balance-sheets-page')
-            ->layout('components.layouts.desktop', ['title' => 'Balanço Patrimonial | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => 'Balanço de Fecho | RetailPro'])
             ->with([
                 'balances' => $balances,
                 'balanceEmEdicao' => $balanceEmEdicao,
@@ -270,9 +177,9 @@ class BalanceSheetsPage extends Component
 
     private function resetForm(): void
     {
-        $this->titulo = 'Balanço Patrimonial '.now()->format('d/m/Y');
+        $this->titulo = 'Balanço de fecho '.now()->format('d/m/Y');
         $this->data_referencia = now()->toDateString();
-        $this->periodo_inicio = now()->startOfYear()->toDateString();
+        $this->periodo_inicio = now()->startOfMonth()->toDateString();
         $this->periodo_fim = now()->toDateString();
         $this->notas = '';
     }

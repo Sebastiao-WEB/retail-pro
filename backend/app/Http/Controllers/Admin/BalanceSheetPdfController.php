@@ -14,22 +14,15 @@ class BalanceSheetPdfController extends Controller
     {
         abort_unless(auth()->user()?->can('balance_sheets.view'), 403);
 
-        $balanceSheet->load(['lines', 'preparedBy']);
+        $balanceSheet->load(['lines.product', 'preparedBy']);
         $empresa = CompanyProfile::query()->first();
-
-        $linhasPorSecao = [
-            'ACTIVO' => $balanceSheet->lines->where('secao', 'ACTIVO')->values(),
-            'PASSIVO' => $balanceSheet->lines->where('secao', 'PASSIVO')->values(),
-            'CAPITAL' => $balanceSheet->lines->where('secao', 'CAPITAL')->values(),
-        ];
 
         $pdf = Pdf::loadView('pdf.balance-sheet', [
             'balance' => $balanceSheet,
             'empresa' => $empresa,
-            'linhasPorSecao' => $linhasPorSecao,
-        ])->setPaper('a4', 'portrait');
+        ])->setPaper('a4', 'landscape');
 
-        $nome = 'balanco-'.$balanceSheet->referencia.'.pdf';
+        $nome = 'balanco-fecho-'.$balanceSheet->referencia.'.pdf';
 
         return $pdf->download($nome);
     }

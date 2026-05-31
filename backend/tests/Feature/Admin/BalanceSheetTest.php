@@ -2,10 +2,15 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\BalanceSheet;
+use App\Models\Product;
+use App\Models\Register;
+use App\Models\StockBalance;
+use App\Models\StockLocation;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\BalanceSheetBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -24,16 +29,64 @@ class BalanceSheetTest extends TestCase
         $role->givePermissionTo(['balance_sheets.view', 'balance_sheets.manage']);
     }
 
-    public function test_cria_balanco_com_rubricas_automaticas(): void
+    public function test_cria_balanco_com_linhas_por_produto(): void
     {
         $user = User::factory()->create(['role' => 'ADMIN']);
         $user->assignRole('ADMIN');
+
+        $register = Register::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'CX-BAL',
+            'name' => 'Caixa Balanço',
+            'is_active' => true,
+        ]);
+
+        $location = StockLocation::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'LOC-BAL',
+            'register_id' => $register->id,
+            'name' => 'Loja Balanço',
+            'type' => 'STORE_FLOOR',
+            'is_saleable' => true,
+            'is_active' => true,
+        ]);
+
+        $product = Product::query()->create([
+            'id' => (string) Str::uuid(),
+            'nome' => 'Produto Balanço',
+            'codigo_barras' => '8888888888888',
+            'preco_compra' => 10,
+            'preco_venda' => 15,
+            'iva_tipo' => 'ISENTO',
+            'iva_valor' => 0,
+            'iva_percentual' => 0,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        StockMovement::query()->create([
+            'id' => (string) Str::uuid(),
+            'product_id' => $product->id,
+            'to_location_id' => $location->id,
+            'type' => 'IN',
+            'quantity' => 5,
+            'unit_cost' => 10,
+            'reference_type' => 'STOCK_RELOAD',
+            'reference_id' => (string) Str::uuid(),
+        ]);
+
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $location->id,
+            'product_id' => $product->id,
+            'quantity' => 5,
+        ]);
 
         $builder = app(BalanceSheetBuilder::class);
         $balance = $builder->create([
             'titulo' => 'Balanço Teste',
             'data_referencia' => now()->toDateString(),
-            'periodo_inicio' => now()->startOfYear()->toDateString(),
+            'periodo_inicio' => now()->startOfMonth()->toDateString(),
             'periodo_fim' => now()->toDateString(),
         ], $user->id);
 
@@ -42,8 +95,10 @@ class BalanceSheetTest extends TestCase
             'status' => 'DRAFT',
         ]);
 
-        $this->assertGreaterThanOrEqual(8, $balance->lines()->count());
-        $this->assertTrue($balance->lines()->where('automatico', true)->exists());
+        $this->assertSame(1, $balance->lines()->count());
+        $this->assertEquals(50.0, (float) $balance->total_recargas_valor);
+        $this->assertEquals(50.0, (float) $balance->total_stock_valor_compra);
+        $this->assertEquals(75.0, (float) $balance->total_stock_valor_venda);
     }
 
     public function test_pagina_balanco_requer_autenticacao(): void
@@ -69,6 +124,8 @@ class BalanceSheetTest extends TestCase
         $balance = app(BalanceSheetBuilder::class)->create([
             'titulo' => 'Balanço PDF',
             'data_referencia' => now()->toDateString(),
+            'periodo_inicio' => now()->startOfMonth()->toDateString(),
+            'periodo_fim' => now()->toDateString(),
         ], $user->id);
 
         $this->actingAs($user)

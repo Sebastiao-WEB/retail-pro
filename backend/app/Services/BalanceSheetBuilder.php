@@ -4,11 +4,12 @@ namespace App\Services;
 
 use App\Models\BalanceSheet;
 use App\Models\BalanceSheetLine;
-use App\Models\CashSession;
-use App\Models\Sale;
+use App\Models\Product;
 use App\Models\SaleItem;
 use App\Models\StockBalance;
+use App\Models\StockMovement;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class BalanceSheetBuilder
@@ -16,13 +17,13 @@ class BalanceSheetBuilder
     public function create(array $dados, ?string $userId = null): BalanceSheet
     {
         $dataReferencia = Carbon::parse($dados['data_referencia']);
-        $periodoInicio = isset($dados['periodo_inicio']) ? Carbon::parse($dados['periodo_inicio']) : $dataReferencia->copy()->startOfYear();
+        $periodoInicio = isset($dados['periodo_inicio']) ? Carbon::parse($dados['periodo_inicio']) : $dataReferencia->copy()->startOfDay();
         $periodoFim = isset($dados['periodo_fim']) ? Carbon::parse($dados['periodo_fim']) : $dataReferencia;
 
         $balance = BalanceSheet::query()->create([
             'id' => (string) Str::uuid(),
             'referencia' => $this->gerarReferencia($dataReferencia),
-            'titulo' => $dados['titulo'] ?? ('Balanço em '.$dataReferencia->format('d/m/Y')),
+            'titulo' => $dados['titulo'] ?? ('Balanço de fecho '.$dataReferencia->format('d/m/Y')),
             'data_referencia' => $dataReferencia,
             'periodo_inicio' => $periodoInicio,
             'periodo_fim' => $periodoFim,
@@ -32,88 +33,139 @@ class BalanceSheetBuilder
         ]);
 
         $this->syncAutomaticLines($balance);
-        $balance->recalculateTotals();
 
-        return $balance->fresh(['lines', 'preparedBy']);
+        return $balance->fresh(['lines.product', 'preparedBy']);
     }
 
     public function syncAutomaticLines(BalanceSheet $balance): void
     {
-        $dataReferencia = Carbon::parse($balance->data_referencia)->endOfDay();
-        $periodoInicio = Carbon::parse($balance->periodo_inicio ?? $balance->data_referencia)->startOfDay();
-        $periodoFim = Carbon::parse($balance->periodo_fim ?? $balance->data_referencia)->endOfDay();
+        $inicio = Carbon::parse($balance->periodo_inicio ?? $balance->data_referencia)->startOfDay();
+        $fim = Carbon::parse($balance->periodo_fim ?? $balance->data_referencia)->endOfDay();
 
-        $definicoes = [
-            ['secao' => 'ACTIVO', 'grupo' => 'CIRCULANTE', 'rubrika' => 'Caixa e equivalentes', 'valor' => $this->calcularCaixa($dataReferencia), 'ordem' => 10],
-            ['secao' => 'ACTIVO', 'grupo' => 'CIRCULANTE', 'rubrika' => 'Inventários (stock)', 'valor' => $this->calcularValorStock(), 'ordem' => 20],
-            ['secao' => 'ACTIVO', 'grupo' => 'CIRCULANTE', 'rubrika' => 'Contas a receber', 'valor' => 0, 'ordem' => 30],
-            ['secao' => 'ACTIVO', 'grupo' => 'NAO_CIRCULANTE', 'rubrika' => 'Activos fixos tangíveis', 'valor' => 0, 'ordem' => 40],
-            ['secao' => 'PASSIVO', 'grupo' => 'CIRCULANTE', 'rubrika' => 'Contas a pagar', 'valor' => 0, 'ordem' => 110],
-            ['secao' => 'PASSIVO', 'grupo' => 'CIRCULANTE', 'rubrika' => 'Outros passivos circulantes', 'valor' => 0, 'ordem' => 120],
-            ['secao' => 'PASSIVO', 'grupo' => 'NAO_CIRCULANTE', 'rubrika' => 'Empréstimos e financiamentos', 'valor' => 0, 'ordem' => 130],
-            ['secao' => 'CAPITAL', 'grupo' => null, 'rubrika' => 'Capital social', 'valor' => 0, 'ordem' => 210],
-            ['secao' => 'CAPITAL', 'grupo' => null, 'rubrika' => 'Resultados transitados', 'valor' => 0, 'ordem' => 220],
-            ['secao' => 'CAPITAL', 'grupo' => null, 'rubrika' => 'Resultado do exercício', 'valor' => $this->calcularResultadoExercicio($periodoInicio, $periodoFim), 'ordem' => 230],
-        ];
+        $recargas = $this->recargasPorProduto($inicio, $fim);
+        $vendas = $this->vendasPorProduto($inicio, $fim);
+        $stock = $this->stockPorProduto();
 
-        foreach ($definicoes as $item) {
-            BalanceSheetLine::query()->updateOrCreate(
+        $productIds = $recargas->keys()
+            ->merge($vendas->keys())
+            ->merge($stock->keys())
+            ->unique()
+            ->values();
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        $ordem = 0;
+        $lineIds = [];
+
+        foreach ($productIds as $productId) {
+            $product = $products->get($productId);
+            if (! $product) {
+                continue;
+            }
+
+            $recarga = $recargas->get($productId, ['qtd' => 0.0, 'valor' => 0.0]);
+            $venda = $vendas->get($productId, ['qtd' => 0.0, 'valor' => 0.0, 'custo' => 0.0]);
+            $stockActual = $stock->get($productId, ['qtd' => 0.0, 'valor_compra' => 0.0, 'valor_venda' => 0.0]);
+            $lucro = (float) $venda['valor'] - (float) $venda['custo'];
+
+            $line = BalanceSheetLine::query()->updateOrCreate(
                 [
                     'balance_sheet_id' => $balance->id,
-                    'secao' => $item['secao'],
-                    'rubrika' => $item['rubrika'],
-                    'automatico' => true,
+                    'product_id' => $productId,
                 ],
                 [
-                    'grupo' => $item['grupo'],
-                    'valor' => $item['valor'],
-                    'ordem' => $item['ordem'],
+                    'secao' => 'PRODUTO',
+                    'grupo' => null,
+                    'rubrika' => $product->nome,
+                    'valor' => $lucro,
+                    'automatico' => true,
+                    'ordem' => ++$ordem,
+                    'qtd_recarregada' => $recarga['qtd'],
+                    'valor_recarga' => $recarga['valor'],
+                    'qtd_vendida' => $venda['qtd'],
+                    'valor_vendas' => $venda['valor'],
+                    'custo_vendas' => $venda['custo'],
+                    'lucro' => $lucro,
+                    'qtd_stock' => $stockActual['qtd'],
+                    'valor_stock_compra' => $stockActual['valor_compra'],
+                    'valor_stock_venda' => $stockActual['valor_venda'],
                 ]
             );
+
+            $lineIds[] = $line->id;
         }
 
+        BalanceSheetLine::query()
+            ->where('balance_sheet_id', $balance->id)
+            ->whereNotIn('id', $lineIds)
+            ->delete();
+
         $balance->load('lines');
+        $balance->recalculateTotals();
     }
 
-    public function calcularValorStock(): float
+    /** @return Collection<string, array{qtd: float, valor: float}> */
+    private function recargasPorProduto(Carbon $inicio, Carbon $fim): Collection
     {
-        return (float) StockBalance::query()
-            ->join('products', 'products.id', '=', 'stock_balances.product_id')
-            ->selectRaw('COALESCE(SUM(stock_balances.quantity * COALESCE(NULLIF(products.preco_compra, 0), products.preco_venda)), 0) as total')
-            ->value('total');
+        return StockMovement::query()
+            ->stockReloads()
+            ->whereBetween('created_at', [$inicio, $fim])
+            ->selectRaw('product_id, COALESCE(SUM(quantity), 0) as qtd, COALESCE(SUM(quantity * COALESCE(unit_cost, 0)), 0) as valor')
+            ->groupBy('product_id')
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $row->product_id => [
+                    'qtd' => (float) $row->qtd,
+                    'valor' => (float) $row->valor,
+                ],
+            ]);
     }
 
-    public function calcularCaixa(Carbon $dataReferencia): float
+    /** @return Collection<string, array{qtd: float, valor: float, custo: float}> */
+    private function vendasPorProduto(Carbon $inicio, Carbon $fim): Collection
     {
-        $fechos = (float) CashSession::query()
-            ->where('status', 'CLOSED')
-            ->where('closed_at', '<=', $dataReferencia)
-            ->sum('closing_balance');
-
-        $aberturas = (float) CashSession::query()
-            ->where('status', 'OPEN')
-            ->where('opened_at', '<=', $dataReferencia)
-            ->sum('opening_balance');
-
-        return $fechos + $aberturas;
-    }
-
-    public function calcularResultadoExercicio(Carbon $inicio, Carbon $fim): float
-    {
-        $vendas = (float) Sale::query()
-            ->whereBetween('data', [$inicio, $fim])
-            ->where('estado', '!=', 'Revertida')
-            ->sum('total');
-
-        $custo = (float) SaleItem::query()
+        return SaleItem::query()
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->join('products', 'products.id', '=', 'sale_items.produto_id')
             ->whereBetween('sales.data', [$inicio, $fim])
             ->where('sales.estado', '!=', 'Revertida')
-            ->selectRaw('COALESCE(SUM(sale_items.quantidade * COALESCE(NULLIF(products.preco_compra, 0), products.preco_venda)), 0) as total')
-            ->value('total');
+            ->selectRaw('sale_items.produto_id as product_id')
+            ->selectRaw('COALESCE(SUM(sale_items.quantidade), 0) as qtd')
+            ->selectRaw('COALESCE(SUM(sale_items.subtotal), 0) as valor')
+            ->selectRaw('COALESCE(SUM(sale_items.quantidade * COALESCE(NULLIF(products.preco_compra, 0), products.preco_venda)), 0) as custo')
+            ->groupBy('sale_items.produto_id')
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $row->product_id => [
+                    'qtd' => (float) $row->qtd,
+                    'valor' => (float) $row->valor,
+                    'custo' => (float) $row->custo,
+                ],
+            ]);
+    }
 
-        return $vendas - $custo;
+    /** @return Collection<string, array{qtd: float, valor_compra: float, valor_venda: float}> */
+    private function stockPorProduto(): Collection
+    {
+        return StockBalance::query()
+            ->join('products', 'products.id', '=', 'stock_balances.product_id')
+            ->selectRaw('stock_balances.product_id')
+            ->selectRaw('COALESCE(SUM(stock_balances.quantity), 0) as qtd')
+            ->selectRaw('COALESCE(SUM(stock_balances.quantity * COALESCE(NULLIF(products.preco_compra, 0), products.preco_venda)), 0) as valor_compra')
+            ->selectRaw('COALESCE(SUM(stock_balances.quantity * products.preco_venda), 0) as valor_venda')
+            ->groupBy('stock_balances.product_id')
+            ->havingRaw('COALESCE(SUM(stock_balances.quantity), 0) > 0')
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $row->product_id => [
+                    'qtd' => (float) $row->qtd,
+                    'valor_compra' => (float) $row->valor_compra,
+                    'valor_venda' => (float) $row->valor_venda,
+                ],
+            ]);
     }
 
     private function gerarReferencia(Carbon $data): string

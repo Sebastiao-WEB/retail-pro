@@ -46,7 +46,7 @@
                         <a href="{{ route('balance-sheets.index') }}"
                            class="{{ request()->routeIs('balance-sheets.*') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
                             <i data-lucide="scale" class="h-4 w-4"></i>
-                            <span>Balanço patrimonial</span>
+                            <span>Balanço de fecho</span>
                         </a>
                     @endcan
                     @can('cash_sessions.view')
