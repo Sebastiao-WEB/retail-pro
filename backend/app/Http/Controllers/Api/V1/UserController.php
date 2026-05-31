@@ -145,6 +145,10 @@ class UserController extends Controller
             'isActive' => ['required', 'boolean'],
         ]);
 
+        if ($request->user('api')?->id === $user->id && ! $dados['isActive']) {
+            abort(403, 'Não pode desactivar a sua própria conta enquanto está autenticado.');
+        }
+
         $user->is_active = $dados['isActive'];
         $user->save();
 

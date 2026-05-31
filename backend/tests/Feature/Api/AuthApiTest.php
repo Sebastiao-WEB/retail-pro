@@ -42,6 +42,42 @@ class AuthApiTest extends TestCase
         $resposta->assertUnauthorized()->assertJson(['message' => 'Credenciais inválidas.']);
     }
 
+    public function test_login_rejeita_conta_suspensa(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $ambiente['user']->update(['is_active' => false]);
+
+        $resposta = $this->postJson('/api/v1/auth/login', [
+            'username' => $ambiente['user']->username,
+            'password' => '123456',
+            'register_code' => 'Caixa Teste',
+        ]);
+
+        $resposta
+            ->assertForbidden()
+            ->assertJson([
+                'message' => 'Conta suspensa. Contacte o administrador do sistema.',
+                'account_suspended' => true,
+            ]);
+    }
+
+    public function test_api_bloqueia_utilizador_suspenso_com_token_valido(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $ambiente['user']->update(['is_active' => false]);
+
+        $resposta = $this->getJson('/api/v1/products', $this->authHeaders($token));
+
+        $resposta
+            ->assertForbidden()
+            ->assertJson([
+                'message' => 'Conta suspensa. Contacte o administrador do sistema.',
+                'account_suspended' => true,
+            ]);
+    }
+
     public function test_logout_encerra_sessao_autenticada(): void
     {
         $ambiente = $this->criarAmbienteApi();

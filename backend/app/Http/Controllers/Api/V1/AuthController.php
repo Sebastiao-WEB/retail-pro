@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\Register;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -26,7 +27,14 @@ class AuthController extends Controller
             })
             ->first();
 
-        if (! $user || ! Hash::check($dados['password'], $user->password) || ! $user->is_active) {
+        if ($user && Hash::check($dados['password'], $user->password) && ! $user->is_active) {
+            return response()->json([
+                'message' => EnsureUserIsActive::SUSPENDED_MESSAGE,
+                'account_suspended' => true,
+            ], 403);
+        }
+
+        if (! $user || ! Hash::check($dados['password'], $user->password)) {
             return response()->json([
                 'message' => 'Credenciais inválidas.',
             ], 401);

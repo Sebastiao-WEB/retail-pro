@@ -7,6 +7,7 @@ use App\Models\StockLocation;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -115,6 +116,12 @@ class UsersPage extends Component
 
         $dados = $this->validate($rules);
 
+        if ($this->editingId && $this->isCurrentUser($this->editingId) && ! $dados['is_active']) {
+            throw ValidationException::withMessages([
+                'is_active' => ['Não pode desactivar a sua própria conta enquanto está autenticado.'],
+            ]);
+        }
+
         $payload = [
             'name' => $dados['name'],
             'username' => $dados['username'],
@@ -153,6 +160,16 @@ class UsersPage extends Component
     public function confirmDisable(string $id): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
+
+        if ($this->isCurrentUser($id)) {
+            session()->flash('toast', [
+                'type' => 'error',
+                'message' => 'Não pode desactivar a sua própria conta enquanto está autenticado.',
+            ]);
+
+            return;
+        }
+
         $this->disableId = $id;
         $this->confirmDisableOpen = true;
     }
@@ -160,6 +177,18 @@ class UsersPage extends Component
     public function disable(): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
+
+        if ($this->disableId && $this->isCurrentUser($this->disableId)) {
+            session()->flash('toast', [
+                'type' => 'error',
+                'message' => 'Não pode desactivar a sua própria conta enquanto está autenticado.',
+            ]);
+            $this->confirmDisableOpen = false;
+            $this->disableId = null;
+
+            return;
+        }
+
         if ($this->disableId) {
             User::query()->where('id', $this->disableId)->update(['is_active' => false]);
         }
@@ -185,6 +214,11 @@ class UsersPage extends Component
         $this->is_active = true;
         $this->register_ids = [];
         $this->source_location_id = null;
+    }
+
+    private function isCurrentUser(?string $userId): bool
+    {
+        return $userId !== null && auth()->id() === $userId;
     }
 
     public function render()

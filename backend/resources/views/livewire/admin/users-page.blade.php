@@ -66,7 +66,11 @@
                             <td class="px-3 py-2">
                                 <div class="flex items-center gap-2">
                                     <button type="button" wire:click="openEditModal('{{ $user->id }}')" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"><i data-lucide="pencil" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Editar</button>
-                                    <button type="button" wire:click="confirmDisable('{{ $user->id }}')" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"><i data-lucide="user-x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Desativar</button>
+                                    @if ($user->id !== auth()->id())
+                                        <button type="button" wire:click="confirmDisable('{{ $user->id }}')" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"><i data-lucide="user-x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Desativar</button>
+                                    @else
+                                        <span class="text-xs text-slate-400" title="Não pode desactivar a sua própria conta">Conta actual</span>
+                                    @endif
                                 </div>
                             </td>
                         @endcan
@@ -159,9 +163,13 @@
                             @error('password') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-                            <input wire:model.defer="is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600">
+                            <input wire:model.defer="is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600" @disabled($editingId && $editingId === auth()->id())>
                             Ativo
                         </label>
+                        @if ($editingId && $editingId === auth()->id())
+                            <p class="text-xs text-slate-500">A sua conta permanece activa enquanto estiver autenticado.</p>
+                        @endif
+                        @error('is_active') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
                         <button type="button" wire:click="closeModal" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600"><i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Cancelar</button>
