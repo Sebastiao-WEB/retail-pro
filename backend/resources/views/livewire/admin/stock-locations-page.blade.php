@@ -22,10 +22,10 @@
                     <th class="px-3 py-2">Tipo</th>
                     <th class="px-3 py-2">Caixa vínculo</th>
                     <th class="px-3 py-2">Vendável</th>
+                    <th class="px-3 py-2">Produtos</th>
+                    <th class="px-3 py-2">Qtd total</th>
                     <th class="px-3 py-2">Estado</th>
-                    @can('stock_locations.manage')
-                        <th class="px-3 py-2">Ações</th>
-                    @endcan
+                    <th class="px-3 py-2">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -36,23 +36,26 @@
                         <td class="px-3 py-2">{{ $location->type }}</td>
                         <td class="px-3 py-2">{{ $location->register?->name ?? '---' }}</td>
                         <td class="px-3 py-2">{{ $location->is_saleable ? 'Sim' : 'Não' }}</td>
+                        <td class="px-3 py-2">{{ (int) ($location->products_count ?? 0) }}</td>
+                        <td class="px-3 py-2 font-medium">{{ number_format((float) ($location->total_quantity ?? 0), 0, ',', '.') }}</td>
                         <td class="px-3 py-2">
                             <span class="{{ $location->is_active ? 'text-emerald-600' : 'text-red-600' }}">
                                 {{ $location->is_active ? 'Ativo' : 'Inativo' }}
                             </span>
                         </td>
-                        @can('stock_locations.manage')
-                            <td class="px-3 py-2">
-                                <div class="flex items-center gap-2">
+                        <td class="px-3 py-2">
+                            <div class="flex items-center gap-2">
+                                <button type="button" wire:click="openStockModal('{{ $location->id }}')" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">Ver stock</button>
+                                @can('stock_locations.manage')
                                     <button type="button" wire:click="openEditModal('{{ $location->id }}')" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"><i data-lucide="pencil" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Editar</button>
                                     <button type="button" wire:click="confirmDelete('{{ $location->id }}')" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"><i data-lucide="power" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Desativar</button>
-                                </div>
-                            </td>
-                        @endcan
+                                @endcan
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ auth()->user()?->can('stock_locations.manage') ? 7 : 6 }}" class="px-3 py-6 text-center text-slate-500">Sem localizações cadastradas.</td>
+                        <td colspan="9" class="px-3 py-6 text-center text-slate-500">Sem localizações cadastradas.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -60,6 +63,49 @@
     </div>
 
     <div>{{ $locations->links() }}</div>
+
+    @if ($stockModalOpen && $stockDetalhe)
+        <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
+            <div class="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl">
+                <div class="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+                    <div>
+                        <h3 class="text-base font-semibold">Stock em {{ $stockDetalhe['codigo'] }} — {{ $stockDetalhe['nome'] }}</h3>
+                        <p class="text-xs text-slate-500">
+                            {{ number_format($stockDetalhe['total_qtd'], 0, ',', '.') }} un. ·
+                            {{ number_format($stockDetalhe['total_valor_compra'], 2, ',', '.') }} MT (custo)
+                        </p>
+                    </div>
+                    <button type="button" wire:click="closeStockModal" class="text-slate-500 hover:text-slate-800">✕</button>
+                </div>
+                <div class="p-5">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                            <tr>
+                                <th class="px-3 py-2">Produto</th>
+                                <th class="px-3 py-2">Cód. barras</th>
+                                <th class="px-3 py-2 text-right">Qtd disponível</th>
+                                <th class="px-3 py-2 text-right">Valor custo</th>
+                                <th class="px-3 py-2 text-right">Valor venda</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($stockDetalhe['itens'] as $item)
+                                <tr class="border-t border-slate-100">
+                                    <td class="px-3 py-2 font-medium">{{ $item['produto_nome'] }}</td>
+                                    <td class="px-3 py-2 font-mono text-xs">{{ $item['codigo_barras'] ?? '—' }}</td>
+                                    <td class="px-3 py-2 text-right">{{ number_format($item['quantity'], 0, ',', '.') }}</td>
+                                    <td class="px-3 py-2 text-right">{{ number_format($item['valor_compra'], 2, ',', '.') }}</td>
+                                    <td class="px-3 py-2 text-right">{{ number_format($item['valor_venda'], 2, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="px-3 py-6 text-center text-slate-500">Sem stock nesta localização.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @can('stock_locations.manage')
         @if ($modalOpen)

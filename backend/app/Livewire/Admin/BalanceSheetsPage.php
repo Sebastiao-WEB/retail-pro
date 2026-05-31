@@ -70,7 +70,7 @@ class BalanceSheetsPage extends Component
     {
         abort_unless(auth()->user()?->can('balance_sheets.view'), 403);
 
-        $balance = BalanceSheet::query()->with('lines.product')->findOrFail($id);
+        $balance = BalanceSheet::query()->with(['lines.product', 'locationLines'])->findOrFail($id);
         $this->editingId = $balance->id;
         $this->titulo = $balance->titulo;
         $this->data_referencia = $balance->data_referencia->toDateString();
@@ -159,7 +159,7 @@ class BalanceSheetsPage extends Component
 
         $balanceEmEdicao = null;
         if ($this->editingId) {
-            $balanceEmEdicao = BalanceSheet::query()->with('lines.product')->find($this->editingId);
+            $balanceEmEdicao = BalanceSheet::query()->with(['lines.product', 'locationLines'])->find($this->editingId);
         }
 
         return view('livewire.admin.balance-sheets-page')

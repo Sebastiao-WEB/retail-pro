@@ -132,6 +132,39 @@
         @endif
     </table>
 
+    @if ($balance->locationLines->isNotEmpty())
+        <div class="section-title">Stock por localização (auditoria)</div>
+        @foreach ($balance->locationLines->groupBy('location_id') as $linhasLocal)
+            @php $cabecalho = $linhasLocal->first(); @endphp
+            <p style="margin: 8px 0 4px; font-weight: bold; font-size: 10px;">
+                {{ $cabecalho->local_codigo }} — {{ $cabecalho->local_nome }}
+                ({{ number_format((float) $linhasLocal->sum('quantity'), 0, ',', '.') }} un.)
+            </p>
+            <table class="lines" style="margin-bottom: 10px;">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th>Cód. barras</th>
+                        <th class="num">Qtd</th>
+                        <th class="num">Valor custo</th>
+                        <th class="num">Valor venda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($linhasLocal as $linhaLocal)
+                        <tr>
+                            <td>{{ $linhaLocal->produto_nome }}</td>
+                            <td>{{ $linhaLocal->codigo_barras ?? '—' }}</td>
+                            <td class="num">{{ number_format((float) $linhaLocal->quantity, 0, ',', '.') }}</td>
+                            <td class="num">{{ number_format((float) $linhaLocal->valor_compra, 2, ',', '.') }}</td>
+                            <td class="num">{{ number_format((float) $linhaLocal->valor_venda, 2, ',', '.') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endforeach
+    @endif
+
     @if ($balance->notas)
         <div class="notas">
             <strong>Notas:</strong> {{ $balance->notas }}

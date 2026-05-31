@@ -14,7 +14,7 @@ class BalanceSheetPdfController extends Controller
     {
         abort_unless(auth()->user()?->can('balance_sheets.view'), 403);
 
-        $balanceSheet->load(['lines.product', 'preparedBy']);
+        $balanceSheet->load(['lines.product', 'locationLines', 'preparedBy']);
         $empresa = CompanyProfile::query()->first();
 
         $pdf = Pdf::loadView('pdf.balance-sheet', [

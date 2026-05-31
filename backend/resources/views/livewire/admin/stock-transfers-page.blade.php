@@ -58,7 +58,7 @@
                     <div class="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                         <div>
                             <label class="mb-1 block text-xs font-semibold text-slate-600">Local origem</label>
-                            <select wire:model.defer="from_location_id" class="rp-input">
+                            <select wire:model.live="from_location_id" class="rp-input">
                                 <option value="">Selecione...</option>
                                 @foreach ($locations as $location)
                                     <option value="{{ $location->id }}">{{ $location->code }} - {{ $location->name }}</option>
@@ -78,7 +78,7 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-semibold text-slate-600">Produto</label>
-                            <select wire:model.defer="product_id" class="rp-input">
+                            <select wire:model.live="product_id" class="rp-input">
                                 <option value="">Selecione...</option>
                                 @foreach ($products as $product)
                                     <option value="{{ $product->id }}">{{ $product->nome }}</option>
@@ -89,6 +89,11 @@
                         <div>
                             <label class="mb-1 block text-xs font-semibold text-slate-600">Quantidade</label>
                             <input wire:model.defer="quantity" type="number" step="0.01" class="rp-input">
+                            @if ($from_location_id !== '' && $product_id !== '' && $disponivelOrigem !== null)
+                                <p class="mt-1 text-xs {{ (float) $disponivelOrigem > 0 ? 'text-emerald-700' : 'text-red-600' }}">
+                                    Disponível na origem: {{ number_format((float) $disponivelOrigem, 0, ',', '.') }} un.
+                                </p>
+                            @endif
                             @error('quantity') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div class="md:col-span-2">

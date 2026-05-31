@@ -58,6 +58,11 @@ class BalanceSheet extends Model
         return $this->hasMany(BalanceSheetLine::class)->orderBy('ordem');
     }
 
+    public function locationLines(): HasMany
+    {
+        return $this->hasMany(BalanceSheetLocationLine::class)->orderBy('ordem');
+    }
+
     public function preparedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'prepared_by');

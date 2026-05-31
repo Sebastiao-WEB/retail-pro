@@ -228,6 +228,48 @@
                             @endif
                         </table>
                     </div>
+
+                    @if ($balanceEmEdicao->locationLines->isNotEmpty())
+                        <div class="overflow-hidden rounded-lg border border-slate-200">
+                            <div class="bg-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                                Stock por localização (auditoria)
+                            </div>
+                            @foreach ($balanceEmEdicao->locationLines->groupBy('location_id') as $linhasLocal)
+                                @php $cabecalho = $linhasLocal->first(); @endphp
+                                <div class="border-t border-slate-200">
+                                    <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-3 py-2 text-xs">
+                                        <span class="font-semibold">{{ $cabecalho->local_codigo }} — {{ $cabecalho->local_nome }}</span>
+                                        <span class="text-slate-600">
+                                            {{ number_format((float) $linhasLocal->sum('quantity'), 0, ',', '.') }} un. ·
+                                            {{ number_format((float) $linhasLocal->sum('valor_compra'), 2, ',', '.') }} MT (custo)
+                                        </span>
+                                    </div>
+                                    <table class="min-w-full text-xs">
+                                        <thead class="bg-slate-100 text-left uppercase tracking-wide text-slate-500">
+                                            <tr>
+                                                <th class="px-3 py-2">Produto</th>
+                                                <th class="px-3 py-2">Cód. barras</th>
+                                                <th class="px-3 py-2 text-right">Qtd</th>
+                                                <th class="px-3 py-2 text-right">Valor custo</th>
+                                                <th class="px-3 py-2 text-right">Valor venda</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($linhasLocal as $linhaLocal)
+                                                <tr class="border-t border-slate-100">
+                                                    <td class="px-3 py-2">{{ $linhaLocal->produto_nome }}</td>
+                                                    <td class="px-3 py-2 font-mono text-[11px]">{{ $linhaLocal->codigo_barras ?? '—' }}</td>
+                                                    <td class="px-3 py-2 text-right">{{ number_format((float) $linhaLocal->quantity, 0, ',', '.') }}</td>
+                                                    <td class="px-3 py-2 text-right">{{ number_format((float) $linhaLocal->valor_compra, 2, ',', '.') }}</td>
+                                                    <td class="px-3 py-2 text-right">{{ number_format((float) $linhaLocal->valor_venda, 2, ',', '.') }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
                 <div class="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white px-5 py-3">

@@ -99,6 +99,8 @@ class BalanceSheetTest extends TestCase
         $this->assertEquals(50.0, (float) $balance->total_recargas_valor);
         $this->assertEquals(50.0, (float) $balance->total_stock_valor_compra);
         $this->assertEquals(75.0, (float) $balance->total_stock_valor_venda);
+        $this->assertSame(1, $balance->locationLines()->count());
+        $this->assertEquals(5.0, (float) $balance->locationLines()->first()->quantity);
     }
 
     public function test_pagina_balanco_requer_autenticacao(): void

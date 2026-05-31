@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BalanceSheet;
 use App\Models\BalanceSheetLine;
+use App\Models\BalanceSheetLocationLine;
 use App\Models\Product;
 use App\Models\SaleItem;
 use App\Models\StockBalance;
@@ -34,7 +35,7 @@ class BalanceSheetBuilder
 
         $this->syncAutomaticLines($balance);
 
-        return $balance->fresh(['lines.product', 'preparedBy']);
+        return $balance->fresh(['lines.product', 'locationLines', 'preparedBy']);
     }
 
     public function syncAutomaticLines(BalanceSheet $balance): void
@@ -104,7 +105,55 @@ class BalanceSheetBuilder
             ->delete();
 
         $balance->load('lines');
+        $this->syncLocationLines($balance);
         $balance->recalculateTotals();
+    }
+
+    public function syncLocationLines(BalanceSheet $balance): void
+    {
+        $balances = StockBalance::query()
+            ->with(['product', 'location'])
+            ->where('quantity', '>', 0)
+            ->get();
+
+        $ordem = 0;
+        $lineIds = [];
+
+        foreach ($balances as $stockBalance) {
+            $product = $stockBalance->product;
+            $location = $stockBalance->location;
+            if (! $product || ! $location) {
+                continue;
+            }
+
+            $qtd = (float) $stockBalance->quantity;
+            $custoUnit = (float) ($product->preco_compra ?: $product->preco_venda);
+
+            $line = BalanceSheetLocationLine::query()->updateOrCreate(
+                [
+                    'balance_sheet_id' => $balance->id,
+                    'product_id' => $product->id,
+                    'location_id' => $location->id,
+                ],
+                [
+                    'local_codigo' => $location->code,
+                    'local_nome' => $location->name,
+                    'produto_nome' => $product->nome,
+                    'codigo_barras' => $product->codigo_barras,
+                    'quantity' => $qtd,
+                    'valor_compra' => $qtd * $custoUnit,
+                    'valor_venda' => $qtd * (float) $product->preco_venda,
+                    'ordem' => ++$ordem,
+                ]
+            );
+
+            $lineIds[] = $line->id;
+        }
+
+        BalanceSheetLocationLine::query()
+            ->where('balance_sheet_id', $balance->id)
+            ->whereNotIn('id', $lineIds)
+            ->delete();
     }
 
     /** @return Collection<string, array{qtd: float, valor: float}> */

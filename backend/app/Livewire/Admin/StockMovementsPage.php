@@ -59,7 +59,7 @@ class StockMovementsPage extends Component
                 });
             })
             ->latest()
-            ->paginate(15);
+            ->paginate(10);
 
         return view('livewire.admin.stock-movements-page')
             ->layout('components.layouts.desktop', ['title' => 'Movimentos de Stock | RetailPro'])
