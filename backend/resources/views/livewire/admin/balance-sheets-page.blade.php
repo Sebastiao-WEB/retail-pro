@@ -176,6 +176,7 @@
                             <thead class="bg-slate-900 text-left uppercase tracking-wide text-white">
                                 <tr>
                                     <th class="px-3 py-2">Produto</th>
+                                    <th class="px-3 py-2">Cód. barras</th>
                                     <th class="px-3 py-2 text-right">Rec. qtd</th>
                                     <th class="px-3 py-2 text-right">Rec. valor</th>
                                     <th class="px-3 py-2 text-right">Vend. qtd</th>
@@ -191,6 +192,7 @@
                                 @forelse ($balanceEmEdicao->lines as $linha)
                                     <tr class="border-t border-slate-100">
                                         <td class="px-3 py-2 font-medium">{{ $linha->rubrika }}</td>
+                                        <td class="px-3 py-2 font-mono text-[11px] text-slate-600">{{ $linha->product?->codigo_barras ?? '—' }}</td>
                                         <td class="px-3 py-2 text-right">{{ number_format((float) $linha->qtd_recarregada, 0, ',', '.') }}</td>
                                         <td class="px-3 py-2 text-right">{{ number_format((float) $linha->valor_recarga, 2, ',', '.') }}</td>
                                         <td class="px-3 py-2 text-right">{{ number_format((float) $linha->qtd_vendida, 0, ',', '.') }}</td>
@@ -203,7 +205,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="10" class="px-3 py-6 text-center text-slate-500">Sem movimentos no período seleccionado.</td>
+                                        <td colspan="11" class="px-3 py-6 text-center text-slate-500">Sem movimentos no período seleccionado.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -211,6 +213,7 @@
                                 <tfoot class="bg-slate-50 font-semibold">
                                     <tr class="border-t border-slate-200">
                                         <td class="px-3 py-2">Totais</td>
+                                        <td class="px-3 py-2"></td>
                                         <td class="px-3 py-2 text-right">{{ number_format((float) $balanceEmEdicao->total_recargas_qtd, 0, ',', '.') }}</td>
                                         <td class="px-3 py-2 text-right">{{ number_format((float) $balanceEmEdicao->total_recargas_valor, 2, ',', '.') }}</td>
                                         <td class="px-3 py-2 text-right">{{ number_format((float) $balanceEmEdicao->total_vendas_qtd, 0, ',', '.') }}</td>

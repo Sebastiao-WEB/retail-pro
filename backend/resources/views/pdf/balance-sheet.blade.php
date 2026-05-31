@@ -82,6 +82,7 @@
         <thead>
             <tr>
                 <th>Produto</th>
+                <th>Cód. barras</th>
                 <th class="num">Rec. qtd</th>
                 <th class="num">Rec. MT</th>
                 <th class="num">Vend. qtd</th>
@@ -97,6 +98,7 @@
             @forelse ($balance->lines as $linha)
                 <tr>
                     <td>{{ $linha->rubrika }}</td>
+                    <td>{{ $linha->product?->codigo_barras ?? '—' }}</td>
                     <td class="num">{{ number_format((float) $linha->qtd_recarregada, 0, ',', '.') }}</td>
                     <td class="num">{{ number_format((float) $linha->valor_recarga, 2, ',', '.') }}</td>
                     <td class="num">{{ number_format((float) $linha->qtd_vendida, 0, ',', '.') }}</td>
@@ -108,13 +110,14 @@
                     <td class="num">{{ number_format((float) $linha->valor_stock_venda, 2, ',', '.') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="10">Sem movimentos no período.</td></tr>
+                <tr><td colspan="11">Sem movimentos no período.</td></tr>
             @endforelse
         </tbody>
         @if ($balance->lines->isNotEmpty())
             <tfoot>
                 <tr>
                     <td>Totais</td>
+                    <td></td>
                     <td class="num">{{ number_format((float) $balance->total_recargas_qtd, 0, ',', '.') }}</td>
                     <td class="num">{{ number_format((float) $balance->total_recargas_valor, 2, ',', '.') }}</td>
                     <td class="num">{{ number_format((float) $balance->total_vendas_qtd, 0, ',', '.') }}</td>

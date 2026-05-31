@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             'customers.view', 'customers.manage',
             'sales.view',
             'balance_sheets.view', 'balance_sheets.manage',
+            'operator_reports.view',
             'cash_sessions.view',
             'reversals.view', 'reversals.manage',
         ];
@@ -63,6 +64,7 @@ class DatabaseSeeder extends Seeder
             'customers.view', 'customers.manage',
             'sales.view',
             'balance_sheets.view', 'balance_sheets.manage',
+            'operator_reports.view',
             'cash_sessions.view',
             'reversals.view', 'reversals.manage',
         ];
