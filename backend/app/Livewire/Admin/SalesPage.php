@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ValidatesDateInput;
 use App\Models\Register;
 use App\Models\Sale;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SalesPage extends Component
 {
+    use ValidatesDateInput;
     use WithPagination;
 
     public string $search = '';
@@ -98,8 +100,8 @@ class SalesPage extends Component
             ->when($this->registerFilter !== '', fn ($q) => $q->where('register_id', $this->registerFilter))
             ->when($this->estadoFilter !== '', fn ($q) => $q->where('estado', $this->estadoFilter))
             ->when($this->pagamentoFilter !== '', fn ($q) => $q->where('metodo_pagamento', $this->pagamentoFilter))
-            ->when($this->dateFrom !== '', fn ($q) => $q->whereDate('data', '>=', $this->dateFrom))
-            ->when($this->dateTo !== '', fn ($q) => $q->whereDate('data', '<=', $this->dateTo));
+            ->when($this->dataValida($this->dateFrom), fn ($q) => $q->whereDate('data', '>=', $this->dateFrom))
+            ->when($this->dataValida($this->dateTo), fn ($q) => $q->whereDate('data', '<=', $this->dateTo));
     }
 
     public function exportCsv(): StreamedResponse

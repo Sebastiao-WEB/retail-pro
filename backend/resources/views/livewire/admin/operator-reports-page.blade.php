@@ -14,11 +14,11 @@
         <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Período início</label>
-                <input wire:model.live="periodo_inicio" type="date" class="rp-input">
+                <input wire:model.blur="periodo_inicio" type="date" class="rp-input">
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Período fim</label>
-                <input wire:model.live="periodo_fim" type="date" class="rp-input">
+                <input wire:model.blur="periodo_fim" type="date" class="rp-input">
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Caixa</label>

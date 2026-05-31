@@ -2,16 +2,17 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ValidatesDateInput;
 use App\Models\Register;
 use App\Models\SaleReversalRequest;
 use App\Services\ReversalReportBuilder;
 use App\Services\SaleReversalService;
-use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ReversalsPage extends Component
 {
+    use ValidatesDateInput;
     use WithPagination;
 
     public string $search = '';
@@ -68,7 +69,7 @@ class ReversalsPage extends Component
 
     public function pdfUrl(): string
     {
-        [$inicio, $fim] = $this->resolverPeriodo();
+        [$inicio, $fim] = $this->resolverIntervaloDatas($this->periodo_inicio, $this->periodo_fim);
 
         return route('reversals.pdf', array_filter([
             'periodo_inicio' => $inicio->toDateString(),
@@ -144,9 +145,9 @@ class ReversalsPage extends Component
             ->latest('requested_at')
             ->paginate(10);
 
-        [$inicio, $fim] = $this->resolverPeriodo();
+        [$inicio, $fim] = $this->resolverIntervaloDatas($this->periodo_inicio, $this->periodo_fim);
 
-        $totais = $this->periodoCompletoValido()
+        $totais = $this->intervaloDatasValido($this->periodo_inicio, $this->periodo_fim)
             ? $builder->totais(
                 $inicio,
                 $fim,
@@ -170,56 +171,5 @@ class ReversalsPage extends Component
                 'totais' => $totais,
                 'registers' => $registers,
             ]);
-    }
-
-    /** @return array{0: Carbon, 1: Carbon} */
-    private function resolverPeriodo(): array
-    {
-        $inicio = $this->dataValida($this->periodo_inicio)
-            ? Carbon::parse($this->periodo_inicio)->startOfDay()
-            : now()->startOfMonth()->startOfDay();
-
-        $fim = $this->dataValida($this->periodo_fim)
-            ? Carbon::parse($this->periodo_fim)->endOfDay()
-            : now()->endOfDay();
-
-        if ($fim->lt($inicio)) {
-            $fim = $inicio->copy()->endOfDay();
-        }
-
-        return [$inicio, $fim];
-    }
-
-    private function periodoCompletoValido(): bool
-    {
-        if (! $this->dataValida($this->periodo_inicio) || ! $this->dataValida($this->periodo_fim)) {
-            return false;
-        }
-
-        return Carbon::parse($this->periodo_fim)->gte(Carbon::parse($this->periodo_inicio));
-    }
-
-    private function dataValida(?string $valor): bool
-    {
-        if ($valor === null || $valor === '') {
-            return false;
-        }
-
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor)) {
-            return false;
-        }
-
-        [$ano, $mes, $dia] = array_map('intval', explode('-', $valor));
-
-        return checkdate($mes, $dia, $ano);
-    }
-
-    private function uuidValido(?string $valor): bool
-    {
-        if ($valor === null || $valor === '') {
-            return false;
-        }
-
-        return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $valor);
     }
 }

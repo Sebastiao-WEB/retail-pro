@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Livewire\Concerns\ValidatesDateInput;
 use App\Models\Register;
 use App\Services\OperatorSalesReportBuilder;
 use Carbon\Carbon;
@@ -9,6 +10,8 @@ use Livewire\Component;
 
 class OperatorReportsPage extends Component
 {
+    use ValidatesDateInput;
+
     public string $periodo_inicio = '';
 
     public string $periodo_fim = '';
@@ -50,9 +53,11 @@ class OperatorReportsPage extends Component
 
     public function pdfUrl(): string
     {
+        [$inicio, $fim] = $this->resolverIntervaloDatas($this->periodo_inicio, $this->periodo_fim);
+
         return route('operator-reports.pdf', array_filter([
-            'periodo_inicio' => $this->periodo_inicio,
-            'periodo_fim' => $this->periodo_fim,
+            'periodo_inicio' => $inicio->toDateString(),
+            'periodo_fim' => $fim->toDateString(),
             'register_id' => $this->registerFilter ?: null,
         ]));
     }
@@ -61,23 +66,16 @@ class OperatorReportsPage extends Component
     {
         abort_unless(auth()->user()?->can('operator_reports.view'), 403);
 
-        $this->validate([
-            'periodo_inicio' => ['required', 'date'],
-            'periodo_fim' => ['required', 'date', 'after_or_equal:periodo_inicio'],
-        ]);
-
         $registerId = $this->registerFilter !== '' ? $this->registerFilter : null;
-        if ($registerId) {
-            $this->validate([
-                'registerFilter' => ['uuid', 'exists:registers,id'],
-            ]);
+        if ($registerId && ! $this->uuidValido($registerId)) {
+            $registerId = null;
         }
 
-        $relatorio = $builder->build(
-            Carbon::parse($this->periodo_inicio),
-            Carbon::parse($this->periodo_fim),
-            $registerId,
-        );
+        [$inicio, $fim] = $this->resolverIntervaloDatas($this->periodo_inicio, $this->periodo_fim);
+
+        $relatorio = $this->intervaloDatasValido($this->periodo_inicio, $this->periodo_fim)
+            ? $builder->build($inicio, $fim, $registerId)
+            : $this->relatorioVazio($inicio, $fim, $registerId);
 
         $operadorSelecionado = null;
         if ($this->operadorDetalhe) {
@@ -94,5 +92,22 @@ class OperatorReportsPage extends Component
                 'operadorSelecionado' => $operadorSelecionado,
                 'registers' => $registers,
             ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function relatorioVazio(Carbon $inicio, Carbon $fim, ?string $registerId): array
+    {
+        return [
+            'periodo_inicio' => $inicio,
+            'periodo_fim' => $fim,
+            'register_id' => $registerId,
+            'totais' => [
+                'vendas' => 0.0,
+                'custo' => 0.0,
+                'lucro' => 0.0,
+                'num_vendas' => 0,
+            ],
+            'operadores' => [],
+        ];
     }
 }

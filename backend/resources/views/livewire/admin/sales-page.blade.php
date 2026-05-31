@@ -45,11 +45,11 @@
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Data inicial</label>
-                <input wire:model.live="dateFrom" type="date" class="rp-input">
+                <input wire:model.blur="dateFrom" type="date" class="rp-input">
             </div>
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">Data final</label>
-                <input wire:model.live="dateTo" type="date" class="rp-input">
+                <input wire:model.blur="dateTo" type="date" class="rp-input">
             </div>
             <div class="flex items-end">
                 <button type="button" wire:click="limparFiltros" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
