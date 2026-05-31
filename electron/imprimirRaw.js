@@ -1,14 +1,13 @@
-import fs from "node:fs/promises";
+import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { promisify } from "node:util";
-import { execFile } from "node:child_process";
+import { executarPowerShellWindows } from "./powershellWindows.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const execFileAsync = promisify(execFile);
 
 function executarComando(comando, args, entrada = null) {
   return new Promise((resolve, reject) => {
@@ -47,34 +46,30 @@ async function imprimirRawDarwin(deviceName, buffer) {
   await executarComando("lp", ["-d", deviceName, "-o", "raw"], buffer);
 }
 
-async function executarPowerShellWindows(args) {
+function resolverScriptImpressaoRaw() {
+  const scriptName = "imprimirRawWindows.ps1";
   const candidatos = [
-    process.env.SystemRoot ? path.join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : null,
-    "powershell.exe",
-    "pwsh.exe",
-  ].filter(Boolean);
+    path.join(__dirname, scriptName),
+    path.join(__dirname, "..", "app.asar.unpacked", "electron", scriptName),
+  ];
 
-  let ultimoErro = null;
-  for (const binario of candidatos) {
+  for (const candidato of candidatos) {
     try {
-      return await execFileAsync(binario, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", ...args], {
-        windowsHide: true,
-        maxBuffer: 10 * 1024 * 1024,
-      });
-    } catch (error) {
-      ultimoErro = error;
+      if (fs.existsSync(candidato)) return candidato;
+    } catch {
+      // ignora caminhos invalidos
     }
   }
 
-  throw ultimoErro || new Error("PowerShell nao encontrado no Windows.");
+  return path.join(__dirname, scriptName);
 }
 
 async function imprimirRawWindows(deviceName, buffer) {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "retailpro-print-"));
+  const tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), "retailpro-print-"));
   const tempFile = path.join(tempDir, "talao.bin");
-  const scriptPath = path.join(__dirname, "imprimirRawWindows.ps1");
+  const scriptPath = resolverScriptImpressaoRaw();
 
-  await fs.writeFile(tempFile, buffer);
+  await fsPromises.writeFile(tempFile, buffer);
 
   try {
     await executarPowerShellWindows([
@@ -86,7 +81,7 @@ async function imprimirRawWindows(deviceName, buffer) {
       tempFile,
     ]);
   } finally {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fsPromises.rm(tempDir, { recursive: true, force: true });
   }
 }
 

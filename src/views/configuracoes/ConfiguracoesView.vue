@@ -31,6 +31,15 @@ async function guardarConfiguracoes() {
   }
 }
 
+function guardarConfiguracoesImpressao() {
+  try {
+    configuracoes.salvar();
+    mostrarToastSwal(t("settings.toast.saved"), "success");
+  } catch (erro) {
+    mostrarToastSwal(erro?.message || t("settings.toast.saveFailed"), "error");
+  }
+}
+
 async function carregarDadosEmpresa() {
   try {
     await configuracoes.hidratarDadosEmpresaRemotos();
@@ -251,7 +260,7 @@ async function testarGaveta() {
               class="!px-3 !py-2.5"
               :title="t('settings.printing.savePrinting')"
               :aria-label="t('settings.printing.savePrinting')"
-              @click="guardarConfiguracoes"
+              @click="guardarConfiguracoesImpressao"
             >
               <Save :size="ICON_SIZE" :stroke-width="2.2" />
             </BotaoBase>
