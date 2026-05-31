@@ -80,6 +80,7 @@ async function reimprimirVenda(venda) {
         detalharIva: true,
         copies: 1,
         corteAutomatico: true,
+        abrirGaveta: false,
       },
     });
     if (!resultado?.ok) {

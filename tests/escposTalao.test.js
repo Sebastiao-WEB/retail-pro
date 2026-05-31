@@ -186,4 +186,9 @@ describe("escposTalao", () => {
     const buffer = gerarBufferAbrirGaveta({ pin: 1, tempoOn: 100, tempoOff: 200 });
     expect(buffer.equals(Buffer.from([0x1b, 0x70, 0x01, 0x32, 0x64]))).toBe(true);
   });
+
+  it("normaliza porta DK quando pin vem como string", () => {
+    const buffer = gerarBufferAbrirGaveta({ pin: "1", tempoOn: 100, tempoOff: 200 });
+    expect(buffer.equals(Buffer.from([0x1b, 0x70, 0x01, 0x32, 0x64]))).toBe(true);
+  });
 });

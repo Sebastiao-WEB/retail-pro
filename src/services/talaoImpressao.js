@@ -2,6 +2,23 @@ import { temApiConfigurada } from "../api/config";
 import { buildReceiptLabels, generalClientLabel, isGeneralClient, t } from "./i18nHelper.js";
 import { getStoredLocale, intlLocale } from "./localeStorage.js";
 
+function normalizarGavetaPin(valor) {
+  return Number(valor) === 1 ? 1 : 0;
+}
+
+export function deveAbrirGavetaNaVenda(venda, configuracao) {
+  const metodo = String(venda?.metodoPagamento ?? "");
+  return metodo === "Dinheiro" && !!configuracao?.abrirGavetaAutomatico;
+}
+
+export function obterOpcoesGaveta(configuracao, opcoes = {}) {
+  return {
+    gavetaPin: normalizarGavetaPin(opcoes.gavetaPin ?? configuracao?.gavetaPin ?? 0),
+    gavetaTempoOn: opcoes.gavetaTempoOn,
+    gavetaTempoOff: opcoes.gavetaTempoOff,
+  };
+}
+
 function formatarMT(valor) {
   const locale = intlLocale(getStoredLocale());
   return `${new Intl.NumberFormat(locale, {
@@ -148,8 +165,15 @@ export async function enviarTalaoParaImpressao({ venda, configuracao, opcoes = {
     corteAutomatico: opcoes.corteAutomatico ?? !!configuracao.corteAutomatico,
     larguraTalao: talao.larguraTalao,
     abrirGaveta: opcoes.abrirGaveta ?? !!configuracao.abrirGavetaAutomatico,
-    gavetaPin: opcoes.gavetaPin ?? configuracao.gavetaPin ?? 0,
+    ...obterOpcoesGaveta(configuracao, opcoes),
   });
+}
+
+export async function abrirGavetaPosVenda({ venda, configuracao, opcoes = {} } = {}) {
+  if (!deveAbrirGavetaNaVenda(venda, configuracao)) {
+    return { ok: true, skipped: true };
+  }
+  return enviarAbrirGaveta({ configuracao, opcoes: obterOpcoesGaveta(configuracao, opcoes) });
 }
 
 export async function enviarAbrirGaveta({ configuracao, opcoes = {} } = {}) {
@@ -162,7 +186,7 @@ export async function enviarAbrirGaveta({ configuracao, opcoes = {} } = {}) {
 
   return window.api.abrirGaveta({
     deviceName: configuracao.impressoraPadrao,
-    gavetaPin: opcoes.gavetaPin ?? configuracao.gavetaPin ?? 0,
+    ...obterOpcoesGaveta(configuracao, opcoes),
   });
 }
 

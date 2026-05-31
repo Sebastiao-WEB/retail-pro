@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { gerarBufferEscpos, gerarBufferEscposRelatorioFecho, gerarBufferAbrirGaveta } from "./escposTalao.js";
+import { gerarBufferEscpos, gerarBufferEscposRelatorioFecho, gerarBufferAbrirGaveta, normalizarGavetaPin } from "./escposTalao.js";
 import { enviarRawParaImpressora } from "./imprimirRaw.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -263,7 +263,7 @@ ipcMain.handle("pos:imprimir-talao", async (_event, payload) => {
     const buffer = gerarBufferEscpos(talao, {
       corteAutomatico,
       abrirGaveta: !!payload?.abrirGaveta,
-      gavetaPin: payload?.gavetaPin,
+      gavetaPin: normalizarGavetaPin(payload?.gavetaPin),
       gavetaTempoOn: payload?.gavetaTempoOn,
       gavetaTempoOff: payload?.gavetaTempoOff,
     });
@@ -303,7 +303,7 @@ ipcMain.handle("pos:abrir-gaveta", async (_event, payload) => {
 
   try {
     const buffer = gerarBufferAbrirGaveta({
-      pin: payload?.gavetaPin,
+      pin: normalizarGavetaPin(payload?.gavetaPin),
       tempoOn: payload?.gavetaTempoOn,
       tempoOff: payload?.gavetaTempoOff,
     });

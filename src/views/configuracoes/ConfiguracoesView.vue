@@ -5,7 +5,9 @@ import BotaoBase from "../../components/BotaoBase.vue";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarAbrirGaveta } from "../../services/talaoImpressao";
-import { RefreshCcw, Save, X } from "lucide-vue-next";
+import { LoaderCircle, PanelBottomOpen, RefreshCcw, Save, X } from "lucide-vue-next";
+
+const ICON_SIZE = 20;
 
 const { t } = useI18n();
 const configuracoes = useConfiguracaoStore();
@@ -223,20 +225,35 @@ async function testarGaveta() {
             </select>
           </div>
           <div class="flex justify-end gap-2">
-            <BotaoBase variante="secundario" :disabled="testandoGaveta" @click="testarGaveta">
-              <span>{{ testandoGaveta ? t("common.testing") : t("settings.printing.testDrawer") }}</span>
+            <BotaoBase
+              variante="secundario"
+              class="!px-3 !py-2.5"
+              :disabled="testandoGaveta"
+              :title="testandoGaveta ? t('common.testing') : t('settings.printing.testDrawer')"
+              :aria-label="testandoGaveta ? t('common.testing') : t('settings.printing.testDrawer')"
+              @click="testarGaveta"
+            >
+              <LoaderCircle v-if="testandoGaveta" class="animate-spin" :size="ICON_SIZE" :stroke-width="2.2" />
+              <PanelBottomOpen v-else :size="ICON_SIZE" :stroke-width="2.2" />
             </BotaoBase>
-            <BotaoBase variante="secundario" @click="carregarImpressoras">
-              <span class="inline-flex items-center gap-1.5">
-                <RefreshCcw :size="14" />
-                <span>{{ t("common.refreshList") }}</span>
-              </span>
+            <BotaoBase
+              variante="secundario"
+              class="!px-3 !py-2.5"
+              :disabled="carregandoImpressoras"
+              :title="t('common.refreshList')"
+              :aria-label="t('common.refreshList')"
+              @click="carregarImpressoras"
+            >
+              <RefreshCcw :class="{ 'animate-spin': carregandoImpressoras }" :size="ICON_SIZE" :stroke-width="2.2" />
             </BotaoBase>
-            <BotaoBase variante="aviso" @click="guardarConfiguracoes">
-              <span class="inline-flex items-center gap-1.5">
-                <Save :size="14" />
-                <span>{{ t("settings.printing.savePrinting") }}</span>
-              </span>
+            <BotaoBase
+              variante="aviso"
+              class="!px-3 !py-2.5"
+              :title="t('settings.printing.savePrinting')"
+              :aria-label="t('settings.printing.savePrinting')"
+              @click="guardarConfiguracoes"
+            >
+              <Save :size="ICON_SIZE" :stroke-width="2.2" />
             </BotaoBase>
           </div>
           <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
