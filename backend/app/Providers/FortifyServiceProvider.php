@@ -10,7 +10,6 @@ use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -35,6 +34,8 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Fortify::loginView(fn () => view('auth.login'));
+        Fortify::twoFactorChallengeView(fn () => view('auth.two-factor-challenge'));
+        Fortify::confirmPasswordView(fn () => view('auth.confirm-password'));
         Fortify::createUsersUsing(CreateNewUser::class);
         Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
@@ -75,17 +76,9 @@ class FortifyServiceProvider extends ServiceProvider
                 ]);
 
                 throw ValidationException::withMessages([
-                    Fortify::username() => ['Credenciais inválidas.'],
+                    Fortify::username() => [__('auth.failed')],
                 ]);
             }
-
-            Auth::guard('web')->login($user, $request->boolean('remember'));
-
-            Log::info('Login successful', [
-                'user_id' => $user->id,
-                'username' => $user->username,
-                'ip' => $request->ip(),
-            ]);
 
             return $user;
         });

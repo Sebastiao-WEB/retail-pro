@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -25,11 +26,11 @@ use Spatie\Permission\Traits\HasRoles;
     'source_location_id',
     'is_active',
 ])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'two_factor_recovery_codes', 'two_factor_secret'])]
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, HasUuids, Notifiable;
+    use HasFactory, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
 
     public $incrementing = false;
 
@@ -46,6 +47,7 @@ class User extends Authenticatable implements JWTSubject
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 

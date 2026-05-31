@@ -53,6 +53,7 @@ return [
         'users' => 'Isticmaalayaasha',
         'roles_permissions' => 'Doorkaha & Ogolaanshaha',
         'settings' => 'Dejinta',
+        'security' => 'Amniga',
     ],
     'roles' => [
         'ADMIN' => 'Maamule',

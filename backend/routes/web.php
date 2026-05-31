@@ -15,6 +15,7 @@ use App\Livewire\Admin\RegistersPage;
 use App\Livewire\Admin\ReversalsPage;
 use App\Livewire\Admin\RolesPermissionsPage;
 use App\Livewire\Admin\SalesPage;
+use App\Livewire\Admin\SecuritySettingsPage;
 use App\Livewire\Admin\StockLocationsPage;
 use App\Livewire\Admin\StockMovementsPage;
 use App\Livewire\Admin\StockReloadPage;
@@ -45,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/movimentos-stock', StockMovementsPage::class)->middleware('permission:stock.movements.view')->name('stock.movements');
     Route::get('/transferencias-stock', StockTransfersPage::class)->middleware('permission:stock.transfers.view')->name('stock.transfers');
     Route::get('/configuracoes', CompanySettingsPage::class)->middleware('permission:settings.view')->name('settings.company');
+    Route::get('/seguranca', SecuritySettingsPage::class)->name('security.settings');
     Route::get('/utilizadores', UsersPage::class)->middleware('permission:users.view')->name('users.index');
     Route::get('/roles-permissoes', RolesPermissionsPage::class)->middleware('permission:roles.view')->name('roles.permissions');
 });

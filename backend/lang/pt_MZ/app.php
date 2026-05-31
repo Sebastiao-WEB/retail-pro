@@ -53,6 +53,7 @@ return [
         'users' => 'Utilizadores',
         'roles_permissions' => 'Roles & Permissões',
         'settings' => 'Configurações',
+        'security' => 'Segurança',
     ],
     'roles' => [
         'ADMIN' => 'Administrador',
