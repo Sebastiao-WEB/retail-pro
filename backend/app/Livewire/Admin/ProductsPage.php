@@ -14,11 +14,7 @@ class ProductsPage extends Component
 
     public bool $modalOpen = false;
 
-    public bool $confirmDeleteOpen = false;
-
     public ?string $editingId = null;
-
-    public ?string $deleteId = null;
 
     public string $nome = '';
     public string $codigo_barras = '';
@@ -28,7 +24,7 @@ class ProductsPage extends Component
     public string $iva_tipo = 'ISENTO';
     public string $iva_percentual = '0';
     public string $iva_valor = '0';
-    public string $stock = '0';
+    public string $stockAtual = '0';
     public bool $is_active = true;
 
     public function updatedSearch(): void
@@ -56,7 +52,7 @@ class ProductsPage extends Component
         $this->iva_tipo = (string) ($produto->iva_tipo ?? 'ISENTO');
         $this->iva_percentual = (string) $produto->iva_percentual;
         $this->iva_valor = (string) $produto->iva_valor;
-        $this->stock = (string) $produto->stock;
+        $this->stockAtual = (string) $produto->stock;
         $this->is_active = (bool) $produto->is_active;
         $this->modalOpen = true;
     }
@@ -73,7 +69,6 @@ class ProductsPage extends Component
             'iva_tipo' => ['required', 'in:ISENTO,PERCENTUAL,MONETARIO'],
             'iva_percentual' => ['required_if:iva_tipo,PERCENTUAL', 'nullable', 'numeric', 'gte:0'],
             'iva_valor' => ['required_if:iva_tipo,MONETARIO', 'nullable', 'numeric', 'gte:0'],
-            'stock' => ['required', 'numeric'],
             'is_active' => ['boolean'],
         ]);
 
@@ -91,43 +86,29 @@ class ProductsPage extends Component
             return;
         }
 
-        Product::query()->updateOrCreate(
-            ['id' => $this->editingId],
-            [
-                ...$dados,
-                'iva_tipo' => $ivaTipo,
-                'iva_valor' => $ivaValor,
-                'iva_percentual' => $ivaPercentual,
-            ]
-        );
+        $payload = [
+            ...$dados,
+            'iva_tipo' => $ivaTipo,
+            'iva_valor' => $ivaValor,
+            'iva_percentual' => $ivaPercentual,
+        ];
 
-        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Produto atualizado.' : 'Produto criado.']);
+        if ($this->editingId) {
+            Product::query()->where('id', $this->editingId)->update($payload);
+        } else {
+            Product::query()->create([
+                ...$payload,
+                'stock' => 0,
+            ]);
+        }
+
+        session()->flash('toast', [
+            'type' => 'success',
+            'message' => $this->editingId
+                ? 'Produto atualizado.'
+                : 'Produto criado. Use Recarregar stock para entrar mercadoria.',
+        ]);
         $this->closeModal();
-    }
-
-    public function confirmDelete(string $id): void
-    {
-        abort_unless(auth()->user()?->can('products.manage'), 403);
-        $this->deleteId = $id;
-        $this->confirmDeleteOpen = true;
-    }
-
-    public function delete(): void
-    {
-        abort_unless(auth()->user()?->can('products.manage'), 403);
-        if (! $this->deleteId) {
-            return;
-        }
-
-        $produto = Product::query()->find($this->deleteId);
-        if ($produto) {
-            $produto->update(['is_active' => false]);
-            $produto->delete();
-        }
-
-        $this->confirmDeleteOpen = false;
-        $this->deleteId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Produto removido.']);
     }
 
     public function closeModal(): void
@@ -147,7 +128,7 @@ class ProductsPage extends Component
         $this->iva_tipo = 'ISENTO';
         $this->iva_percentual = '0';
         $this->iva_valor = '0';
-        $this->stock = '0';
+        $this->stockAtual = '0';
         $this->is_active = true;
     }
 

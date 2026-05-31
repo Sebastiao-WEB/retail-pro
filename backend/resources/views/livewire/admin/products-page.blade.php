@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>
             <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Catálogo de produtos</p>
-            <p class="text-sm text-slate-500">Produtos sincronizados com o POS desktop.</p>
+            <p class="text-sm text-slate-500">Catálogo sincronizado com o POS. Stock via recargas; produtos não são apagados — desactive para ocultar no POS.</p>
         </div>
         @can('products.manage')
             <button type="button" wire:click="openCreateModal" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black hover:brightness-95">
@@ -56,10 +56,7 @@
                         </td>
                         @can('products.manage')
                             <td class="px-3 py-2">
-                                <div class="flex items-center gap-2">
-                                    <button type="button" wire:click="openEditModal('{{ $produto->id }}')" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"><i data-lucide="pencil" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Editar</button>
-                                    <button type="button" wire:click="confirmDelete('{{ $produto->id }}')" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"><i data-lucide="trash-2" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Remover</button>
-                                </div>
+                                <button type="button" wire:click="openEditModal('{{ $produto->id }}')" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"><i data-lucide="pencil" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Editar</button>
                             </td>
                         @endcan
                     </tr>
@@ -130,31 +127,30 @@
                             Produto isento de IVA.
                         </div>
                     @endif
-                    <div>
+                    <div class="md:col-span-2">
                         <label class="mb-1 block text-xs font-semibold text-slate-600">Stock</label>
-                        <input wire:model.defer="stock" type="number" step="0.01" class="rp-input">
+                        @if ($editingId)
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                                <span class="font-semibold text-slate-800">{{ number_format((float) $stockAtual, 2, ',', '.') }} un.</span>
+                                <span class="text-slate-500"> — actualizado por recargas, vendas e transferências</span>
+                            </div>
+                        @else
+                            <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                Stock inicial <strong>0</strong>. Após guardar, use <strong>Recarregar stock</strong> para registar a entrada de mercadoria com histórico.
+                            </div>
+                        @endif
                     </div>
-                    <div class="flex items-center gap-2 pt-6">
-                        <input id="produto-ativo" wire:model.defer="is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600">
-                        <label for="produto-ativo" class="text-sm text-slate-600">Ativo</label>
+                    <div class="md:col-span-2">
+                        <label class="flex items-center gap-2 text-sm text-slate-600">
+                            <input id="produto-ativo" wire:model.defer="is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600">
+                            Ativo no POS
+                        </label>
+                        <p class="mt-1 text-xs text-slate-500">Desmarque para desactivar o produto no POS. O registo mantém-se no histórico de vendas e stock.</p>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
                     <button type="button" wire:click="closeModal" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100"><i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Cancelar</button>
                     <button type="button" wire:click="save" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black hover:brightness-95"><i data-lucide="save" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Guardar</button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if ($confirmDeleteOpen)
-        <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
-            <div class="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-                <h3 class="text-base font-semibold text-slate-900">Confirmar remoção</h3>
-                <p class="mt-2 text-sm text-slate-600">Deseja remover este produto?</p>
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" wire:click="$set('confirmDeleteOpen', false)" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-50"><i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Fechar</button>
-                    <button type="button" wire:click="delete" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100"><i data-lucide="trash-2" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>Remover</button>
                 </div>
             </div>
         </div>

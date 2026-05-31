@@ -208,10 +208,9 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         $product->update(['is_active' => false]);
-        $product->delete();
 
         return response()->json([
-            'message' => 'Produto removido com sucesso.',
+            'message' => 'Produto desactivado com sucesso.',
             'data' => ['id' => $product->id],
         ]);
     }
