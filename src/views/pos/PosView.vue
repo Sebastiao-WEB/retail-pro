@@ -15,7 +15,7 @@ import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada, ApiError } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
 import { intlLocale } from "../../services/localeStorage.js";
-import { GENERAL_CLIENT_CANONICAL, isGeneralClient, t } from "../../services/i18nHelper.js";
+import { GENERAL_CLIENT_CANONICAL, isGeneralClient } from "../../services/i18nHelper.js";
 import { enviarTalaoParaImpressao, enviarAbrirGaveta } from "../../services/talaoImpressao";
 import { enviarRelatorioFechoParaImpressao } from "../../services/relatorioFechoImpressao";
 import {

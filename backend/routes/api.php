@@ -12,17 +12,30 @@ use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\StockLocationController;
 use App\Http\Controllers\Api\V1\StockTransferController;
+use App\Http\Controllers\Api\V1\TwoFactorSettingsController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('two-factor-challenge', [AuthController::class, 'twoFactorChallenge'])
+            ->middleware('throttle:5,1');
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:api');
     });
 
     Route::middleware('auth:api')->group(function () {
+        Route::prefix('auth/two-factor')->group(function () {
+            Route::get('status', [TwoFactorSettingsController::class, 'status']);
+            Route::post('enable', [TwoFactorSettingsController::class, 'enable']);
+            Route::post('confirm', [TwoFactorSettingsController::class, 'confirm']);
+            Route::delete('', [TwoFactorSettingsController::class, 'disable']);
+            Route::get('qr-code', [TwoFactorSettingsController::class, 'qrCode']);
+            Route::post('recovery-codes', [TwoFactorSettingsController::class, 'recoveryCodes']);
+            Route::post('recovery-codes/regenerate', [TwoFactorSettingsController::class, 'regenerateRecoveryCodes']);
+        });
+
         Route::get('company-profile', [CompanyProfileController::class, 'show']);
         Route::put('company-profile', [CompanyProfileController::class, 'update']);
 

@@ -62,11 +62,26 @@
     "authenticating": "A autenticar...",
     "confirmRegister": "Confirmar caixa",
     "enterSystem": "Entrar no sistema",
+    "twoFactor": {
+      "heading": "Autenticação em dois factores",
+      "description": "Introduza o código da aplicação autenticadora ou um código de recuperação.",
+      "codeLabel": "Código de autenticação",
+      "recoveryLabel": "Código de recuperação",
+      "recoveryPlaceholder": "xxxx-xxxx",
+      "submit": "Confirmar acesso",
+      "useRecovery": "Usar código de recuperação",
+      "useCode": "Usar código da aplicação",
+      "backToLogin": "Voltar ao login",
+      "verifying": "A verificar..."
+    },
     "toast": {
       "apiModeNoUrl": "Modo API ativo, mas VITE_API_URL não está configurado.",
       "selectRegister": "Seleccione o caixa em que vai operar.",
       "connectionFailed": "Falha de conexão com o servidor.",
-      "authFailed": "Falha ao autenticar com o backend."
+      "authFailed": "Falha ao autenticar com o backend.",
+      "twoFactorRequired": "Confirme o acesso com autenticação em dois factores.",
+      "twoFactorExpired": "Sessão de verificação expirada. Faça login novamente.",
+      "twoFactorInvalid": "Código de autenticação inválido."
     }
   },
   "sidebar": {
@@ -82,6 +97,7 @@
     "salesHistory": "Histórico de Vendas",
     "closingsHistory": "Histórico de Fechos",
     "system": "Sistema",
+    "security": "Segurança",
     "settings": "Configurações",
     "cashierRole": "Operador de Caixa"
   },
@@ -104,6 +120,10 @@
       "configuracoes": {
         "title": "Configurações",
         "subtitle": "Preferências do sistema"
+      },
+      "seguranca": {
+        "title": "Segurança",
+        "subtitle": "Autenticação de dois factores da conta"
       }
     },
     "backend": {
@@ -168,6 +188,42 @@
       "savePrinting": "Guardar Impressão",
       "alertSound": "Som dos alertas",
       "alertSoundHint": "Toca som em sucesso, aviso, erro e informação"
+    },
+    "security": {
+      "title": "Segurança da conta",
+      "subtitle": "Autenticação em dois factores para login web e POS",
+      "apiOnly": "A gestão de 2FA está disponível apenas com backend API configurado.",
+      "twoFactorHeading": "Autenticação em 2 factores",
+      "description": "Proteja o login com códigos temporários da aplicação autenticadora.",
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "pending": "Pendente de confirmação",
+      "passwordLabel": "Senha actual",
+      "passwordPlaceholder": "••••••",
+      "passwordRequired": "Informe a senha actual para continuar.",
+      "enable": "Activar 2FA",
+      "enabling": "A activar...",
+      "enableSuccess": "Leia o QR code e confirme com o código da aplicação.",
+      "enableFailed": "Não foi possível activar o 2FA.",
+      "scanQr": "Leia o QR code com Google Authenticator, Authy ou app compatível.",
+      "confirmCodeLabel": "Código de confirmação",
+      "confirmEnable": "Confirmar activação",
+      "confirming": "A confirmar...",
+      "confirmSuccess": "Autenticação em dois factores activada.",
+      "confirmFailed": "Código de confirmação inválido.",
+      "disable": "Desactivar 2FA",
+      "disabling": "A desactivar...",
+      "disableConfirm": "Deseja realmente desactivar a autenticação em dois factores?",
+      "disableSuccess": "Autenticação em dois factores desactivada.",
+      "disableFailed": "Não foi possível desactivar o 2FA.",
+      "showRecoveryCodes": "Mostrar códigos de recuperação",
+      "regenerateRecoveryCodes": "Gerar novos códigos",
+      "recoveryHint": "Guarde estes códigos num local seguro. Cada um só pode ser usado uma vez.",
+      "regenerateSuccess": "Novos códigos de recuperação gerados.",
+      "regenerateFailed": "Não foi possível gerar novos códigos.",
+      "recoveryFailed": "Não foi possível carregar os códigos de recuperação.",
+      "qrFailed": "Não foi possível carregar o QR code.",
+      "loadFailed": "Não foi possível carregar o estado de segurança."
     },
     "toast": {
       "saved": "Configurações guardadas com sucesso.",

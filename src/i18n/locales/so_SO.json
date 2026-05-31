@@ -62,11 +62,26 @@
     "authenticating": "Waa la xaqiijinayaa...",
     "confirmRegister": "Xaqiiji sanduuqa",
     "enterSystem": "Gal nidaamka",
+    "twoFactor": {
+      "heading": "Xaqiijinta laba-factor",
+      "description": "Geli koodhka app-ka xaqiijinta ama koodhka soo kabashada.",
+      "codeLabel": "Koodhka xaqiijinta",
+      "recoveryLabel": "Koodhka soo kabashada",
+      "recoveryPlaceholder": "xxxx-xxxx",
+      "submit": "Xaqiiji gelitaanka",
+      "useRecovery": "Isticmaal koodhka soo kabashada",
+      "useCode": "Isticmaal koodhka app-ka",
+      "backToLogin": "Ku noqo login-ka",
+      "verifying": "Waa la xaqiijinayaa..."
+    },
     "toast": {
       "apiModeNoUrl": "Habka API waa firfircoon, laakiin VITE_API_URL lama habeeyin.",
       "selectRegister": "Dooro sanduuqa aad ka shaqayn doontid.",
       "connectionFailed": "Isku xirka server-ka wuu fashilmay.",
-      "authFailed": "Xaqiijinta backend-ka waa fashilantay."
+      "authFailed": "Xaqiijinta backend-ka waa fashilantay.",
+      "twoFactorRequired": "Xaqiiji gelitaanka adigoo isticmaalaya xaqiijinta laba-factor.",
+      "twoFactorExpired": "Fadhiga xaqiijinta wuu dhacay. Mar kale gal nidaamka.",
+      "twoFactorInvalid": "Koodhka xaqiijinta waa khalad."
     }
   },
   "sidebar": {
@@ -82,6 +97,7 @@
     "salesHistory": "Taariikhda Iibka",
     "closingsHistory": "Taariikhda Xiritaanka",
     "system": "Nidaamka",
+    "security": "Amniga",
     "settings": "Habaynta",
     "cashierRole": "Hawlgale Lacag-bixiye"
   },
@@ -104,6 +120,10 @@
       "configuracoes": {
         "title": "Habaynta",
         "subtitle": "Doorbidyada nidaamka"
+      },
+      "seguranca": {
+        "title": "Amniga",
+        "subtitle": "Xaqiijinta laba-tallaabo ee koontada"
       }
     },
     "backend": {
@@ -168,6 +188,42 @@
       "savePrinting": "Keydi Daabacaadda",
       "alertSound": "Codka digniinta",
       "alertSoundHint": "Wuxuu ciyaaraa cod marka guul, digniin, khalad ama macluumaad la muujiyo"
+    },
+    "security": {
+      "title": "Amniga koontada",
+      "subtitle": "Xaqiijinta laba-factor ee login-ka web-ka iyo POS-ka",
+      "apiOnly": "Maamulka 2FA waxaa laga heli karaa kaliya marka backend API la habeeyay.",
+      "twoFactorHeading": "Xaqiijinta 2-factor",
+      "description": "Ilaali gelitaanka adigoo isticmaalaya koodhyo waqti kooban oo ka yimaada app-ka xaqiijinta.",
+      "enabled": "Firfircoon",
+      "disabled": "Aan firfircoonayn",
+      "pending": "Sugaya xaqiijin",
+      "passwordLabel": "Furaha hadda",
+      "passwordPlaceholder": "••••••",
+      "passwordRequired": "Geli furaha hadda si aad u sii wadato.",
+      "enable": "Firfircooni 2FA",
+      "enabling": "Waa la firfircooninayaa...",
+      "enableSuccess": "Akhriso QR code-ka oo ku xaqiiji koodhka app-ka.",
+      "enableFailed": "Lama firfircoonin karo 2FA.",
+      "scanQr": "Akhriso QR code-ka Google Authenticator, Authy ama app la jaan qaada.",
+      "confirmCodeLabel": "Koodhka xaqiijinta",
+      "confirmEnable": "Xaqiiji firfircoonida",
+      "confirming": "Waa la xaqiijinayaa...",
+      "confirmSuccess": "Xaqiijinta laba-factor waa la firfircooniyay.",
+      "confirmFailed": "Koodhka xaqiijinta waa khalad.",
+      "disable": "Jooji 2FA",
+      "disabling": "Waa la joojinayaa...",
+      "disableConfirm": "Runtii ma rabtaa inaad joojiso xaqiijinta laba-factor?",
+      "disableSuccess": "Xaqiijinta laba-factor waa la joojiyay.",
+      "disableFailed": "Lama joojin karo 2FA.",
+      "showRecoveryCodes": "Muuji koodhyada soo kabashada",
+      "regenerateRecoveryCodes": "Abuur koodhyo cusub",
+      "recoveryHint": "Kaydi koodhyadan meel ammaan ah. Mid kasta hal mar ayaa la isticmaali karaa.",
+      "regenerateSuccess": "Koodhyo cusub oo soo kabashada ah ayaa la abuuray.",
+      "regenerateFailed": "Lama abuuri karo koodhyo cusub.",
+      "recoveryFailed": "Lama soo rogi karo koodhyada soo kabashada.",
+      "qrFailed": "Lama soo rogi karo QR code-ka.",
+      "loadFailed": "Lama soo rogi karo xaaladda amniga."
     },
     "toast": {
       "saved": "Habaynta si guul leh ayaa loo keydiyay.",

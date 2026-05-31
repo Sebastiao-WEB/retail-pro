@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { intlLocale } from "../services/localeStorage.js";
 import SeletorIdioma from "./SeletorIdioma.vue";
-import { Clock3, Cog, LayoutGrid, Receipt, ShoppingCart, UserRound } from "lucide-vue-next";
+import { Clock3, Cog, LayoutGrid, Receipt, Shield, ShoppingCart, UserRound } from "lucide-vue-next";
 import logoRetailPro from "../assets/rp.png";
 
 const { t, locale } = useI18n();
@@ -24,7 +24,10 @@ const secoes = computed(() => [
   },
   {
     titulo: t("sidebar.system"),
-    itens: [{ nome: t("sidebar.settings"), rota: "/configuracoes", icon: Cog }],
+    itens: [
+      { nome: t("sidebar.security"), rota: "/seguranca", icon: Shield },
+      { nome: t("sidebar.settings"), rota: "/configuracoes", icon: Cog },
+    ],
   },
 ]);
 
