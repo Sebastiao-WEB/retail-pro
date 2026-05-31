@@ -1,7 +1,10 @@
 import { temApiConfigurada } from "../api/config";
+import { buildReceiptLabels, generalClientLabel, isGeneralClient, t } from "./i18nHelper.js";
+import { getStoredLocale, intlLocale } from "./localeStorage.js";
 
 function formatarMT(valor) {
-  return `${new Intl.NumberFormat("pt-MZ", {
+  const locale = intlLocale(getStoredLocale());
+  return `${new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(valor || 0))} MT`;
@@ -55,7 +58,17 @@ function obterRodapeTalao(configuracao) {
   if (temApiConfigurada()) {
     return String(configuracao?.rodapeFacturas ?? "");
   }
-  return String(configuracao?.rodapeFacturas || "Obrigado pela preferencia.");
+  return String(configuracao?.rodapeFacturas || t("pos.receipt.defaultFooter"));
+}
+
+function traduzirMetodoPagamento(metodo) {
+  if (metodo === "Dinheiro") return t("pos.payment.cash");
+  if (metodo === "Transferência") return t("pos.payment.transfer");
+  return metodo;
+}
+
+function nomeClienteTalao(nome) {
+  return isGeneralClient(nome) ? generalClientLabel() : String(nome || generalClientLabel());
 }
 
 async function sincronizarConfiguracaoEmpresaRemota(configuracao) {
@@ -78,10 +91,11 @@ export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
   const descontoAplicado = obterDescontoAplicado({ ...venda, subtotal, total });
 
   return {
-    titulo: opcoes.segundaVia ? "2a via do Talao" : "Talao de Venda",
+    titulo: opcoes.segundaVia ? t("pos.receipt.secondCopyTitle") : t("pos.receipt.saleTitle"),
     segundaVia: !!opcoes.segundaVia,
     detalharIva: !!opcoes.detalharIva,
     larguraTalao: opcoes.larguraTalao || configuracao?.larguraTalao || "80mm",
+    labels: buildReceiptLabels(),
     empresa: {
       nome: String(configuracao?.nomeEmpresa || "RetailPro POS"),
       nuit: String(configuracao?.nif || ""),
@@ -91,10 +105,10 @@ export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
     },
     venda: {
       referencia: String(venda?.referencia || ""),
-      cliente: String(venda?.cliente || "Cliente Geral"),
-      metodoPagamento,
+      cliente: nomeClienteTalao(venda?.cliente),
+      metodoPagamento: traduzirMetodoPagamento(metodoPagamento),
       data: dataIso,
-      dataFormatada: new Date(dataIso).toLocaleString("pt-MZ"),
+      dataFormatada: new Date(dataIso).toLocaleString(intlLocale(getStoredLocale())),
       itens,
       subtotal,
       descontoAplicado,
@@ -117,10 +131,10 @@ export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
 
 export async function enviarTalaoParaImpressao({ venda, configuracao, opcoes = {} }) {
   if (!window.api?.imprimirTalao) {
-    return { ok: false, error: "API de impressao indisponivel no desktop." };
+    return { ok: false, error: t("pos.printErrors.receiptApiUnavailable") };
   }
   if (!configuracao?.impressoraPadrao) {
-    return { ok: false, error: "Impressora padrao nao configurada." };
+    return { ok: false, error: t("pos.printErrors.defaultPrinterNotSet") };
   }
 
   const configuracaoAtualizada = await sincronizarConfiguracaoEmpresaRemota(configuracao);
@@ -140,10 +154,10 @@ export async function enviarTalaoParaImpressao({ venda, configuracao, opcoes = {
 
 export async function enviarAbrirGaveta({ configuracao, opcoes = {} } = {}) {
   if (!window.api?.abrirGaveta) {
-    return { ok: false, error: "API de gaveta indisponivel no desktop." };
+    return { ok: false, error: t("pos.printErrors.receiptApiUnavailable") };
   }
   if (!configuracao?.impressoraPadrao) {
-    return { ok: false, error: "Impressora padrao nao configurada." };
+    return { ok: false, error: t("pos.printErrors.defaultPrinterNotSet") };
   }
 
   return window.api.abrirGaveta({

@@ -9,6 +9,8 @@ use App\Models\StockBalance;
 use App\Models\StockLocation;
 use App\Models\User;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Fortify;
+use PragmaRX\Google2FA\Google2FA;
 
 trait ApiTestHelpers
 {
@@ -94,6 +96,16 @@ trait ApiTestHelpers
                 $payload['register_code'] = $codigo;
                 $resposta = $this->postJson('/api/v1/auth/login', $payload);
             }
+        }
+
+        if ($resposta->status() === 422 && $resposta->json('requires_two_factor')) {
+            $user->refresh();
+            $secret = Fortify::currentEncrypter()->decrypt($user->two_factor_secret);
+            $code = app(Google2FA::class)->getCurrentOtp($secret);
+            $resposta = $this->postJson('/api/v1/auth/two-factor-challenge', [
+                'two_factor_token' => $resposta->json('two_factor_token'),
+                'code' => $code,
+            ]);
         }
 
         $resposta->assertOk();

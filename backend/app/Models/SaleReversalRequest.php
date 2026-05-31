@@ -33,4 +33,14 @@ class SaleReversalRequest extends Model
     {
         return $this->belongsTo(Sale::class);
     }
+
+    public function requestedByUser()
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function approvedByUser()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
 }

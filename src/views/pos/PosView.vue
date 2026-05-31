@@ -2,6 +2,7 @@
 import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
@@ -13,6 +14,8 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada, ApiError } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
+import { intlLocale } from "../../services/localeStorage.js";
+import { GENERAL_CLIENT_CANONICAL, isGeneralClient } from "../../services/i18nHelper.js";
 import { enviarTalaoParaImpressao, enviarAbrirGaveta } from "../../services/talaoImpressao";
 import { enviarRelatorioFechoParaImpressao } from "../../services/relatorioFechoImpressao";
 import {
@@ -44,11 +47,12 @@ const vendaStore = useVendaStore();
 const configuracaoStore = useConfiguracaoStore();
 const sessaoStore = useSessaoStore();
 const route = useRoute();
+const { t, locale } = useI18n();
 
 const pesquisa = ref("");
 const pesquisaInputRef = ref(null);
 const estadoLeitorCodigo = criarEstadoLeitorCodigoBarras();
-const cliente = ref("Cliente Geral");
+const cliente = ref(GENERAL_CLIENT_CANONICAL);
 const descontoAtivo = ref(false);
 const valorPagoInteiro = ref("0");
 const valorPagoDecimal = ref("00");
@@ -101,7 +105,7 @@ async function executarPesquisaProdutos(termoInformado) {
     });
   } catch (erro) {
     if (sequencia !== sequenciaPesquisa) return;
-    mostrarToastSwal(erro?.message || "Falha ao pesquisar produtos no backend.", "error");
+    mostrarToastSwal(erro?.message || t("pos.toast.searchFailed"), "error");
   }
 }
 
@@ -174,7 +178,7 @@ async function processarLeituraCodigoBarras() {
   const produto = await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros);
 
   if (!produto) {
-    mostrarToastSwal(`Produto não encontrado para o código ${codigo}.`, "error");
+    mostrarToastSwal(t("pos.toast.productNotFound", { code: codigo }), "error");
     limparCampoPesquisa();
     await focarCampoPesquisa();
     return;
@@ -188,7 +192,7 @@ async function processarLeituraCodigoBarras() {
   const quantidade = 1;
 
   if (!sessaoStore.turnoAberto) {
-    mostrarToastSwal("Abra o caixa antes de registar vendas.", "error");
+    mostrarToastSwal(t("pos.toast.openRegisterFirst"), "error");
     limparCampoPesquisa();
     await focarCampoPesquisa();
     return;
@@ -196,13 +200,16 @@ async function processarLeituraCodigoBarras() {
 
   if (!podeAdicionarProduto(produtoAtualizado, quantidade)) {
     if (produtoAtualizado.stock <= 0) {
-      mostrarToastSwal(`Sem stock para "${produtoAtualizado.nome}".`, "error");
+      mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
     } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidade > produtoAtualizado.stock) {
       mostrarErroStock(
-        `Stock insuficiente para "${produtoAtualizado.nome}". Disponível: ${Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id))}.`
+        t("pos.toast.insufficientStock", {
+          name: produtoAtualizado.nome,
+          available: Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id)),
+        })
       );
     } else {
-      mostrarErroStock("Não é possível adicionar acima do stock disponível.");
+      mostrarErroStock(t("pos.toast.cannotExceedStock"));
     }
     limparCampoPesquisa();
     await focarCampoPesquisa();
@@ -296,7 +303,7 @@ watch(modalBloqueiaLeitor, (bloqueado) => {
 
 const clientesDisponiveis = computed(() => clienteStore.clientes);
 const clientesParaSelect = computed(() => {
-  const lista = [{ id: 0, nome: "Cliente Geral" }, ...clientesDisponiveis.value];
+  const lista = [{ id: 0, nome: GENERAL_CLIENT_CANONICAL }, ...clientesDisponiveis.value];
   const nomes = new Set();
   return lista.filter((item) => {
     if (nomes.has(item.nome)) return false;
@@ -422,12 +429,12 @@ function validarStockCarrinhoAtual() {
   for (const item of carrinhoStore.itens) {
     const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
     if (!produto || produto.stock <= 0) {
-      return { ok: false, erro: `Stock indisponível para "${item.nome}".` };
+      return { ok: false, erro: t("pos.toast.stockUnavailable", { name: item.nome }) };
     }
     if (item.quantidade > produto.stock) {
       return {
         ok: false,
-        erro: `Stock insuficiente para "${item.nome}". Disponível: ${produto.stock}.`,
+        erro: t("pos.toast.insufficientStock", { name: item.nome, available: produto.stock }),
       };
     }
   }
@@ -435,7 +442,7 @@ function validarStockCarrinhoAtual() {
 }
 
 function formatarMT(valor) {
-  return `${new Intl.NumberFormat("pt-MZ", {
+  return `${new Intl.NumberFormat(intlLocale(locale.value), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(valor)} MT`;
@@ -447,7 +454,13 @@ function formatarIva(valor) {
 }
 
 function formatarData(valor) {
-  return new Date(valor).toLocaleString("pt-MZ");
+  return new Date(valor).toLocaleString(intlLocale(locale.value));
+}
+
+function traduzirMetodoPagamento(metodo) {
+  if (metodo === "Dinheiro") return t("pos.payment.cash");
+  if (metodo === "Transferência") return t("pos.payment.transfer");
+  return metodo;
 }
 
 function quantidadeNoCarrinho(produtoId) {
@@ -463,7 +476,7 @@ function podeAdicionarProduto(produto, quantidade = 1) {
   );
 }
 
-function mostrarErroStock(texto = "Stock insuficiente para esta quantidade.") {
+function mostrarErroStock(texto = t("pos.toast.insufficientStockDefault")) {
   mostrarToastSwal(texto, "error");
 }
 
@@ -483,13 +496,16 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
 
   if (!podeAdicionarProduto(produtoAtualizado, quantidadeNormalizada)) {
     if (produtoAtualizado.stock <= 0) {
-      mostrarErroStock(`Sem stock disponível para "${produtoAtualizado.nome}".`);
+      mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
     } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
       mostrarErroStock(
-        `Stock insuficiente para "${produtoAtualizado.nome}". Disponível: ${Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id))}.`
+        t("pos.toast.insufficientStock", {
+          name: produtoAtualizado.nome,
+          available: Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id)),
+        })
       );
     } else {
-      mostrarErroStock("Não é possível adicionar acima do stock disponível.");
+      mostrarErroStock(t("pos.toast.cannotExceedStock"));
     }
     return;
   }
@@ -525,7 +541,7 @@ async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}
   const limiteStock = produto?.stock ?? quantidadeFinal;
   if (quantidadeFinal > limiteStock) {
     carrinhoStore.definirQuantidade(produtoId, limiteStock);
-    mostrarErroStock("Quantidade ajustada ao limite de stock.");
+    mostrarErroStock(t("pos.toast.quantityAdjusted"));
     return;
   }
   carrinhoStore.definirQuantidade(produtoId, quantidadeFinal);
@@ -563,8 +579,8 @@ function alternarDesconto() {
 function validarOrigemStock() {
   if (!temApiConfigurada()) return true;
   if (origemStockVenda.value.id) return true;
-  const caixaAtual = sessaoStore.caixaAtribuido || "caixa atual";
-  mostrarToastSwal(`A localização de stock não está vinculada ao ${caixaAtual}. Defina esta ligação no backend antes de concluir vendas.`, "error");
+  const caixaAtual = sessaoStore.caixaAtribuido || t("pos.toast.currentRegister");
+  mostrarToastSwal(t("pos.toast.stockLocationNotLinked", { register: caixaAtual }), "error");
   return false;
 }
 
@@ -577,12 +593,12 @@ function gerarIdVenda() {
 
 function finalizarVenda() {
   if (!sessaoStore.turnoAberto) {
-    mostrarToast("Abra o caixa antes de finalizar vendas.", "erro");
+    mostrarToast(t("pos.toast.openRegisterToFinalize"), "erro");
     return;
   }
   if (!carrinhoStore.itens.length) return;
   if (!validarOrigemStock()) {
-    mostrarToast("Localização de stock não configurada para o caixa.", "erro");
+    mostrarToast(t("pos.toast.stockLocationNotConfigured"), "erro");
     return;
   }
   vendaPendente.value = {
@@ -632,7 +648,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   try {
     const itensPendentes = Array.isArray(pendente.itens) ? pendente.itens : [];
     if (!itensPendentes.length) {
-      mostrarToastSwal("O carrinho ficou vazio. Adicione produtos antes de concluir a venda.", "error");
+      mostrarToastSwal(t("pos.toast.emptyCart"), "error");
       modalImpressaoAberto.value = false;
       vendaPendente.value = null;
       return;
@@ -642,7 +658,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     const totalPendente = Number(pendente.total ?? 0);
     if (pendente.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < totalPendente) {
-      mostrarToastSwal("Valor pago insuficiente para concluir a venda.", "error");
+      mostrarToastSwal(t("pos.toast.insufficientPayment"), "error");
       return;
     }
 
@@ -652,17 +668,17 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       try {
         await atualizarStockRemoto(idsPendentes);
       } catch (erro) {
-        mostrarToastSwal(erro?.message || "Falha ao sincronizar stock antes da venda.", "error");
+        mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
         return;
       }
       for (const item of itensPendentes) {
         const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
         if (!produto || produto.stock <= 0) {
-          mostrarToastSwal(`Stock indisponível para "${item.nome}".`, "error");
+          mostrarToastSwal(t("pos.toast.stockUnavailable", { name: item.nome }), "error");
           return;
         }
         if (item.quantidade > produto.stock) {
-          mostrarToastSwal(`Stock insuficiente para "${item.nome}". Disponível: ${produto.stock}.`, "error");
+          mostrarToastSwal(t("pos.toast.insufficientStock", { name: item.nome, available: produto.stock }), "error");
           return;
         }
       }
@@ -693,11 +709,11 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     if (opcoes.imprimir) {
       if (!window.api?.imprimirTalao) {
-        mostrarToastSwal("API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.", "error");
+        mostrarToastSwal(t("pos.toast.printApiUnavailable"), "error");
         return;
       }
       if (!configuracaoStore.impressoraPadrao) {
-        mostrarToastSwal("Defina a impressora padrão em Configurações para imprimir.", "error");
+        mostrarToastSwal(t("pos.toast.setPrinterToPrint"), "error");
         return;
       }
       imprimindoAgora.value = true;
@@ -713,7 +729,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       });
       imprimindoAgora.value = false;
       if (!resultado?.ok) {
-        mostrarToastSwal(resultado?.error || "Falha ao imprimir talão.", "error");
+        mostrarToastSwal(resultado?.error || t("pos.toast.printFailed"), "error");
         return;
       }
     } else if (
@@ -724,7 +740,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     ) {
       const resultadoGaveta = await enviarAbrirGaveta({ configuracao: configuracaoStore });
       if (!resultadoGaveta?.ok) {
-        mostrarToastSwal(resultadoGaveta?.error || "Falha ao abrir gaveta.", "warning");
+        mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
       }
     }
 
@@ -733,8 +749,8 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     } catch (erro) {
       const mensagemStock =
         erro instanceof ApiError && erro.status === 422
-          ? erro.message || "Stock insuficiente para concluir a venda."
-          : erro?.message || "Falha ao registar venda na API.";
+          ? erro.message || t("pos.toast.insufficientStockToComplete")
+          : erro?.message || t("pos.toast.registerSaleFailed");
 
       if (temApiConfigurada()) {
         try {
@@ -766,8 +782,8 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     mostrarToastSwal(
       opcoes.imprimir
-        ? `Venda realizada e enviada para impressão em ${configuracaoStore.impressoraPadrao}.`
-        : "Venda realizada com sucesso.",
+        ? t("pos.toast.salePrinted", { printer: configuracaoStore.impressoraPadrao })
+        : t("pos.toast.saleSuccess"),
       "success"
     );
   } finally {
@@ -780,11 +796,11 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 async function reimprimirVenda(venda) {
   if (imprimindoAgora.value) return;
   if (!window.api?.imprimirTalao) {
-    mostrarToastSwal("Reimpressão disponível apenas na versão desktop (Electron).", "error");
+    mostrarToastSwal(t("pos.toast.reprintDesktopOnly"), "error");
     return;
   }
   if (!configuracaoStore.impressoraPadrao) {
-    mostrarToastSwal("Defina a impressora padrão em Configurações para reimprimir.", "error");
+    mostrarToastSwal(t("pos.toast.setPrinterToReprint"), "error");
     return;
   }
   imprimindoAgora.value = true;
@@ -798,19 +814,19 @@ async function reimprimirVenda(venda) {
   });
   imprimindoAgora.value = false;
   if (!resultado?.ok) {
-    mostrarToastSwal(resultado?.error || "Falha ao reimprimir talão.", "error");
+    mostrarToastSwal(resultado?.error || t("pos.toast.reprintFailed"), "error");
     return;
   }
-  mostrarToastSwal(`Recibo reenviado para impressão em ${configuracaoStore.impressoraPadrao}.`, "success");
+  mostrarToastSwal(t("pos.toast.reprintSuccess", { printer: configuracaoStore.impressoraPadrao }), "success");
 }
 
 function abrirSolicitacaoReversao(venda) {
   if (venda.estado === "Revertida") {
-    mostrarToastSwal("Venda já foi revertida.", "error");
+    mostrarToastSwal(t("pos.toast.alreadyReverted"), "error");
     return;
   }
   if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    mostrarToastSwal("Já existe solicitação de reversão pendente para esta venda.", "error");
+    mostrarToastSwal(t("pos.toast.reversalPending"), "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -828,12 +844,12 @@ async function confirmarSolicitacaoReversao() {
     motivo: motivoReversao.value.trim(),
   });
   if (!resultado.ok) {
-    mostrarToastSwal(resultado.erro || "Não foi possível solicitar reversão.", "error");
+    mostrarToastSwal(resultado.erro || t("pos.toast.reversalFailed"), "error");
     return;
   }
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
-  mostrarToastSwal("Solicitação de reversão enviada ao gerente para aprovação.", "success");
+  mostrarToastSwal(t("pos.toast.reversalSent"), "success");
 }
 
 onMounted(async () => {
@@ -878,20 +894,20 @@ async function abrirTurnoCaixa() {
   const fundo = Number(fundoInicialInput.value || 0);
   const resultado = await sessaoStore.abrirTurno({ fundoInicial: fundo });
   if (temApiConfigurada() && !resultado.remotoOk) {
-    mostrarToastSwal(resultado.erro || "Não foi possível abrir caixa na API.", "error");
+    mostrarToastSwal(resultado.erro || t("pos.toast.openRegisterApiFailed"), "error");
     processandoAberturaCaixa.value = false;
     return;
   }
   modalAberturaCaixa.value = false;
   if (temApiConfigurada()) {
     if (resultado.remotoOk) {
-      mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)} e sessão remota ativa.`, "success");
+      mostrarToastSwal(t("pos.toast.openRegisterSuccessRemote", { amount: formatarMT(fundo) }), "success");
     } else {
-      mostrarToastSwal(`Caixa aberto localmente. API de sessão indisponível: ${resultado.erro || "erro não detalhado"}`, "warning");
+      mostrarToastSwal(t("pos.toast.openRegisterSuccessLocal", { error: resultado.erro || "erro não detalhado" }), "warning");
     }
     await sincronizarStockPos();
   } else {
-    mostrarToastSwal(`Caixa aberto com fundo inicial de ${formatarMT(fundo)}.`, "success");
+    mostrarToastSwal(t("pos.toast.openRegisterSuccess", { amount: formatarMT(fundo) }), "success");
   }
   processandoAberturaCaixa.value = false;
   await focarCampoPesquisa();
@@ -907,11 +923,11 @@ function abrirFechoCaixa() {
 async function confirmarFechoCaixa() {
   if (processandoFechoCaixa.value) return;
   if (diferencaFecho.value === null) {
-    mostrarToastSwal("Informe o dinheiro real contado no caixa.", "warning");
+    mostrarToastSwal(t("pos.toast.enterActualCash"), "warning");
     return;
   }
   if (diferencaFecho.value !== 0 && !justificativaDiferenca.value.trim()) {
-    mostrarToastSwal("Informe a justificativa da diferença para concluir o fecho.", "warning");
+    mostrarToastSwal(t("pos.toast.enterDifferenceJustification"), "warning");
     return;
   }
   processandoFechoCaixa.value = true;
@@ -941,12 +957,12 @@ async function confirmarFechoCaixa() {
   };
   const resultado = await sessaoStore.fecharTurno(relatorio);
   if (temApiConfigurada() && !resultado.remotoOk) {
-    mostrarToastSwal(resultado.erro || "Não foi possível fechar caixa na API.", "error");
+    mostrarToastSwal(resultado.erro || t("pos.toast.closeRegisterApiFailed"), "error");
     processandoFechoCaixa.value = false;
     return;
   }
 
-  let mensagemSucesso = "Fecho de caixa concluído e relatório diário registado.";
+  let mensagemSucesso = t("pos.toast.closeComplete");
   if (window.api?.imprimirRelatorioFecho && configuracaoStore.impressoraPadrao) {
     const impressao = await enviarRelatorioFechoParaImpressao({
       relatorio,
@@ -958,16 +974,16 @@ async function confirmarFechoCaixa() {
     });
     if (!impressao?.ok) {
       mensagemSucesso = impressao?.error
-        ? `Fecho concluído, mas falhou a impressão do relatório: ${impressao.error}`
-        : "Fecho concluído, mas falhou a impressão do relatório.";
+        ? t("pos.toast.closeCompletePrintFailed", { error: impressao.error })
+        : t("pos.toast.closeCompletePrintFailedGeneric");
       modalFechoCaixa.value = false;
       mostrarToastSwal(mensagemSucesso, "warning");
       processandoFechoCaixa.value = false;
       return;
     }
-    mensagemSucesso = `Fecho concluído e relatório enviado para ${configuracaoStore.impressoraPadrao}.`;
+    mensagemSucesso = t("pos.toast.closeCompletePrinted", { printer: configuracaoStore.impressoraPadrao });
   } else if (window.api?.imprimirRelatorioFecho && !configuracaoStore.impressoraPadrao) {
-    mensagemSucesso = "Fecho concluído. Defina a impressora padrão para imprimir o relatório.";
+    mensagemSucesso = t("pos.toast.closeCompleteNoPrinter");
   }
 
   modalFechoCaixa.value = false;
@@ -982,12 +998,12 @@ async function confirmarFechoCaixa() {
       <div class="rp-card p-4 h-[420px]">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
-            <p class="mb-1 text-xl font-bold text-slate-800">Catálogo rápido de venda</p>
+            <p class="mb-1 text-xl font-bold text-slate-800">{{ t("pos.catalog.title") }}</p>
             <label for="pos-pesquisa" class="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              Pesquisa / código de barras
+              {{ t("pos.catalog.searchLabel") }}
             </label>
             <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
-              <div class="flex w-16 items-center justify-center border-r border-slate-300 px-2 text-black" title="Código de barras">
+              <div class="flex w-16 items-center justify-center border-r border-slate-300 px-2 text-black" :title="t('pos.catalog.barcodeTitle')">
                 <Barcode :size="32" :stroke-width="1.8" />
               </div>
               <input
@@ -995,7 +1011,7 @@ async function confirmarFechoCaixa() {
                 ref="pesquisaInputRef"
                 v-model="pesquisa"
                 type="text"
-                placeholder="Nome ou código de barras..."
+                :placeholder="t('pos.catalog.searchPlaceholder')"
                 class="min-w-0 flex-1 px-3 py-4 text-sm focus:outline-none"
                 autocomplete="off"
                 spellcheck="false"
@@ -1009,11 +1025,11 @@ async function confirmarFechoCaixa() {
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th class="px-3 py-2">Produto</th>
-                <th class="px-3 py-2">Código</th>
-                <th class="px-3 py-2">Preço (MT)</th>
-                <th class="px-3 py-2">Stock</th>
-                <th class="px-3 py-2 text-right">Ação</th>
+                <th class="px-3 py-2">{{ t("pos.catalog.product") }}</th>
+                <th class="px-3 py-2">{{ t("pos.catalog.code") }}</th>
+                <th class="px-3 py-2">{{ t("pos.catalog.price") }}</th>
+                <th class="px-3 py-2">{{ t("pos.catalog.stock") }}</th>
+                <th class="px-3 py-2 text-right">{{ t("pos.catalog.action") }}</th>
               </tr>
             </thead>
             <tbody>
@@ -1021,12 +1037,12 @@ async function confirmarFechoCaixa() {
                 <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">
                   <span class="inline-flex items-center gap-2">
                     <LoaderCircle class="animate-spin" :size="14" />
-                    A pesquisar no backend...
+                    {{ t("pos.catalog.searching") }}
                   </span>
                 </td>
               </tr>
               <tr v-else-if="!resultadosPesquisa.length">
-                <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">Nenhum produto encontrado.</td>
+                <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">{{ t("pos.catalog.noProducts") }}</td>
               </tr>
               <tr v-for="produto in resultadosPesquisa" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
                 <td class="px-3 py-2 font-semibold text-slate-800">{{ produto.nome }}</td>
@@ -1043,7 +1059,7 @@ async function confirmarFechoCaixa() {
                 <td class="px-3 py-2 text-right">
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
-                    title="Adicionar ao carrinho"
+                    :title="t('pos.catalog.addToCart')"
                     :disabled="!podeAdicionarProduto(produto)"
                     :class="!podeAdicionarProduto(produto) ? 'cursor-not-allowed opacity-40' : ''"
                     @click="adicionarAoCarrinho(produto)"
@@ -1063,7 +1079,7 @@ async function confirmarFechoCaixa() {
           class="flex h-[290px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
         >
           <Search :size="58" :stroke-width="1.8" />
-          <p class="text-sm font-medium text-slate-500">Digite no campo de pesquisa para listar produtos.</p>
+          <p class="text-sm font-medium text-slate-500">{{ t("pos.catalog.emptyHint") }}</p>
         </div>
       </div>
     </div>
@@ -1071,7 +1087,7 @@ async function confirmarFechoCaixa() {
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
       <div class="rp-card h-[527px] overflow-hidden">
         <div class="border-b border-slate-200 px-4 py-3">
-          <h3 class="text-sm font-semibold text-slate-900">Pré-visualização</h3>
+          <h3 class="text-sm font-semibold text-slate-900">{{ t("pos.preview.title") }}</h3>
         </div>
         <div class="bg-slate-50 p-4">
           <div class="rounded-lg border border-slate-200 bg-white p-4">
@@ -1081,11 +1097,11 @@ async function confirmarFechoCaixa() {
                 <p class="text-[11px] text-slate-500">NUIT: 400000099</p>
               </div>
               <div class="text-right">
-                <p class="font-semibold">VENDA</p>
+                <p class="font-semibold">{{ t("pos.preview.sale") }}</p>
               </div>
             </div>
             <div class="mb-2 border-t-2 border-[var(--gold)] pt-2 text-[11px]">
-              <p class="text-slate-500">Cliente</p>
+              <p class="text-slate-500">{{ t("common.client") }}</p>
               <p class="font-semibold text-slate-800">{{ cliente }}</p>
             </div>
             <div
@@ -1102,7 +1118,7 @@ async function confirmarFechoCaixa() {
                   <span class="truncate pr-2 font-medium text-slate-700">{{ item.nome }}</span>
                   <button
                     class="flex h-5 w-5 items-center justify-center rounded text-red-600 hover:bg-red-50"
-                    title="Remover item"
+                    :title="t('pos.preview.removeItem')"
                     @click="carrinhoStore.removerProduto(item.produtoId)"
                   >
                     <Trash2 :size="12" />
@@ -1110,7 +1126,7 @@ async function confirmarFechoCaixa() {
                 </div>
                 <div class="flex items-center justify-between gap-2 px-1">
                   <div class="flex items-center gap-1">
-                    <span class="text-[11px] text-slate-500">Qtd</span>
+                    <span class="text-[11px] text-slate-500">{{ t("common.qty") }}</span>
                     <input
                       :data-pos-quantidade="item.produtoId"
                       :value="item.quantidade"
@@ -1132,20 +1148,20 @@ async function confirmarFechoCaixa() {
               </div>
               <div v-if="!carrinhoStore.itens.length" class="flex flex-col items-center justify-center gap-2 text-slate-400">
                 <ShoppingCart :size="40" :stroke-width="1.8" />
-                <p class="text-xs font-medium text-slate-500">Sem itens no carrinho</p>
+                <p class="text-xs font-medium text-slate-500">{{ t("pos.preview.emptyCart") }}</p>
               </div>
             </div>
             <div class="mt-3 border-t border-slate-200 pt-2 text-sm font-bold">
               <div class="mb-1 flex items-center justify-between text-xs font-medium text-slate-500">
-                <span>Subtotal:</span>
+                <span>{{ t("common.subtotal") }}:</span>
                 <span>{{ formatarMT(carrinhoStore.subtotal) }}</span>
               </div>
               <div class="mb-1 flex items-center justify-between text-xs font-medium text-amber-700">
-                <span>Desconto:</span>
+                <span>{{ t("common.discount") }}:</span>
                 <span>- {{ formatarMT(descontoAplicado) }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span>Total:</span>
+                <span>{{ t("common.total") }}:</span>
                 <span>{{ formatarMT(carrinhoStore.total) }}</span>
               </div>
             </div>
@@ -1153,14 +1169,14 @@ async function confirmarFechoCaixa() {
               <button
                 class="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-600 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="!carrinhoStore.itens.length"
-                title="Resetar carrinho"
-                aria-label="Resetar carrinho"
+                :title="t('pos.preview.resetCart')"
+                :aria-label="t('pos.preview.resetCart')"
                 @click="limparCarrinhoAtual"
               >
                 <RotateCcw :size="16" :stroke-width="2.2" />
               </button>
               <BotaoBase class="flex-1" variante="aviso" :disabled="!carrinhoStore.itens.length" @click="finalizarVenda">
-                Finalizar Venda
+                {{ t("pos.preview.finalizeSale") }}
               </BotaoBase>
             </div>
           </div>
@@ -1173,47 +1189,47 @@ async function confirmarFechoCaixa() {
       <div class="rp-card overflow-hidden p-4">
         <div class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
           <div>
-            <h3 class="text-base font-bold text-slate-900">Dashboard de Caixa</h3>
-            <p class="text-xs text-slate-500">Resumo financeiro e operacional do turno atual</p>
+            <h3 class="text-base font-bold text-slate-900">{{ t("pos.cashDashboard.title") }}</h3>
+            <p class="text-xs text-slate-500">{{ t("pos.cashDashboard.subtitle") }}</p>
           </div>
           <button
             v-if="sessaoStore.turnoAberto"
             class="rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700"
             @click="abrirFechoCaixa"
           >
-            Fechar caixa
+            {{ t("pos.cashDashboard.closeRegister") }}
           </button>
           <button v-else class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50" @click="modalAberturaCaixa = true">
-            Abrir caixa
+            {{ t("pos.cashDashboard.openRegister") }}
           </button>
         </div>
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Vendido no turno</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ t("pos.cashDashboard.soldInShift") }}</p>
             <p class="mt-1 text-lg font-bold text-slate-900">{{ formatarMT(totalVendidoTurno) }}</p>
           </div>
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Dinheiro esperado</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ t("pos.cashDashboard.expectedCash") }}</p>
             <p class="mt-1 text-lg font-bold text-slate-900">{{ formatarMT(dinheiroEsperadoFecho) }}</p>
           </div>
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Transações</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ t("pos.cashDashboard.transactions") }}</p>
             <p class="mt-1 text-lg font-bold text-slate-900">{{ totalTransacoesTurno }}</p>
           </div>
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ticket médio</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{{ t("pos.cashDashboard.averageTicket") }}</p>
             <p class="mt-1 text-lg font-bold text-slate-900">{{ formatarMT(ticketMedioTurno) }}</p>
           </div>
         </div>
 
         <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-            <p class="text-xs font-semibold text-emerald-800">Vendas em Dinheiro</p>
+            <p class="text-xs font-semibold text-emerald-800">{{ t("pos.cashDashboard.cashSales") }}</p>
             <p class="mt-1 text-base font-bold text-emerald-900">{{ formatarMT(totalDinheiroTurno) }}</p>
           </div>
           <div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p class="text-xs font-semibold text-blue-800">Vendas por Transferência</p>
+            <p class="text-xs font-semibold text-blue-800">{{ t("pos.cashDashboard.transferSales") }}</p>
             <p class="mt-1 text-base font-bold text-blue-900">{{ formatarMT(totalTransferenciaTurno) }}</p>
           </div>
         </div>
@@ -1223,8 +1239,8 @@ async function confirmarFechoCaixa() {
       <div class="rp-card overflow-hidden p-4 xl:flex-1 xl:min-h-0">
         <div class="mb-3 flex items-center justify-between border-b border-slate-200 pb-3">
           <div>
-            <h3 class="text-sm font-bold text-slate-900">Últimas 5 vendas</h3>
-            <p class="text-xs text-slate-500">Atalhos para reimpressão e solicitação de reversão</p>
+            <h3 class="text-sm font-bold text-slate-900">{{ t("pos.cashDashboard.lastSalesTitle") }}</h3>
+            <p class="text-xs text-slate-500">{{ t("pos.cashDashboard.lastSalesSubtitle") }}</p>
           </div>
         </div>
 
@@ -1232,12 +1248,12 @@ async function confirmarFechoCaixa() {
           <table class="w-full table-fixed text-xs">
             <thead class="bg-slate-50 text-left text-[9px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th class="w-[22%] px-2 py-1.5">Referência</th>
-                <th class="w-[21%] px-2 py-1.5">Data</th>
-                <th class="w-[21%] px-2 py-1.5">Cliente</th>
-                <th class="w-[14%] px-2 py-1.5">Pagamento</th>
-                <th class="w-[12%] px-2 py-1.5">Total</th>
-                <th class="w-[10%] px-2 py-1.5 text-right">Ações</th>
+                <th class="w-[22%] px-2 py-1.5">{{ t("common.reference") }}</th>
+                <th class="w-[21%] px-2 py-1.5">{{ t("common.date") }}</th>
+                <th class="w-[21%] px-2 py-1.5">{{ t("common.client") }}</th>
+                <th class="w-[14%] px-2 py-1.5">{{ t("common.payment") }}</th>
+                <th class="w-[12%] px-2 py-1.5">{{ t("common.total") }}</th>
+                <th class="w-[10%] px-2 py-1.5 text-right">{{ t("common.actions") }}</th>
               </tr>
             </thead>
           </table>
@@ -1246,28 +1262,28 @@ async function confirmarFechoCaixa() {
             <table class="w-full table-fixed text-xs">
               <tbody>
                 <tr v-if="!ultimasVendasTurno.length">
-                  <td colspan="6" class="px-2 py-5 text-center text-[11px] text-slate-500">Sem vendas no turno atual.</td>
+                  <td colspan="6" class="px-2 py-5 text-center text-[11px] text-slate-500">{{ t("pos.cashDashboard.noSalesInShift") }}</td>
                 </tr>
                 <tr v-for="venda in ultimasVendasTurno" :key="venda.id" class="border-t border-slate-100 text-[11px] hover:bg-slate-50">
                   <td class="w-[22%] px-2 py-1.5 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
                   <td class="w-[21%] px-2 py-1.5 text-slate-600">{{ formatarData(venda.data) }}</td>
                   <td class="w-[21%] px-2 py-1.5 font-semibold text-slate-800">{{ venda.cliente }}</td>
-                  <td class="w-[14%] px-2 py-1.5 text-slate-600">{{ venda.metodoPagamento }}</td>
+                  <td class="w-[14%] px-2 py-1.5 text-slate-600">{{ traduzirMetodoPagamento(venda.metodoPagamento) }}</td>
                   <td class="w-[12%] px-2 py-1.5 font-semibold text-slate-800">{{ formatarMT(venda.total) }}</td>
                   <td class="w-[10%] px-2 py-1.5">
                     <div class="flex justify-end gap-1.5">
                       <button
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
-                        title="Reimprimir"
-                        aria-label="Reimprimir"
+                        :title="t('common.reprint')"
+                        :aria-label="t('common.reprint')"
                         @click="reimprimirVenda(venda)"
                       >
                         <Printer :size="13" />
                       </button>
                       <button
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        title="Solicitar reversão"
-                        aria-label="Solicitar reversão"
+                        :title="t('history.sales.requestReversal')"
+                        :aria-label="t('history.sales.requestReversal')"
                         :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
                         @click="abrirSolicitacaoReversao(venda)"
                       >
@@ -1285,17 +1301,17 @@ async function confirmarFechoCaixa() {
     </div>
   </section>
 
-  <ModalBase :aberto="modalAberturaCaixa" :mostrar-fechar="false" titulo="Abertura de caixa">
+  <ModalBase :aberto="modalAberturaCaixa" :mostrar-fechar="false" :titulo="t('pos.openingModal.title')">
     <div class="space-y-4">
       <p class="text-sm text-slate-600">
-        Informe o valor inicial disponível no caixa para troco neste turno.
+        {{ t("pos.openingModal.description") }}
       </p>
       <div>
-        <label class="mb-1 block text-xs font-semibold text-slate-600">Fundo inicial (MT)</label>
+        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.openingModal.initialFund") }}</label>
         <input v-model.number="fundoInicialInput" type="number" min="0" class="rp-input" @keyup.enter="abrirTurnoCaixa" />
       </div>
       <div class="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-        Utilizador: <strong>{{ sessaoStore.utilizador || "Operador" }}</strong> · Caixa: <strong>{{ sessaoStore.caixaAtribuido || "Caixa 01" }}</strong>
+        {{ t("pos.openingModal.userRegister", { user: sessaoStore.utilizador || t("common.operator"), register: sessaoStore.caixaAtribuido || t("login.register01") }) }}
       </div>
     </div>
     <template #footer>
@@ -1303,47 +1319,47 @@ async function confirmarFechoCaixa() {
         <BotaoBase variante="perigo" @click="modalAberturaCaixa = false">
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
-            <span>Cancelar</span>
+            <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
         <BotaoBase variante="aviso" :disabled="processandoAberturaCaixa" @click="abrirTurnoCaixa">
           <span class="inline-flex items-center gap-1.5">
             <LoaderCircle v-if="processandoAberturaCaixa" class="animate-spin" :size="14" />
             <DoorOpen v-else :size="14" />
-            <span>{{ processandoAberturaCaixa ? "A abrir..." : "Confirmar abertura" }}</span>
+            <span>{{ processandoAberturaCaixa ? t("pos.openingModal.opening") : t("pos.openingModal.confirm") }}</span>
           </span>
         </BotaoBase>
       </div>
     </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalFechoCaixa" :mostrar-fechar="false" titulo="Fecho de caixa" @fechar="modalFechoCaixa = false">
+  <ModalBase :aberto="modalFechoCaixa" :mostrar-fechar="false" :titulo="t('pos.closingModal.title')" @fechar="modalFechoCaixa = false">
     <div class="space-y-4">
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-        <p><strong>Total vendido no turno:</strong> {{ formatarMT(totalVendidoTurno) }}</p>
-        <p><strong>Total de transações:</strong> {{ totalTransacoesTurno }}</p>
-        <p><strong>Ticket médio:</strong> {{ formatarMT(ticketMedioTurno) }}</p>
-        <p><strong>Vendas em Dinheiro:</strong> {{ formatarMT(totalDinheiroTurno) }}</p>
-        <p><strong>Vendas por Transferência:</strong> {{ formatarMT(totalTransferenciaTurno) }}</p>
-        <p><strong>Dinheiro esperado:</strong> {{ formatarMT(dinheiroEsperadoFecho) }}</p>
+        <p><strong>{{ t("pos.closingModal.totalSold") }}</strong> {{ formatarMT(totalVendidoTurno) }}</p>
+        <p><strong>{{ t("pos.closingModal.totalTransactions") }}</strong> {{ totalTransacoesTurno }}</p>
+        <p><strong>{{ t("pos.closingModal.averageTicket") }}</strong> {{ formatarMT(ticketMedioTurno) }}</p>
+        <p><strong>{{ t("pos.closingModal.cashSales") }}</strong> {{ formatarMT(totalDinheiroTurno) }}</p>
+        <p><strong>{{ t("pos.closingModal.transferSales") }}</strong> {{ formatarMT(totalTransferenciaTurno) }}</p>
+        <p><strong>{{ t("pos.closingModal.expectedCash") }}</strong> {{ formatarMT(dinheiroEsperadoFecho) }}</p>
       </div>
 
       <div>
-        <label class="mb-1 block text-xs font-semibold text-slate-600">Dinheiro real contado no caixa</label>
+        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualCashLabel") }}</label>
         <input v-model.number="dinheiroRealFecho" type="number" min="0" class="rp-input" @keyup.enter="confirmarFechoCaixa" />
       </div>
 
       <div class="rounded-lg p-3 text-sm" :class="diferencaFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">
-        Diferença (sobra/falta): <strong>{{ formatarMT(diferencaFecho) }}</strong>
+        {{ t("pos.closingModal.difference") }} <strong>{{ formatarMT(diferencaFecho) }}</strong>
       </div>
 
       <div v-if="diferencaFechoTemValor && diferencaFecho !== 0">
-        <label class="mb-1 block text-xs font-semibold text-slate-600">Justificativa da diferença (obrigatório)</label>
+        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.justificationRequired") }}</label>
         <textarea
           v-model="justificativaDiferenca"
           rows="2"
           class="rp-input"
-          placeholder="Ex: troco em aberto, sangria não registada, erro operacional..."
+          :placeholder="t('pos.closingModal.justificationPlaceholder')"
         />
       </div>
 
@@ -1353,42 +1369,42 @@ async function confirmarFechoCaixa() {
         <BotaoBase variante="perigo" @click="modalFechoCaixa = false">
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
-            <span>Cancelar</span>
+            <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
         <BotaoBase variante="aviso" :disabled="processandoFechoCaixa" @click="confirmarFechoCaixa">
           <span class="inline-flex items-center gap-1.5">
             <LoaderCircle v-if="processandoFechoCaixa" class="animate-spin" :size="14" />
             <DoorClosed v-else :size="14" />
-            <span>{{ processandoFechoCaixa ? "A fechar..." : "Confirmar fecho" }}</span>
+            <span>{{ processandoFechoCaixa ? t("pos.closingModal.closing") : t("pos.closingModal.confirm") }}</span>
           </span>
         </BotaoBase>
       </div>
     </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" titulo="Concluir venda" @fechar="modalImpressaoAberto = false">
+  <ModalBase :aberto="modalImpressaoAberto" :mostrar-fechar="false" :titulo="t('pos.checkoutModal.title')" @fechar="modalImpressaoAberto = false">
     <div v-if="vendaPendente" class="space-y-4">
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Cliente</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("common.client") }}</label>
           <select v-model="cliente" class="rp-input">
             <option v-for="clienteItem in clientesParaSelect" :key="clienteItem.id + clienteItem.nome" :value="clienteItem.nome">
-              {{ clienteItem.nome }}
+              {{ isGeneralClient(clienteItem.nome) ? t("common.generalClient") : clienteItem.nome }}
             </option>
           </select>
         </div>
         <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Método de pagamento</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.checkoutModal.paymentMethod") }}</label>
           <select v-model="carrinhoStore.metodoPagamento" class="rp-input">
-            <option>Dinheiro</option>
-            <option>Transferência</option>
+            <option value="Dinheiro">{{ t("pos.payment.cash") }}</option>
+            <option value="Transferência">{{ t("pos.payment.transfer") }}</option>
           </select>
         </div>
       </div>
 
       <div class="rounded-lg bg-slate-900 p-4 text-center">
-        <p class="text-[11px] uppercase tracking-widest text-slate-300">Total a pagar</p>
+        <p class="text-[11px] uppercase tracking-widest text-slate-300">{{ t("pos.checkoutModal.totalToPay") }}</p>
         <p class="text-4xl font-black text-white">{{ formatarMT(carrinhoStore.total) }}</p>
       </div>
 
@@ -1397,24 +1413,24 @@ async function confirmarFechoCaixa() {
         class="rounded-lg border p-3 text-xs"
         :class="origemStockVenda.id ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'"
       >
-        <p class="font-semibold">Origem do stock desta venda</p>
+        <p class="font-semibold">{{ t("pos.checkoutModal.stockOrigin") }}</p>
         <p v-if="origemStockVenda.id">
-          {{ origemStockVenda.nome || origemStockVenda.codigo || `Localização #${origemStockVenda.id}` }}
+          {{ origemStockVenda.nome || origemStockVenda.codigo || t("pos.checkoutModal.locationFallback", { id: origemStockVenda.id }) }}
         </p>
         <p v-else>
-          Não configurada para este caixa. Vincule a localização de venda ao caixa no backend.
+          {{ t("pos.checkoutModal.stockNotConfigured") }}
         </p>
       </div>
 
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
         <div class="mb-2 flex items-center justify-between">
-          <p class="text-xs font-semibold text-slate-700">Desconto (opcional)</p>
+          <p class="text-xs font-semibold text-slate-700">{{ t("pos.checkoutModal.discountOptional") }}</p>
           <button
             class="rounded-md px-2 py-1 text-[11px] font-semibold"
             :class="descontoAtivo ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'"
             @click="alternarDesconto"
           >
-            {{ descontoAtivo ? "Ativo" : "Inativo" }}
+            {{ descontoAtivo ? t("pos.checkoutModal.discountActive") : t("pos.checkoutModal.discountInactive") }}
           </button>
         </div>
         <div class="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr]">
@@ -1424,8 +1440,8 @@ async function confirmarFechoCaixa() {
             :disabled="!descontoAtivo"
             @change="carrinhoStore.definirDesconto({ tipo: $event.target.value, valor: carrinhoStore.descontoValor })"
           >
-            <option value="valor">Valor (MT)</option>
-            <option value="percentual">Percentual (%)</option>
+            <option value="valor">{{ t("pos.checkoutModal.discountValue") }}</option>
+            <option value="percentual">{{ t("pos.checkoutModal.discountPercent") }}</option>
           </select>
           <input
             :value="carrinhoStore.descontoValor"
@@ -1433,7 +1449,7 @@ async function confirmarFechoCaixa() {
             min="0"
             class="rp-input"
             :disabled="!descontoAtivo"
-            :placeholder="carrinhoStore.descontoTipo === 'percentual' ? 'Ex: 10' : 'Ex: 100'"
+            :placeholder="carrinhoStore.descontoTipo === 'percentual' ? t('pos.checkoutModal.discountPlaceholderPercent') : t('pos.checkoutModal.discountPlaceholderValue')"
             @input="atualizarDesconto($event.target.value)"
           />
         </div>
@@ -1441,9 +1457,9 @@ async function confirmarFechoCaixa() {
 
       <div class="space-y-2">
         <div>
-          <label class="mb-1 block text-xs font-semibold text-slate-600">Valor pago</label>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.checkoutModal.amountPaid") }}</label>
           <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white">
-            <div class="flex items-center border-r border-slate-300 px-3 text-slate-500">MT</div>
+            <div class="flex items-center border-r border-slate-300 px-3 text-slate-500">{{ t("common.currency") }}</div>
             <input
               :value="valorPagoInteiro"
               type="text"
@@ -1464,11 +1480,11 @@ async function confirmarFechoCaixa() {
         </div>
         <div class="rounded-lg bg-slate-50 p-3 text-xs">
           <div class="flex items-center justify-between">
-            <span class="text-slate-500">Troco</span>
+            <span class="text-slate-500">{{ t("pos.checkoutModal.change") }}</span>
             <strong class="text-emerald-700">{{ formatarMT(troco) }}</strong>
           </div>
           <div class="mt-1 flex items-center justify-between">
-            <span class="text-slate-500">Falta</span>
+            <span class="text-slate-500">{{ t("pos.checkoutModal.shortfall") }}</span>
             <strong class="text-red-600">{{ formatarMT(falta) }}</strong>
           </div>
         </div>
@@ -1476,20 +1492,20 @@ async function confirmarFechoCaixa() {
     </div>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <BotaoBase variante="perigo" title="Cancelar" aria-label="Cancelar" @click="modalImpressaoAberto = false">
+        <BotaoBase variante="perigo" :title="t('common.cancel')" :aria-label="t('common.cancel')" @click="modalImpressaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
-            <span>Cancelar</span>
+            <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
-        <BotaoBase :disabled="processandoConclusaoVenda || imprimindoAgora" variante="aviso" title="Concluir sem imprimir" aria-label="Concluir sem imprimir" @click="concluirVenda({ imprimir: false })">
+        <BotaoBase :disabled="processandoConclusaoVenda || imprimindoAgora" variante="aviso" :title="t('pos.checkoutModal.finishWithoutPrint')" :aria-label="t('pos.checkoutModal.finishWithoutPrint')" @click="concluirVenda({ imprimir: false })">
           <Check :size="16" :stroke-width="2.2" />
         </BotaoBase>
         <BotaoBase
           :disabled="!configuracaoStore.impressoraPadrao || imprimindoAgora || processandoConclusaoVenda"
           variante="sucesso"
-          :title="imprimindoAgora || processandoConclusaoVenda ? 'A concluir...' : 'Imprimir e concluir'"
-          :aria-label="imprimindoAgora || processandoConclusaoVenda ? 'A concluir...' : 'Imprimir e concluir'"
+          :title="imprimindoAgora || processandoConclusaoVenda ? t('pos.checkoutModal.finishing') : t('pos.checkoutModal.printAndFinish')"
+          :aria-label="imprimindoAgora || processandoConclusaoVenda ? t('pos.checkoutModal.finishing') : t('pos.checkoutModal.printAndFinish')"
           @click="concluirVenda({ imprimir: true })"
         >
           <LoaderCircle v-if="imprimindoAgora" class="animate-spin" :size="16" :stroke-width="2.2" />
@@ -1499,20 +1515,20 @@ async function confirmarFechoCaixa() {
     </template>
   </ModalBase>
 
-  <ModalBase :aberto="modalSolicitarReversaoAberto" :mostrar-fechar="false" titulo="Confirmar solicitação de reversão" @fechar="modalSolicitarReversaoAberto = false">
+  <ModalBase :aberto="modalSolicitarReversaoAberto" :mostrar-fechar="false" :titulo="t('pos.reversalModal.title')" @fechar="modalSolicitarReversaoAberto = false">
     <div class="space-y-4">
       <div class="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-700">
         <span class="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white">
           <TriangleAlert :size="14" />
         </span>
         <div>
-          <p class="font-semibold text-slate-900">Deseja realmente solicitar a reversão desta venda?</p>
-          <p class="text-xs text-slate-600">Referência: {{ vendaParaReversao?.referencia || vendaParaReversao?.id }}</p>
+          <p class="font-semibold text-slate-900">{{ t("pos.reversalModal.question") }}</p>
+          <p class="text-xs text-slate-600">{{ t("pos.reversalModal.referenceLabel") }} {{ vendaParaReversao?.referencia || vendaParaReversao?.id }}</p>
         </div>
       </div>
       <div>
-        <label class="mb-1 block text-xs font-semibold text-slate-600">Motivo (opcional)</label>
-        <textarea v-model="motivoReversao" rows="2" class="rp-input" placeholder="Ex: item lançado por engano, cliente desistiu..." />
+        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.reversalModal.reasonOptional") }}</label>
+        <textarea v-model="motivoReversao" rows="2" class="rp-input" :placeholder="t('pos.reversalModal.reasonPlaceholder')" />
       </div>
     </div>
     <template #footer>
@@ -1520,13 +1536,13 @@ async function confirmarFechoCaixa() {
         <BotaoBase variante="perigo" @click="modalSolicitarReversaoAberto = false">
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
-            <span>Cancelar</span>
+            <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
         <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">
           <span class="inline-flex items-center gap-1.5">
             <Check :size="14" />
-            <span>Confirmar solicitação</span>
+            <span>{{ t("pos.reversalModal.confirm") }}</span>
           </span>
         </BotaoBase>
       </div>

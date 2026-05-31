@@ -16,6 +16,7 @@ const routes = [
       { path: "historico-vendas", name: "historico-vendas", component: () => import("../views/historico/HistoricoVendasView.vue") },
       { path: "historico-fechos", name: "historico-fechos", component: () => import("../views/historico/HistoricoFechosView.vue") },
       { path: "configuracoes", name: "configuracoes", component: () => import("../views/configuracoes/ConfiguracoesView.vue") },
+      { path: "seguranca", name: "seguranca", component: () => import("../views/seguranca/SegurancaView.vue") },
     ],
   },
 ];

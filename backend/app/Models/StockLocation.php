@@ -32,4 +32,9 @@ class StockLocation extends Model
     {
         return $this->belongsTo(Register::class);
     }
+
+    public function balances()
+    {
+        return $this->hasMany(StockBalance::class, 'location_id');
+    }
 }

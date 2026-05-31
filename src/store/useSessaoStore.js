@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import { limparTokens, salvarTokens } from "../services/authStorage";
 import { abrirTurnoIntegrado, fecharTurnoIntegrado, obterSessaoAtivaIntegrada } from "../services/integracaoApi";
+import { t } from "../services/i18nHelper.js";
 
 const CHAVE_SESSAO = "retailpro:sessao";
 
@@ -112,7 +113,7 @@ export const useSessaoStore = defineStore("sessao", {
 
       if (temApiConfigurada()) {
         if (!this.registerId) {
-          return { remotoOk: false, erro: "Operador sem register_id para abrir caixa na API." };
+          return { remotoOk: false, erro: t("api.noRegisterIdOpen") };
         }
         remoto = await abrirTurnoIntegrado({
           register_id: this.registerId,
@@ -120,7 +121,7 @@ export const useSessaoStore = defineStore("sessao", {
           opened_at: new Date().toISOString(),
         });
         if (!remoto?.ok) {
-          return { remotoOk: false, erro: remoto?.erro || "Falha ao abrir sessão na API." };
+          return { remotoOk: false, erro: remoto?.erro || t("api.openSessionFailedShort") };
         }
         cashSessionId = this.normalizarUuid(remoto.data?.id);
       }
@@ -135,7 +136,7 @@ export const useSessaoStore = defineStore("sessao", {
     async fecharTurno(relatorio) {
       if (temApiConfigurada()) {
         if (!this.cashSessionId) {
-          return { remotoOk: false, erro: "Sessão remota não encontrada para fecho na API." };
+          return { remotoOk: false, erro: t("api.remoteSessionNotFound") };
         }
         const remoto = await fecharTurnoIntegrado(this.cashSessionId, {
           closing_balance: Number(relatorio?.dinheiroReal || 0),
@@ -144,7 +145,7 @@ export const useSessaoStore = defineStore("sessao", {
           report_snapshot: relatorio,
         });
         if (!remoto?.ok) {
-          return { remotoOk: false, erro: remoto?.erro || "Falha ao fechar sessão na API." };
+          return { remotoOk: false, erro: remoto?.erro || t("api.closeSessionFailedShort") };
         }
       }
 
@@ -157,11 +158,11 @@ export const useSessaoStore = defineStore("sessao", {
     },
     async sincronizarTurnoRemoto() {
       if (!temApiConfigurada()) return { remotoOk: false };
-      if (!this.registerId) return { remotoOk: false, erro: "Operador sem register_id para consultar caixa." };
+      if (!this.registerId) return { remotoOk: false, erro: t("api.noRegisterIdQuery") };
 
       const resposta = await obterSessaoAtivaIntegrada(this.registerId);
       if (!resposta?.ok) {
-        return { remotoOk: false, erro: resposta?.erro || "Falha ao consultar sessão ativa." };
+        return { remotoOk: false, erro: resposta?.erro || t("api.activeSessionFailedShort") };
       }
 
       const sessao = resposta.data;

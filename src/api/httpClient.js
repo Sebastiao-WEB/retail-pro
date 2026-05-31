@@ -1,5 +1,6 @@
 import { apiConfig } from "./config";
 import { limparTokens, obterRefreshToken, obterToken, salvarTokens } from "../services/authStorage";
+import { t } from "../services/i18nHelper.js";
 
 export class ApiError extends Error {
   constructor(message, status = 0, payload = null) {
@@ -99,12 +100,12 @@ export async function httpRequest(path, opcoes = {}, contexto = { refreshTentado
         }
       }
       tratarNaoAutorizado();
-      throw new ApiError(json?.message || "Sessão expirada. Faça login novamente.", 401, json);
+      throw new ApiError(json?.message || t("api.sessionExpired"), 401, json);
     }
 
     if (!resposta.ok) {
       throw new ApiError(
-        json?.message || `Erro HTTP ${resposta.status}`,
+        json?.message || t("api.httpError", { status: resposta.status }),
         resposta.status,
         json
       );
@@ -113,10 +114,10 @@ export async function httpRequest(path, opcoes = {}, contexto = { refreshTentado
     return json;
   } catch (erro) {
     if (erro?.name === "AbortError") {
-      throw new ApiError("Tempo limite da API excedido.");
+      throw new ApiError(t("api.timeout"));
     }
     if (erro instanceof ApiError) throw erro;
-    throw new ApiError(erro?.message || "Falha ao comunicar com o backend.");
+    throw new ApiError(erro?.message || t("api.communicationFailed"));
   } finally {
     clearTimeout(timeout);
   }

@@ -1,16 +1,18 @@
 import { temApiConfigurada } from "../api/config";
 import { companyApi } from "../api/modules/companyApi";
+import { buildClosingReportLabels, t } from "./i18nHelper.js";
+import { getStoredLocale, intlLocale } from "./localeStorage.js";
 
 function formatarDataHora(valor) {
   if (!valor) return "";
-  return new Date(valor).toLocaleString("pt-MZ");
+  return new Date(valor).toLocaleString(intlLocale(getStoredLocale()));
 }
 
 function obterRodapeTalao(configuracao) {
   if (temApiConfigurada()) {
     return String(configuracao?.rodapeFacturas ?? "");
   }
-  return String(configuracao?.rodapeFacturas || "Obrigado pela preferencia.");
+  return String(configuracao?.rodapeFacturas || t("pos.receipt.defaultFooter"));
 }
 
 async function sincronizarConfiguracaoEmpresaRemota(configuracao) {
@@ -36,12 +38,15 @@ async function sincronizarConfiguracaoEmpresaRemota(configuracao) {
 
 export function montarPayloadRelatorioFecho(dados, configuracao, opcoes = {}) {
   const fechadoEm = dados.fechadoEm || new Date().toISOString();
-  const titulo = opcoes.segundaVia ? "2a via - Relatorio de Fecho de Caixa" : "Relatorio de Fecho de Caixa";
+  const titulo = opcoes.segundaVia
+    ? t("pos.closingReport.secondCopyTitle")
+    : t("pos.closingReport.title");
 
   return {
     titulo,
     segundaVia: !!opcoes.segundaVia,
     larguraTalao: opcoes.larguraTalao || configuracao?.larguraTalao || "80mm",
+    labels: buildClosingReportLabels(),
     empresa: {
       nome: String(configuracao?.nomeEmpresa || "RetailPro POS"),
       nuit: String(configuracao?.nif || ""),
@@ -70,10 +75,10 @@ export function montarPayloadRelatorioFecho(dados, configuracao, opcoes = {}) {
 
 export async function enviarRelatorioFechoParaImpressao({ relatorio, configuracao, opcoes = {} }) {
   if (!window.api?.imprimirRelatorioFecho) {
-    return { ok: false, error: "API de impressao de relatorio indisponivel no desktop." };
+    return { ok: false, error: t("pos.printErrors.closingReportApiUnavailable") };
   }
   if (!configuracao?.impressoraPadrao) {
-    return { ok: false, error: "Impressora padrao nao configurada." };
+    return { ok: false, error: t("pos.printErrors.defaultPrinterNotSet") };
   }
 
   const configuracaoAtualizada = await sincronizarConfiguracaoEmpresaRemota(configuracao);

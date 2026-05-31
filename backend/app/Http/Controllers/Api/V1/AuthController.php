@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\Register;
 use App\Models\User;
+use App\Services\ApiTwoFactorChallengeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
+use Laravel\Fortify\Fortify;
 
 class AuthController extends Controller
 {
@@ -18,18 +22,9 @@ class AuthController extends Controller
             'register_code' => ['nullable', 'string'],
         ]);
 
-        $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation'])
-            ->where(function ($q) use ($dados) {
-                $q->where('username', $dados['username'])
-                    ->orWhere('email', $dados['username']);
-            })
-            ->first();
-
-        if (! $user || ! Hash::check($dados['password'], $user->password) || ! $user->is_active) {
-            return response()->json([
-                'message' => 'Credenciais inválidas.',
-            ], 401);
+        $user = $this->findUserByCredentials($dados['username'], $dados['password']);
+        if ($user instanceof \Illuminate\Http\JsonResponse) {
+            return $user;
         }
 
         $registers = $user->assignedRegisters();
@@ -41,39 +36,92 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $selectedRegister = null;
+        $selectedRegister = $this->resolveRegister($registers, $registerCode);
+        if ($selectedRegister instanceof \Illuminate\Http\JsonResponse) {
+            return $selectedRegister;
+        }
 
-        if ($registers->count() === 1) {
-            $selectedRegister = $registers->first();
-        } elseif ($registerCode !== '') {
-            $selectedRegister = $this->findRegisterByCode($registers, $registerCode);
-            if (! $selectedRegister) {
-                return response()->json([
-                    'message' => 'O caixa informado não está atribuído a este utilizador.',
-                    'registers' => $this->serializeRegisters($registers),
-                ], 422);
-            }
-        } else {
+        if ($this->userRequiresTwoFactor($user)) {
+            $token = app(ApiTwoFactorChallengeService::class)->create(
+                $user->id,
+                $selectedRegister->id
+            );
+
             return response()->json([
-                'message' => 'Selecione o caixa para operar.',
-                'requires_register_selection' => true,
-                'registers' => $this->serializeRegisters($registers),
+                'message' => 'Confirme o acesso com autenticação em dois factores.',
+                'requires_two_factor' => true,
+                'two_factor_token' => $token,
+                'expires_in' => ApiTwoFactorChallengeService::TTL_SECONDS,
             ], 422);
         }
 
-        $user->applyActiveRegister($selectedRegister);
-        $user->save();
+        return $this->issueTokenResponse($user, $selectedRegister, $registers);
+    }
 
-        $token = auth('api')->login($user);
-        $ttl = config('jwt.ttl', 60) * 60;
-
-        return response()->json([
-            'access_token' => $token,
-            'refresh_token' => $token,
-            'token_type' => 'Bearer',
-            'expires_in' => $ttl,
-            'user' => $this->serializeUser($user, $selectedRegister, $registers),
+    public function twoFactorChallenge(Request $request)
+    {
+        $dados = $request->validate([
+            'two_factor_token' => ['required', 'string', 'uuid'],
+            'code' => ['nullable', 'string'],
+            'recovery_code' => ['nullable', 'string'],
         ]);
+
+        if (blank($dados['code'] ?? null) && blank($dados['recovery_code'] ?? null)) {
+            return response()->json([
+                'message' => 'Informe o código de autenticação ou um código de recuperação.',
+            ], 422);
+        }
+
+        $challenge = app(ApiTwoFactorChallengeService::class)->get($dados['two_factor_token']);
+        if (! $challenge) {
+            return response()->json([
+                'message' => 'Sessão de verificação expirada. Faça login novamente.',
+                'two_factor_expired' => true,
+            ], 401);
+        }
+
+        $user = User::query()
+            ->with(['registers.sourceLocation', 'register.sourceLocation'])
+            ->find($challenge['user_id']);
+
+        if (! $user || ! $user->is_active) {
+            app(ApiTwoFactorChallengeService::class)->forget($dados['two_factor_token']);
+
+            return response()->json([
+                'message' => $user && ! $user->is_active
+                    ? EnsureUserIsActive::SUSPENDED_MESSAGE
+                    : 'Utilizador não encontrado.',
+                'account_suspended' => $user && ! $user->is_active,
+            ], $user && ! $user->is_active ? 403 : 401);
+        }
+
+        if (! $this->userRequiresTwoFactor($user)) {
+            app(ApiTwoFactorChallengeService::class)->forget($dados['two_factor_token']);
+
+            return response()->json([
+                'message' => 'Autenticação em dois factores não está activa para este utilizador.',
+            ], 422);
+        }
+
+        if (! $this->verifyTwoFactorCode($user, $dados)) {
+            return response()->json([
+                'message' => 'Código de autenticação inválido.',
+                'invalid_two_factor_code' => true,
+            ], 422);
+        }
+
+        $selectedRegister = Register::query()->find($challenge['register_id']);
+        if (! $selectedRegister) {
+            app(ApiTwoFactorChallengeService::class)->forget($dados['two_factor_token']);
+
+            return response()->json([
+                'message' => 'Caixa associado à sessão de verificação não encontrado.',
+            ], 422);
+        }
+
+        app(ApiTwoFactorChallengeService::class)->forget($dados['two_factor_token']);
+
+        return $this->issueTokenResponse($user, $selectedRegister, $user->assignedRegisters());
     }
 
     public function refresh()
@@ -106,6 +154,104 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Sessão encerrada com sucesso.',
+        ]);
+    }
+
+    private function findUserByCredentials(string $username, string $password): User|\Illuminate\Http\JsonResponse
+    {
+        $user = User::query()
+            ->with(['registers.sourceLocation', 'register.sourceLocation'])
+            ->where(function ($q) use ($username) {
+                $q->where('username', $username)
+                    ->orWhere('email', $username);
+            })
+            ->first();
+
+        if ($user && Hash::check($password, $user->password) && ! $user->is_active) {
+            return response()->json([
+                'message' => EnsureUserIsActive::SUSPENDED_MESSAGE,
+                'account_suspended' => true,
+            ], 403);
+        }
+
+        if (! $user || ! Hash::check($password, $user->password)) {
+            return response()->json([
+                'message' => 'Credenciais inválidas.',
+            ], 401);
+        }
+
+        return $user;
+    }
+
+    private function resolveRegister($registers, string $registerCode): Register|\Illuminate\Http\JsonResponse
+    {
+        if ($registers->count() === 1) {
+            return $registers->first();
+        }
+
+        if ($registerCode !== '') {
+            $selectedRegister = $this->findRegisterByCode($registers, $registerCode);
+            if (! $selectedRegister) {
+                return response()->json([
+                    'message' => 'O caixa informado não está atribuído a este utilizador.',
+                    'registers' => $this->serializeRegisters($registers),
+                ], 422);
+            }
+
+            return $selectedRegister;
+        }
+
+        return response()->json([
+            'message' => 'Selecione o caixa para operar.',
+            'requires_register_selection' => true,
+            'registers' => $this->serializeRegisters($registers),
+        ], 422);
+    }
+
+    private function userRequiresTwoFactor(User $user): bool
+    {
+        return ! is_null($user->two_factor_secret)
+            && ! is_null($user->two_factor_confirmed_at);
+    }
+
+    /** @param  array<string, mixed>  $dados */
+    private function verifyTwoFactorCode(User $user, array $dados): bool
+    {
+        if (filled($dados['recovery_code'] ?? null)) {
+            $recoveryCode = (string) $dados['recovery_code'];
+            $valid = collect($user->recoveryCodes())->contains(
+                fn (string $code) => hash_equals($code, $recoveryCode)
+            );
+
+            if ($valid) {
+                $user->replaceRecoveryCode($recoveryCode);
+            }
+
+            return $valid;
+        }
+
+        $provider = app(TwoFactorAuthenticationProvider::class);
+
+        return $provider->verify(
+            Fortify::currentEncrypter()->decrypt($user->two_factor_secret),
+            (string) ($dados['code'] ?? '')
+        );
+    }
+
+    private function issueTokenResponse(User $user, Register $selectedRegister, $allRegisters)
+    {
+        $user->applyActiveRegister($selectedRegister);
+        $user->save();
+
+        $token = auth('api')->login($user);
+        $ttl = config('jwt.ttl', 60) * 60;
+
+        return response()->json([
+            'access_token' => $token,
+            'refresh_token' => $token,
+            'token_type' => 'Bearer',
+            'expires_in' => $ttl,
+            'user' => $this->serializeUser($user, $selectedRegister, $allRegisters),
         ]);
     }
 

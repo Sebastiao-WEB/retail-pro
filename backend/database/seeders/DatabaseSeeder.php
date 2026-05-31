@@ -9,11 +9,11 @@ use App\Models\Register;
 use App\Models\StockBalance;
 use App\Models\StockLocation;
 use App\Models\User;
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 class DatabaseSeeder extends Seeder
 {
@@ -24,61 +24,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $permissions = [
-            'dashboard.view',
-            'registers.view', 'registers.manage',
-            'stock_locations.view', 'stock_locations.manage',
-            'stock.reload',
-            'stock.movements.view',
-            'stock.transfers.view', 'stock.transfers.manage',
-            'users.view', 'users.manage',
-            'roles.view', 'roles.manage',
-            'products.view', 'products.manage',
-            'customers.view', 'customers.manage',
-            'sales.view',
-            'cash_sessions.view',
-            'reversals.view', 'reversals.manage',
-        ];
-        $permissionModels = collect();
-        foreach ($permissions as $permissionName) {
-            $permissionModels->push(Permission::findOrCreate($permissionName, 'web'));
-        }
+        PermissionCatalog::sync();
 
         $adminRole = Role::findOrCreate('ADMIN', 'web');
         $managerRole = Role::findOrCreate('MANAGER', 'web');
         $cashierRole = Role::findOrCreate('CASHIER', 'web');
-        $adminRole->syncPermissions($permissionModels);
-        $managerPermissions = [
-            'dashboard.view',
-            'registers.view', 'registers.manage',
-            'stock_locations.view', 'stock_locations.manage',
-            'stock.reload',
-            'stock.movements.view',
-            'stock.transfers.view', 'stock.transfers.manage',
-            'users.view', 'users.manage',
-            'roles.view', 'roles.manage',
-            'products.view', 'products.manage',
-            'customers.view', 'customers.manage',
-            'sales.view',
-            'cash_sessions.view',
-            'reversals.view', 'reversals.manage',
-        ];
-        $managerRole->syncPermissions(
-            Permission::query()->whereIn('name', $managerPermissions)->where('guard_name', 'web')->get()
-        );
 
-        $cashierPermissions = [
-            'dashboard.view',
-            'sales.view',
-            'customers.view',
-            'products.view',
-            'stock.reload',
-            'stock.movements.view',
-            'users.view',
-        ];
+        $adminRole->syncPermissions(
+            Permission::query()->whereIn('name', PermissionCatalog::allNames())->where('guard_name', 'web')->get()
+        );
+        $managerRole->syncPermissions(
+            Permission::query()->whereIn('name', PermissionCatalog::managerDefaultPermissions())->where('guard_name', 'web')->get()
+        );
         $cashierRole->syncPermissions(
-            Permission::query()->whereIn('name', $cashierPermissions)->where('guard_name', 'web')->get()
+            Permission::query()->whereIn('name', PermissionCatalog::cashierDefaultPermissions())->where('guard_name', 'web')->get()
         );
 
         $register = Register::query()->firstOrCreate(
@@ -112,6 +71,20 @@ class DatabaseSeeder extends Seeder
             ['code' => 'CX-02'],
             ['name' => 'Caixa 02', 'is_active' => true]
         );
+
+        $sourceLocation2 = StockLocation::query()->firstOrCreate([
+            'code' => 'LOC-CX02',
+        ], [
+            'register_id' => $register2->id,
+            'name' => 'Loja - Caixa 02',
+            'type' => 'STORE_FLOOR',
+            'is_saleable' => true,
+            'is_active' => true,
+        ]);
+
+        if ($sourceLocation2->register_id !== $register2->id) {
+            $sourceLocation2->update(['register_id' => $register2->id]);
+        }
 
         $user->syncRoles(['CASHIER']);
         $user->syncAssignedRegisters([$register->id, $register2->id]);
@@ -171,6 +144,22 @@ class DatabaseSeeder extends Seeder
                 'max_stock' => 500,
             ]
         );
+
+        StockBalance::query()->updateOrCreate(
+            [
+                'location_id' => $sourceLocation2->id,
+                'product_id' => $product->id,
+            ],
+            [
+                'quantity' => 80,
+                'min_stock' => 10,
+                'max_stock' => 500,
+            ]
+        );
+
+        $product->update([
+            'stock' => StockBalance::query()->where('product_id', $product->id)->sum('quantity'),
+        ]);
 
         StockLocation::query()->firstOrCreate([
             'code' => 'LOC-ARM-CENTRAL',

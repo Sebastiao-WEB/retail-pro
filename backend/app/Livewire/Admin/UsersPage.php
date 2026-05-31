@@ -7,6 +7,7 @@ use App\Models\StockLocation;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -72,6 +73,26 @@ class UsersPage extends Component
         $this->modalOpen = true;
     }
 
+    public function updatedRegisterIds(): void
+    {
+        if (count($this->register_ids) !== 1) {
+            return;
+        }
+
+        $register = Register::query()->with('sourceLocation')->find($this->register_ids[0]);
+        if ($register?->sourceLocation) {
+            $this->source_location_id = $register->sourceLocation->id;
+        }
+    }
+
+    public function aplicarLocalizacaoDoCaixa(string $registerId): void
+    {
+        $register = Register::query()->with('sourceLocation')->find($registerId);
+        if ($register?->sourceLocation) {
+            $this->source_location_id = $register->sourceLocation->id;
+        }
+    }
+
     public function save(): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
@@ -94,6 +115,12 @@ class UsersPage extends Component
         }
 
         $dados = $this->validate($rules);
+
+        if ($this->editingId && $this->isCurrentUser($this->editingId) && ! $dados['is_active']) {
+            throw ValidationException::withMessages([
+                'is_active' => ['Não pode desactivar a sua própria conta enquanto está autenticado.'],
+            ]);
+        }
 
         $payload = [
             'name' => $dados['name'],
@@ -126,13 +153,23 @@ class UsersPage extends Component
 
         $user->syncRoles([$dados['role']]);
 
-        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? 'Utilizador atualizado.' : 'Utilizador criado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => $this->editingId ? __('toasts.user_updated') : __('toasts.user_created')]);
         $this->closeModal();
     }
 
     public function confirmDisable(string $id): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
+
+        if ($this->isCurrentUser($id)) {
+            session()->flash('toast', [
+                'type' => 'error',
+                'message' => __('toasts.cannot_disable_self_session'),
+            ]);
+
+            return;
+        }
+
         $this->disableId = $id;
         $this->confirmDisableOpen = true;
     }
@@ -140,12 +177,24 @@ class UsersPage extends Component
     public function disable(): void
     {
         abort_unless(auth()->user()?->can('users.manage'), 403);
+
+        if ($this->disableId && $this->isCurrentUser($this->disableId)) {
+            session()->flash('toast', [
+                'type' => 'error',
+                'message' => __('toasts.cannot_disable_self_session'),
+            ]);
+            $this->confirmDisableOpen = false;
+            $this->disableId = null;
+
+            return;
+        }
+
         if ($this->disableId) {
             User::query()->where('id', $this->disableId)->update(['is_active' => false]);
         }
         $this->confirmDisableOpen = false;
         $this->disableId = null;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Utilizador desativado.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.user_disabled')]);
     }
 
     public function closeModal(): void
@@ -167,10 +216,17 @@ class UsersPage extends Component
         $this->source_location_id = null;
     }
 
+    private function isCurrentUser(?string $userId): bool
+    {
+        return $userId !== null && auth()->id() === $userId;
+    }
+
     public function render()
     {
+        abort_unless(auth()->user()?->can('users.view'), 403);
+
         $users = User::query()
-            ->with('registers')
+            ->with(['registers', 'sourceLocation'])
             ->when($this->search !== '', function ($q) {
                 $q->where(function ($inner) {
                     $inner->where('name', 'like', "%{$this->search}%")
@@ -183,11 +239,11 @@ class UsersPage extends Component
             ->paginate(10);
 
         return view('livewire.admin.users-page')
-            ->layout('components.layouts.desktop', ['title' => 'Utilizadores e Gerentes | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.users')])
             ->with([
                 'users' => $users,
-                'registers' => Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-                'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+                'registers' => Register::query()->with('sourceLocation')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+                'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'register_id']),
             ]);
     }
 }

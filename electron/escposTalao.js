@@ -126,9 +126,12 @@ function linhaItem(item, largura, detalharIva) {
   return linhaTexto(linha);
 }
 
-function linhaCabecalhoItens(largura, detalharIva) {
-  const direita = detalharIva ? "Qtd IVA IVA$ Total" : "Qtd IVA Total";
-  const linha = montarLinhaEsquerdaDireita("Item", direita, largura);
+function linhaCabecalhoItens(largura, detalharIva, labels = {}) {
+  const itemLabel = labels.item || "Item";
+  const direita = detalharIva
+    ? (labels.qtyIvaIvaTotal || "Qtd IVA IVA$ Total")
+    : (labels.qtyIvaTotal || "Qtd IVA Total");
+  const linha = montarLinhaEsquerdaDireita(itemLabel, direita, largura);
   return linhaTexto(linha);
 }
 
@@ -220,6 +223,7 @@ export function gerarBufferEscpos(talao, opcoes = {}) {
   const detalharIva = !!talao.detalharIva;
   const venda = talao.venda || {};
   const descontoAplicado = Number(venda.descontoAplicado || 0);
+  const labels = talao.labels || {};
 
   const partes = [
     comandoInicializar(),
@@ -232,7 +236,7 @@ export function gerarBufferEscpos(talao, opcoes = {}) {
   }
 
   if (talao.empresa.nuit) {
-    partes.push(linhaTexto(`NUIT: ${talao.empresa.nuit}`, { alinhamento: "centro" }));
+    partes.push(linhaTexto(`${labels.nuit || "NUIT"}: ${talao.empresa.nuit}`, { alinhamento: "centro" }));
   }
   if (talao.empresa.endereco) {
     for (const linha of quebrarLinhas(talao.empresa.endereco, largura)) {
@@ -243,32 +247,32 @@ export function gerarBufferEscpos(talao, opcoes = {}) {
     partes.push(linhaTexto(talao.empresa.telefone, { alinhamento: "centro" }));
   }
   if (venda.referencia) {
-    partes.push(linhaTexto(`Ref: ${venda.referencia}`, { alinhamento: "centro" }));
+    partes.push(linhaTexto(`${labels.ref || "Ref"}: ${venda.referencia}`, { alinhamento: "centro" }));
   }
-  partes.push(linhaTexto(`Data: ${venda.dataFormatada}`, { alinhamento: "centro" }));
+  partes.push(linhaTexto(`${labels.date || "Data"}: ${venda.dataFormatada}`, { alinhamento: "centro" }));
   partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
-  partes.push(linhaTexto(`Cliente: ${truncar(venda.cliente, largura - 9)}`));
-  partes.push(linhaTexto(`Pagamento: ${truncar(venda.metodoPagamento, largura - 11)}`));
+  partes.push(linhaTexto(`${labels.client || "Cliente"}: ${truncar(venda.cliente, largura - (labels.client || "Cliente").length - 2)}`));
+  partes.push(linhaTexto(`${labels.payment || "Pagamento"}: ${truncar(venda.metodoPagamento, largura - (labels.payment || "Pagamento").length - 2)}`));
   partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
-  partes.push(linhaCabecalhoItens(largura, detalharIva));
+  partes.push(linhaCabecalhoItens(largura, detalharIva, labels));
 
   for (const item of venda.itens || []) {
     partes.push(linhaItem(item, largura, detalharIva));
   }
 
   partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
-  partes.push(linhaResumo("Subtotal", formatarMoeda(venda.subtotal), largura));
+  partes.push(linhaResumo(labels.subtotal || "Subtotal", formatarMoeda(venda.subtotal), largura));
   if (detalharIva) {
-    partes.push(linhaResumo("Total IVA", formatarMoeda(venda.totalIva), largura));
+    partes.push(linhaResumo(labels.totalIva || "Total IVA", formatarMoeda(venda.totalIva), largura));
   }
   if (descontoAplicado > 0) {
-    partes.push(linhaResumo("Desconto", `- ${formatarMoeda(descontoAplicado)}`, largura));
+    partes.push(linhaResumo(labels.discount || "Desconto", `- ${formatarMoeda(descontoAplicado)}`, largura));
   }
-  partes.push(linhaResumo("Total", formatarMoeda(venda.total), largura));
+  partes.push(linhaResumo(labels.total || "Total", formatarMoeda(venda.total), largura));
 
   if (venda.pagamentoDinheiro) {
-    partes.push(linhaResumo("Valor Pago", formatarMoeda(venda.valorPago), largura));
-    partes.push(linhaResumo("Troco", formatarMoeda(venda.troco), largura));
+    partes.push(linhaResumo(labels.amountPaid || "Valor Pago", formatarMoeda(venda.valorPago), largura));
+    partes.push(linhaResumo(labels.change || "Troco", formatarMoeda(venda.troco), largura));
   }
 
   partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
@@ -299,20 +303,22 @@ export function gerarBufferEscposRelatorioFecho(payload, opcoes = {}) {
   const linhasAvancoCorte = Math.max(2, Number(opcoes.linhasAvancoCorte || 4));
   const empresa = payload.empresa || {};
   const relatorio = payload.relatorio || {};
+  const labels = payload.labels || {};
+  const tituloFallback = labels.register ? payload.titulo : "Relatorio de Fecho de Caixa";
 
   const partes = [
     comandoInicializar(),
     comandoCodePageLatin(),
     linhaTexto(empresa.nome || "RetailPro POS", { alinhamento: "centro", negrito: true, tamanho: { altura: true } }),
-    linhaTexto(payload.titulo || "Relatorio de Fecho de Caixa", { alinhamento: "centro" }),
+    linhaTexto(payload.titulo || tituloFallback, { alinhamento: "centro" }),
     linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }),
   ];
 
   const info = [
-    ["Caixa", relatorio.caixa],
-    ["Operador", relatorio.operador],
-    ["Abertura", relatorio.aberturaFormatada],
-    ["Fecho", relatorio.fechoFormatada],
+    [labels.register || "Caixa", relatorio.caixa],
+    [labels.operator || "Operador", relatorio.operador],
+    [labels.opening || "Abertura", relatorio.aberturaFormatada],
+    [labels.closing || "Fecho", relatorio.fechoFormatada],
   ];
   for (const [rotulo, valor] of info) {
     if (!valor) continue;
@@ -322,15 +328,15 @@ export function gerarBufferEscposRelatorioFecho(payload, opcoes = {}) {
   partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
 
   const resumo = [
-    ["Fundo inicial", formatarMoeda(relatorio.fundoInicial)],
-    ["Total vendido", formatarMoeda(relatorio.totalVendido)],
-    ["Transacoes", String(relatorio.totalTransacoes ?? 0)],
-    ["Ticket medio", formatarMoeda(relatorio.ticketMedio)],
-    ["Vendas Dinheiro", formatarMoeda(relatorio.vendasDinheiro)],
-    ["Vendas Transfer.", formatarMoeda(relatorio.vendasTransferencia)],
-    ["Dinheiro esperado", formatarMoeda(relatorio.dinheiroEsperado)],
-    ["Dinheiro contado", formatarMoeda(relatorio.dinheiroReal)],
-    ["Diferenca", formatarMoeda(relatorio.diferenca)],
+    [labels.initialFund || "Fundo inicial", formatarMoeda(relatorio.fundoInicial)],
+    [labels.totalSold || "Total vendido", formatarMoeda(relatorio.totalVendido)],
+    [labels.transactions || "Transacoes", String(relatorio.totalTransacoes ?? 0)],
+    [labels.averageTicket || "Ticket medio", formatarMoeda(relatorio.ticketMedio)],
+    [labels.cashSales || "Vendas Dinheiro", formatarMoeda(relatorio.vendasDinheiro)],
+    [labels.transferSales || "Vendas Transfer.", formatarMoeda(relatorio.vendasTransferencia)],
+    [labels.expectedCash || "Dinheiro esperado", formatarMoeda(relatorio.dinheiroEsperado)],
+    [labels.actualCash || "Dinheiro contado", formatarMoeda(relatorio.dinheiroReal)],
+    [labels.difference || "Diferenca", formatarMoeda(relatorio.diferenca)],
   ];
   for (const [rotulo, valor] of resumo) {
     partes.push(linhaResumo(rotulo, valor, largura));
@@ -338,7 +344,8 @@ export function gerarBufferEscposRelatorioFecho(payload, opcoes = {}) {
 
   if (relatorio.justificativaDiferenca) {
     partes.push(linhaTexto(linhaSeparadora(largura), { alinhamento: "centro" }));
-    for (const linha of quebrarLinhas(`Justificativa: ${relatorio.justificativaDiferenca}`, largura)) {
+    const justificativaLabel = labels.justification || "Justificativa";
+    for (const linha of quebrarLinhas(`${justificativaLabel}: ${relatorio.justificativaDiferenca}`, largura)) {
       partes.push(linhaTexto(linha));
     }
   }

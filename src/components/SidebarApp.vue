@@ -1,39 +1,46 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useSessaoStore } from "../store/useSessaoStore";
-import { Clock3, Cog, LayoutGrid, Receipt, ShoppingCart, UserRound } from "lucide-vue-next";
+import { intlLocale } from "../services/localeStorage.js";
+import SeletorIdioma from "./SeletorIdioma.vue";
+import { Clock3, Cog, LayoutGrid, Receipt, Shield, ShoppingCart, UserRound } from "lucide-vue-next";
 import logoRetailPro from "../assets/rp.png";
 
+const { t, locale } = useI18n();
 const route = useRoute();
 const sessaoStore = useSessaoStore();
 const dataHoraAtual = ref(new Date());
 let temporizadorRelogio = null;
 
-const secoes = [
+const secoes = computed(() => [
   {
-    titulo: "Principal",
+    titulo: t("sidebar.main"),
     itens: [
-      { nome: "Histórico de Vendas", rota: "/historico-vendas", icon: Clock3 },
-      { nome: "Histórico de Fechos", rota: "/historico-fechos", icon: Receipt },
+      { nome: t("sidebar.salesHistory"), rota: "/historico-vendas", icon: Clock3 },
+      { nome: t("sidebar.closingsHistory"), rota: "/historico-fechos", icon: Receipt },
     ],
   },
   {
-    titulo: "Sistema",
-    itens: [{ nome: "Configurações", rota: "/configuracoes", icon: Cog }],
+    titulo: t("sidebar.system"),
+    itens: [
+      { nome: t("sidebar.security"), rota: "/seguranca", icon: Shield },
+      { nome: t("sidebar.settings"), rota: "/configuracoes", icon: Cog },
+    ],
   },
-];
+]);
 
-const turnoStatus = computed(() => (sessaoStore.turnoAberto ? "Turno aberto" : "Turno fechado"));
+const turnoStatus = computed(() => (sessaoStore.turnoAberto ? t("sidebar.shiftOpen") : t("sidebar.shiftClosed")));
 const horarioDigital = computed(() =>
-  dataHoraAtual.value.toLocaleTimeString("pt-MZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  dataHoraAtual.value.toLocaleTimeString(intlLocale(locale.value), { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 );
-const nomeOperador = computed(() => sessaoStore.utilizador || "Operador");
-const caixaOperador = computed(() => sessaoStore.caixaAtribuido || "Sem caixa");
-const posItens = [
-  { nome: "Ponto de venda", rota: { path: "/pos", query: { secao: "venda" } }, icon: ShoppingCart, secao: "venda" },
-  { nome: "Caixa", rota: { path: "/pos", query: { secao: "caixa" } }, icon: LayoutGrid, secao: "caixa" },
-];
+const nomeOperador = computed(() => sessaoStore.utilizador || t("common.operator"));
+const caixaOperador = computed(() => sessaoStore.caixaAtribuido || t("common.noRegister"));
+const posItens = computed(() => [
+  { nome: t("sidebar.pointOfSale"), rota: { path: "/pos", query: { secao: "venda" } }, icon: ShoppingCart, secao: "venda" },
+  { nome: t("sidebar.cashRegister"), rota: { path: "/pos", query: { secao: "caixa" } }, icon: LayoutGrid, secao: "caixa" },
+]);
 
 function classeItemPos(secao) {
   const rotaAtualPos = route.path === "/pos";
@@ -59,23 +66,23 @@ onBeforeUnmount(() => {
   <aside class="flex h-full w-64 flex-col bg-[var(--dark)] text-slate-100">
     <div class="border-b border-white/10 px-5 py-5">
       <div class="flex items-center gap-3">
-        <img :src="logoRetailPro" alt="RetailPro POS" class="h-9 w-9 rounded-lg object-contain" />
+        <img :src="logoRetailPro" :alt="t('sidebar.logoAlt')" class="h-9 w-9 rounded-lg object-contain" />
         <div>
-          <h1 class="text-sm font-bold leading-tight">RetailPro <span class="text-[var(--gold)]">POS</span></h1>
-          <p class="text-[10px] text-slate-400">Edição Caixa Pro</p>
+          <h1 class="text-sm font-bold leading-tight">{{ t("common.brandName") }} <span class="text-[var(--gold)]">{{ t("common.brandPos") }}</span></h1>
+          <p class="text-[10px] text-slate-400">{{ t("sidebar.edition") }}</p>
         </div>
       </div>
     </div>
 
     <nav class="flex-1 overflow-auto px-3 py-4">
       <div class="mb-5">
-        <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">POS</p>
+        <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ t("sidebar.posSection") }}</p>
         <RouterLink v-for="item in posItens" :key="item.secao" :to="item.rota" :class="classeItemPos(item.secao)">
           <component :is="item.icon" :size="14" class="w-4" />
           <span>{{ item.nome }}</span>
         </RouterLink>
         <div class="mt-2 rounded-lg border border-white/10 bg-[var(--dark-soft)] px-2.5 py-2 text-[12px]">
-          <p class="text-slate-400">Estado do turno</p>
+          <p class="text-slate-400">{{ t("sidebar.shiftStatus") }}</p>
           <p class="font-semibold" :class="sessaoStore.turnoAberto ? 'text-emerald-300' : 'text-red-300'">{{ turnoStatus }}</p>
         </div>
       </div>
@@ -95,7 +102,8 @@ onBeforeUnmount(() => {
       </div>
     </nav>
 
-    <div class="border-t border-white/10 px-4 py-3">
+    <div class="border-t border-white/10 px-4 py-3 space-y-2">
+      <SeletorIdioma />
       <div class="rounded-lg px-2 py-2 hover:bg-[var(--dark-soft)]">
         <div class="flex items-center gap-2">
           <div class="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-black">
@@ -103,7 +111,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="min-w-0 flex-1">
             <p class="truncate text-xs font-semibold text-slate-200">{{ nomeOperador }}</p>
-            <p class="truncate text-[10px] text-slate-400">{{ caixaOperador }} · Operador de Caixa</p>
+            <p class="truncate text-[10px] text-slate-400">{{ caixaOperador }} · {{ t("sidebar.cashierRole") }}</p>
           </div>
         </div>
         <div class="mt-2 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-center text-[11px] font-bold tracking-wide text-cyan-300">

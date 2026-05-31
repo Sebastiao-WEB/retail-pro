@@ -41,6 +41,8 @@ class StockMovementsPage extends Component
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('stock.movements.view'), 403);
+
         $movements = StockMovement::query()
             ->with(['product', 'fromLocation', 'toLocation', 'performedBy', 'reloadRecord'])
             ->when($this->reloadsOnly, fn ($q) => $q->stockReloads())
@@ -59,10 +61,10 @@ class StockMovementsPage extends Component
                 });
             })
             ->latest()
-            ->paginate(15);
+            ->paginate(10);
 
         return view('livewire.admin.stock-movements-page')
-            ->layout('components.layouts.desktop', ['title' => 'Movimentos de Stock | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.stock_movements')])
             ->with([
                 'movements' => $movements,
                 'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),

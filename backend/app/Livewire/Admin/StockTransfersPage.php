@@ -8,6 +8,7 @@ use App\Models\StockLocation;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
 use App\Models\StockTransferItem;
+use App\Services\StockByLocationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -127,22 +128,30 @@ class StockTransfersPage extends Component
         });
 
         $this->closeModal();
-        session()->flash('toast', ['type' => 'success', 'message' => 'Transferência concluída com sucesso.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.transfer_completed')]);
     }
 
-    public function render()
+    public function render(StockByLocationService $stockService)
     {
+        abort_unless(auth()->user()?->can('stock.transfers.view'), 403);
+
+        $disponivelOrigem = null;
+        if ($this->from_location_id !== '' && $this->product_id !== '') {
+            $disponivelOrigem = $stockService->quantidadeDisponivel($this->from_location_id, $this->product_id);
+        }
+
         $transfers = StockTransfer::query()
             ->with(['items', 'fromLocation', 'toLocation'])
             ->latest('requested_at')
             ->paginate(12);
 
         return view('livewire.admin.stock-transfers-page')
-            ->layout('components.layouts.desktop', ['title' => 'Transferências de Stock | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.stock_transfers')])
             ->with([
                 'transfers' => $transfers,
                 'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
                 'products' => Product::query()->where('is_active', true)->orderBy('nome')->get(['id', 'nome']),
+                'disponivelOrigem' => $disponivelOrigem,
             ]);
     }
 }

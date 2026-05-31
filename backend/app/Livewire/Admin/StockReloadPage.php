@@ -120,11 +120,13 @@ class StockReloadPage extends Component
         });
 
         $this->reloadModalOpen = false;
-        session()->flash('toast', ['type' => 'success', 'message' => 'Stock recarregado com sucesso.']);
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.stock_reloaded')]);
     }
 
     public function render()
     {
+        abort_unless(auth()->user()?->can('stock.reload'), 403);
+
         $products = Product::query()
             ->where('is_active', true)
             ->when($this->search !== '', function ($q) {
@@ -143,7 +145,7 @@ class StockReloadPage extends Component
             ->paginate(10, ['*'], 'historyPage');
 
         return view('livewire.admin.stock-reload-page')
-            ->layout('components.layouts.desktop', ['title' => 'Recarregar Stock | RetailPro'])
+            ->layout('components.layouts.desktop', ['title' => __('pages.titles.stock_reload')])
             ->with([
                 'products' => $products,
                 'reloadHistory' => $reloadHistory,

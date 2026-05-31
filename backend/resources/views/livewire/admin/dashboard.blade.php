@@ -1,4 +1,27 @@
 <div class="space-y-6">
+    <section class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.register') }}</label>
+                <select wire:model.live="registerFilter" class="rp-input">
+                    <option value="">{{ __('app.all_registers') }}</option>
+                    @foreach ($registers as $register)
+                        <option value="{{ $register->id }}">{{ $register->code }} — {{ $register->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.period') }}</label>
+                <select wire:model.live="period" class="rp-input">
+                    <option value="today">{{ __('app.periods.today') }}</option>
+                    <option value="7d">{{ __('app.periods.7d') }}</option>
+                    <option value="30d">{{ __('app.periods.30d') }}</option>
+                    <option value="month">{{ __('app.periods.month') }}</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
     <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <article class="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/70 p-4">
             <div class="flex items-center gap-3">
@@ -6,8 +29,8 @@
                     <i data-lucide="badge-dollar-sign" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-emerald-800/80">Vendas hoje</p>
-                    <p class="mt-1 text-xl font-bold text-emerald-900">{{ number_format($metricas['vendasHoje'], 2, ',', '.') }} MZN</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-emerald-800/80">{{ $metricas['periodoRotulo'] }}</p>
+                    <p class="mt-1 text-xl font-bold text-emerald-900">{{ number_format($metricas['vendasPeriodo'], 2, ',', '.') }} {{ __('app.currency') }}</p>
                 </div>
             </div>
         </article>
@@ -17,7 +40,7 @@
                     <i data-lucide="box" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-blue-800/80">Produtos ativos</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-blue-800/80">{{ __('pages.dashboard.active_products') }}</p>
                     <p class="mt-1 text-xl font-bold text-blue-900">{{ $metricas['totalProdutos'] }}</p>
                 </div>
             </div>
@@ -28,7 +51,7 @@
                     <i data-lucide="users" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-indigo-800/80">Clientes ativos</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-indigo-800/80">{{ __('pages.dashboard.active_customers') }}</p>
                     <p class="mt-1 text-xl font-bold text-indigo-900">{{ $metricas['totalClientes'] }}</p>
                 </div>
             </div>
@@ -39,7 +62,7 @@
                     <i data-lucide="rotate-cw" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-cyan-800/80">Recargas do mês</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-cyan-800/80">{{ __('pages.dashboard.month_reloads') }}</p>
                     <p class="mt-1 text-xl font-bold text-cyan-900">{{ $metricas['recargasMes'] }}</p>
                 </div>
             </div>
@@ -50,7 +73,7 @@
                     <i data-lucide="undo-2" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-amber-800/80">Reversões pendentes</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-amber-800/80">{{ __('pages.dashboard.pending_reversals') }}</p>
                     <p class="mt-1 text-xl font-bold text-amber-900">{{ $metricas['reversoesPendentes'] }}</p>
                 </div>
             </div>
@@ -61,7 +84,7 @@
                     <i data-lucide="wallet" class="h-6 w-6"></i>
                 </div>
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-violet-800/80">Caixas ativos</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-violet-800/80">{{ __('pages.dashboard.active_registers') }}</p>
                     <p class="mt-1 text-xl font-bold text-violet-900">{{ $metricas['caixasAtivos'] }}</p>
                 </div>
             </div>
@@ -72,62 +95,62 @@
         @can('sales.view')
             <a href="{{ route('sales.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="shopping-cart" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Operação</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Consultar Vendas</p>
-                <p class="text-xs text-slate-500">Ver histórico, detalhes e reversões de vendas.</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.operation') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.view_sales') }}</p>
+                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.view_sales_desc') }}</p>
             </a>
         @endcan
         @can('registers.view')
             <a href="{{ route('registers.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="wallet" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Cadastro</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Gerir Caixas</p>
-                <p class="text-xs text-slate-500">Criar, editar e ativar/desativar caixas.</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.catalog') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.manage_registers') }}</p>
+                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.manage_registers_desc') }}</p>
             </a>
         @endcan
         @can('stock_locations.view')
             <a href="{{ route('stock-locations.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="warehouse" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Cadastro</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Armazéns e Localizações</p>
-                <p class="text-xs text-slate-500">Mapear local de venda, armazém e áreas técnicas.</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.catalog') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.stock_locations') }}</p>
+                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.stock_locations_desc') }}</p>
             </a>
         @endcan
         @can('stock.reload')
             <a href="{{ route('stock.reload') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="rotate-cw" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Operação</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Recarregar Stock</p>
-                <p class="text-xs text-slate-500">Entrada de stock com histórico completo de recargas.</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.operation') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.reload_stock') }}</p>
+                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.reload_stock_desc') }}</p>
             </a>
         @endcan
         @can('products.view')
             <a href="{{ route('products.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="box" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Catálogo</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Gestão de Produtos</p>
-                <p class="text-xs text-slate-500">Atualizar preços, stock e estado de venda.</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.catalog') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.manage_products') }}</p>
+                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.manage_products_desc') }}</p>
             </a>
         @endcan
         @can('stock.movements.view')
             <a href="{{ route('stock.movements') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="arrow-right-left" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Stock</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">Histórico de Movimentos</p>
-                <p class="text-xs text-slate-500">Consultar recargas, saídas, transferências e ajustes.</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.stock') }}</p>
+                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.stock_movements') }}</p>
+                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.stock_movements_desc') }}</p>
             </a>
         @endcan
     </section>
 
     <section class="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <article class="rounded-lg border border-slate-200 bg-white p-4 xl:col-span-2">
-            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Vendas dos últimos 7 dias</p>
+            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $periodoGraficoRotulo }}</p>
             <div class="h-72">
                 <canvas id="chartVendas7Dias" class="h-full w-full"></canvas>
             </div>
         </article>
         <article class="rounded-lg border border-slate-200 bg-white p-4">
-            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Métodos de pagamento</p>
+            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.payment_methods') }}</p>
             <div class="h-72">
                 <canvas id="chartPagamentos" class="h-full w-full"></canvas>
             </div>
@@ -135,16 +158,16 @@
     </section>
 
     <section class="rounded-lg border border-slate-200 bg-white p-4">
-        <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Últimas vendas</p>
+        <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.latest_sales') }}</p>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                        <th class="px-3 py-2">Referência</th>
-                        <th class="px-3 py-2">Cliente</th>
-                        <th class="px-3 py-2">Pagamento</th>
-                        <th class="px-3 py-2">Total</th>
-                        <th class="px-3 py-2">Data</th>
+                        <th class="px-3 py-2">{{ __('app.fields.reference') }}</th>
+                        <th class="px-3 py-2">{{ __('app.fields.client') }}</th>
+                        <th class="px-3 py-2">{{ __('app.fields.payment') }}</th>
+                        <th class="px-3 py-2">{{ __('app.fields.total') }}</th>
+                        <th class="px-3 py-2">{{ __('app.fields.date') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -153,12 +176,12 @@
                             <td class="px-3 py-2 font-medium text-slate-700">{{ $venda->referencia }}</td>
                             <td class="px-3 py-2">{{ $venda->cliente }}</td>
                             <td class="px-3 py-2">{{ $venda->metodo_pagamento }}</td>
-                            <td class="px-3 py-2">{{ number_format((float) $venda->total, 2, ',', '.') }} MZN</td>
+                            <td class="px-3 py-2">{{ number_format((float) $venda->total, 2, ',', '.') }} {{ __('app.currency') }}</td>
                             <td class="px-3 py-2">{{ optional($venda->data)->format('d/m/Y H:i') }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-500">Sem vendas registadas.</td>
+                            <td colspan="5" class="px-3 py-6 text-center text-sm text-slate-500">{{ __('pages.dashboard.no_sales') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -175,6 +198,7 @@
         const dadosVendas = @js($dadosVendas);
         const labelsPagamentos = @js($labelsPagamentos);
         const dadosPagamentos = @js($dadosPagamentos);
+        const chartSalesLabel = @js($chartSalesLabel);
 
         if (window.retailChartVendas7Dias) {
             window.retailChartVendas7Dias.destroy();
@@ -193,7 +217,7 @@
                 data: {
                     labels: labelsVendas,
                     datasets: [{
-                        label: 'Vendas (MZN)',
+                        label: chartSalesLabel,
                         data: dadosVendas,
                         borderColor: '#d8b65a',
                         backgroundColor: 'rgba(216, 182, 90, 0.18)',
