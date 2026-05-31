@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\BalanceSheetPdfController;
 use App\Http\Controllers\Admin\OperatorReportPdfController;
+use App\Http\Controllers\Admin\ReversalReportPdfController;
 use App\Livewire\Admin\BalanceSheetsPage;
 use App\Livewire\Admin\CashSessionsActivePage;
 use App\Livewire\Admin\CashSessionsClosedPage;
@@ -37,6 +38,7 @@ Route::middleware(['auth', 'role:ADMIN|MANAGER'])->group(function () {
     Route::get('/sessoes-caixa-activas', CashSessionsActivePage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.active');
     Route::get('/historico-fechos-caixa', CashSessionsClosedPage::class)->middleware('permission:cash_sessions.view')->name('cash-sessions.closed');
     Route::get('/reversoes', ReversalsPage::class)->middleware('permission:reversals.view')->name('reversals.index');
+    Route::get('/reversoes/pdf', ReversalReportPdfController::class)->middleware('permission:reversals.view')->name('reversals.pdf');
     Route::get('/caixas', RegistersPage::class)->middleware('permission:registers.view')->name('registers.index');
     Route::get('/armazens-localizacoes', StockLocationsPage::class)->middleware('permission:stock_locations.view')->name('stock-locations.index');
     Route::get('/recarregar-stock', StockReloadPage::class)->middleware('permission:stock.reload')->name('stock.reload');
