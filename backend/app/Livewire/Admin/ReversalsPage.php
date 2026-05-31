@@ -68,9 +68,11 @@ class ReversalsPage extends Component
 
     public function pdfUrl(): string
     {
+        [$inicio, $fim] = $this->resolverPeriodo();
+
         return route('reversals.pdf', array_filter([
-            'periodo_inicio' => $this->periodo_inicio,
-            'periodo_fim' => $this->periodo_fim,
+            'periodo_inicio' => $inicio->toDateString(),
+            'periodo_fim' => $fim->toDateString(),
             'status' => $this->statusFilter ?: null,
             'register_id' => $this->registerFilter ?: null,
         ]));
@@ -121,16 +123,9 @@ class ReversalsPage extends Component
     {
         abort_unless(auth()->user()?->can('reversals.view'), 403);
 
-        $this->validate([
-            'periodo_inicio' => ['required', 'date'],
-            'periodo_fim' => ['required', 'date', 'after_or_equal:periodo_inicio'],
-        ]);
-
         $registerId = $this->registerFilter !== '' ? $this->registerFilter : null;
-        if ($registerId) {
-            $this->validate([
-                'registerFilter' => ['uuid', 'exists:registers,id'],
-            ]);
+        if ($registerId && ! $this->uuidValido($registerId)) {
+            $registerId = null;
         }
 
         $reversoes = SaleReversalRequest::query()
@@ -149,12 +144,22 @@ class ReversalsPage extends Component
             ->latest('requested_at')
             ->paginate(10);
 
-        $totais = $builder->totais(
-            Carbon::parse($this->periodo_inicio),
-            Carbon::parse($this->periodo_fim),
-            $this->statusFilter !== '' ? $this->statusFilter : null,
-            $registerId,
-        );
+        [$inicio, $fim] = $this->resolverPeriodo();
+
+        $totais = $this->periodoCompletoValido()
+            ? $builder->totais(
+                $inicio,
+                $fim,
+                $this->statusFilter !== '' ? $this->statusFilter : null,
+                $registerId,
+            )
+            : [
+                'total' => 0,
+                'pendentes' => 0,
+                'aprovadas' => 0,
+                'rejeitadas' => 0,
+                'valor_revertido' => 0.0,
+            ];
 
         $registers = Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
 
@@ -165,5 +170,56 @@ class ReversalsPage extends Component
                 'totais' => $totais,
                 'registers' => $registers,
             ]);
+    }
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private function resolverPeriodo(): array
+    {
+        $inicio = $this->dataValida($this->periodo_inicio)
+            ? Carbon::parse($this->periodo_inicio)->startOfDay()
+            : now()->startOfMonth()->startOfDay();
+
+        $fim = $this->dataValida($this->periodo_fim)
+            ? Carbon::parse($this->periodo_fim)->endOfDay()
+            : now()->endOfDay();
+
+        if ($fim->lt($inicio)) {
+            $fim = $inicio->copy()->endOfDay();
+        }
+
+        return [$inicio, $fim];
+    }
+
+    private function periodoCompletoValido(): bool
+    {
+        if (! $this->dataValida($this->periodo_inicio) || ! $this->dataValida($this->periodo_fim)) {
+            return false;
+        }
+
+        return Carbon::parse($this->periodo_fim)->gte(Carbon::parse($this->periodo_inicio));
+    }
+
+    private function dataValida(?string $valor): bool
+    {
+        if ($valor === null || $valor === '') {
+            return false;
+        }
+
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor)) {
+            return false;
+        }
+
+        [$ano, $mes, $dia] = array_map('intval', explode('-', $valor));
+
+        return checkdate($mes, $dia, $ano);
+    }
+
+    private function uuidValido(?string $valor): bool
+    {
+        if ($valor === null || $valor === '') {
+            return false;
+        }
+
+        return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $valor);
     }
 }
