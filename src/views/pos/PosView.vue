@@ -16,7 +16,7 @@ import { temApiConfigurada, ApiError } from "../../api";
 import { mostrarToastSwal } from "../../services/toast";
 import { intlLocale } from "../../services/localeStorage.js";
 import { GENERAL_CLIENT_CANONICAL, isGeneralClient } from "../../services/i18nHelper.js";
-import { enviarTalaoParaImpressao, enviarAbrirGaveta } from "../../services/talaoImpressao";
+import { enviarTalaoParaImpressao, abrirGavetaPosVenda } from "../../services/talaoImpressao";
 import { enviarRelatorioFechoParaImpressao } from "../../services/relatorioFechoImpressao";
 import {
   criarEstadoLeitorCodigoBarras,
@@ -717,14 +717,13 @@ async function concluirVenda(opcoes = { imprimir: true }) {
         return;
       }
       imprimindoAgora.value = true;
-      const pagamentoDinheiro = pendente.metodoPagamento === "Dinheiro";
       const resultado = await enviarTalaoParaImpressao({
         venda,
         configuracao: configuracaoStore,
         opcoes: {
           copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
           corteAutomatico: !!configuracaoStore.corteAutomatico,
-          abrirGaveta: pagamentoDinheiro && !!configuracaoStore.abrirGavetaAutomatico,
+          abrirGaveta: false,
         },
       });
       imprimindoAgora.value = false;
@@ -732,16 +731,11 @@ async function concluirVenda(opcoes = { imprimir: true }) {
         mostrarToastSwal(resultado?.error || t("pos.toast.printFailed"), "error");
         return;
       }
-    } else if (
-      pendente.metodoPagamento === "Dinheiro" &&
-      configuracaoStore.abrirGavetaAutomatico &&
-      window.api?.abrirGaveta &&
-      configuracaoStore.impressoraPadrao
-    ) {
-      const resultadoGaveta = await enviarAbrirGaveta({ configuracao: configuracaoStore });
-      if (!resultadoGaveta?.ok) {
-        mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
-      }
+    }
+
+    const resultadoGaveta = await abrirGavetaPosVenda({ venda, configuracao: configuracaoStore });
+    if (!resultadoGaveta?.ok && !resultadoGaveta?.skipped) {
+      mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
     }
 
     try {
@@ -810,6 +804,7 @@ async function reimprimirVenda(venda) {
     opcoes: {
       copies: 1,
       corteAutomatico: !!configuracaoStore.corteAutomatico,
+      abrirGaveta: false,
     },
   });
   imprimindoAgora.value = false;

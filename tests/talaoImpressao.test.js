@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { montarPayloadTalao } from "../src/services/talaoImpressao.js";
+import {
+  abrirGavetaPosVenda,
+  deveAbrirGavetaNaVenda,
+  montarPayloadTalao,
+  obterOpcoesGaveta,
+} from "../src/services/talaoImpressao.js";
 
 vi.mock("../src/api/config.js", () => ({
   temApiConfigurada: vi.fn(() => false),
@@ -50,5 +55,30 @@ describe("talaoImpressao", () => {
     });
 
     expect(talao.empresa.rodape).toBe("");
+  });
+
+  it("detecta vendas em dinheiro elegiveis para abrir gaveta", () => {
+    expect(
+      deveAbrirGavetaNaVenda(vendaBase, { abrirGavetaAutomatico: true })
+    ).toBe(true);
+    expect(
+      deveAbrirGavetaNaVenda({ ...vendaBase, metodoPagamento: "Transferência" }, { abrirGavetaAutomatico: true })
+    ).toBe(false);
+    expect(
+      deveAbrirGavetaNaVenda(vendaBase, { abrirGavetaAutomatico: false })
+    ).toBe(false);
+  });
+
+  it("normaliza porta DK definida nas configuracoes", () => {
+    expect(obterOpcoesGaveta({ gavetaPin: "1" }).gavetaPin).toBe(1);
+    expect(obterOpcoesGaveta({ gavetaPin: 0 }).gavetaPin).toBe(0);
+  });
+
+  it("nao abre gaveta quando venda nao e em dinheiro", async () => {
+    const resultado = await abrirGavetaPosVenda({
+      venda: { ...vendaBase, metodoPagamento: "Transferência" },
+      configuracao: { abrirGavetaAutomatico: true },
+    });
+    expect(resultado).toEqual({ ok: true, skipped: true });
   });
 });

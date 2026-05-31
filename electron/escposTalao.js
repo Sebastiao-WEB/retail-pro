@@ -192,8 +192,12 @@ function comandoCorteComAvanco(linhasAvanco = 4) {
 }
 
 /** Pulso na porta DK (cabos R15/RJ11) — pin 0 = pin 2, pin 1 = pin 5. */
+export function normalizarGavetaPin(valor) {
+  return Number(valor) === 1 ? 1 : 0;
+}
+
 function comandoAbrirGaveta({ pin = 0, tempoOn = 50, tempoOff = 500 } = {}) {
-  const m = pin === 1 ? 1 : 0;
+  const m = normalizarGavetaPin(pin);
   const t1 = Math.max(1, Math.min(255, Math.round(Number(tempoOn || 50) / 2)));
   const t2 = Math.max(1, Math.min(255, Math.round(Number(tempoOff || 500) / 2)));
   return bytes(ESC, 0x70, m, t1, t2);
@@ -284,7 +288,7 @@ export function gerarBufferEscpos(talao, opcoes = {}) {
 
   if (opcoes.abrirGaveta && venda.pagamentoDinheiro) {
     partes.push(comandoAbrirGaveta({
-      pin: opcoes.gavetaPin,
+      pin: normalizarGavetaPin(opcoes.gavetaPin),
       tempoOn: opcoes.gavetaTempoOn,
       tempoOff: opcoes.gavetaTempoOff,
     }));
