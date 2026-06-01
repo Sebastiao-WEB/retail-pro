@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesAssignedRegister;
+use App\Models\CashSession;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -101,7 +102,20 @@ class SaleController extends Controller
 
         $stockVersions = is_array($dados['stockVersions'] ?? null) ? $dados['stockVersions'] : [];
 
-        $sale = DB::transaction(function () use ($dados, $stockVersions) {
+        $registerId = $this->resolverRegisterIdConsulta(
+            $request,
+            $dados['register_id'] ?? ($dados['registerId'] ?? null)
+        );
+        if ($registerId instanceof \Illuminate\Http\JsonResponse) {
+            return $registerId;
+        }
+
+        $cashSessionId = $this->resolverCashSessionIdVenda(
+            $registerId,
+            $dados['cash_session_id'] ?? ($dados['cashSessionId'] ?? null)
+        );
+
+        $sale = DB::transaction(function () use ($dados, $stockVersions, $registerId, $cashSessionId) {
             $locationId = $dados['source_location_id'] ?? ($dados['sourceLocationId'] ?? null);
             $saleId = $dados['id'] ?? (string) Str::uuid();
 
@@ -177,9 +191,9 @@ class SaleController extends Controller
             $sale = Sale::create([
                 'id' => $saleId,
                 'referencia' => $this->gerarReferenciaUnica($dados['referencia'] ?? null),
-                'register_id' => $dados['register_id'] ?? ($dados['registerId'] ?? null),
+                'register_id' => $registerId,
                 'source_location_id' => $locationId,
-                'cash_session_id' => $dados['cash_session_id'] ?? ($dados['cashSessionId'] ?? null),
+                'cash_session_id' => $cashSessionId,
                 'user_id' => auth('api')->id(),
                 'cliente' => $dados['cliente'],
                 'caixa' => $dados['caixa'] ?? null,
@@ -256,13 +270,13 @@ class SaleController extends Controller
             return $sale;
         });
 
+        $sale->refresh()->load('itens');
+
         return response()->json([
             'message' => 'Venda registada com sucesso.',
-            'data' => [
-                'id' => $sale->id,
-                'referencia' => $sale->referencia,
+            'data' => array_merge($this->serializarVenda($sale), [
                 'status' => 'COMPLETED',
-            ],
+            ]),
         ], 201);
     }
 
@@ -299,6 +313,9 @@ class SaleController extends Controller
             'valorPago' => (float) $sale->valor_pago,
             'troco' => (float) $sale->troco,
             'data' => optional($sale->data)->toISOString(),
+            'registerId' => $sale->register_id,
+            'cashSessionId' => $sale->cash_session_id,
+            'sourceLocationId' => $sale->source_location_id,
             'itens' => $sale->itens->map(fn (SaleItem $item) => [
                 'produtoId' => $item->produto_id,
                 'nome' => $item->nome,
@@ -310,6 +327,29 @@ class SaleController extends Controller
                 'subtotal' => (float) $item->subtotal,
             ])->values(),
         ];
+    }
+
+    private function resolverCashSessionIdVenda(string $registerId, ?string $informado): ?string
+    {
+        if ($informado) {
+            $sessao = CashSession::query()->find($informado);
+            if (
+                $sessao
+                && $sessao->register_id === $registerId
+                && strtoupper((string) $sessao->status) === 'OPEN'
+            ) {
+                return $sessao->id;
+            }
+        }
+
+        $userId = auth('api')->id();
+
+        return CashSession::query()
+            ->where('register_id', $registerId)
+            ->where('status', 'OPEN')
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->latest('opened_at')
+            ->value('id');
     }
 
     private function vendaCorrespondePayload(Sale $sale, array $dados): bool
