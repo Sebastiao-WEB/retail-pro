@@ -81,12 +81,20 @@
                 <div class="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                     <div class="md:col-span-2">
                         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.name') }}</label>
-                        <input wire:model.defer="nome" type="text" class="rp-input">
+                        <input id="campo-nome" wire:model.defer="nome" type="text" class="rp-input @error('nome') border-red-500 ring-1 ring-red-300 @enderror">
                         @error('nome') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.barcode') }}</label>
-                        <input wire:model.defer="codigo_barras" type="text" class="rp-input">
+                        <label class="mb-1 block text-xs font-semibold text-slate-600" for="campo-codigo_barras">{{ __('app.fields.barcode') }}</label>
+                        <input
+                            id="campo-codigo_barras"
+                            wire:model.defer="codigo_barras"
+                            type="text"
+                            class="rp-input @error('codigo_barras') border-red-500 ring-1 ring-red-300 @enderror"
+                        >
+                        @error('codigo_barras')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div>
                         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.category') }}</label>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockBalance;
+use App\Support\ProductValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -69,7 +70,7 @@ class ProductController extends Controller
     {
         $dados = $request->validate([
             'nome' => ['required', 'string', 'max:255'],
-            'codigoBarras' => ['nullable', 'string', 'max:255'],
+            'codigoBarras' => ProductValidation::regrasCodigoBarras(),
             'categoria' => ['nullable', 'string', 'max:255'],
             'precoCompra' => ['nullable', 'numeric'],
             'precoVenda' => ['required', 'numeric'],
@@ -100,7 +101,7 @@ class ProductController extends Controller
         $produto = Product::create([
             'id' => (string) Str::uuid(),
             'nome' => $dados['nome'],
-            'codigo_barras' => $dados['codigoBarras'] ?? null,
+            'codigo_barras' => ProductValidation::normalizarCodigoBarras($dados['codigoBarras'] ?? null),
             'categoria' => $dados['categoria'] ?? null,
             'preco_compra' => $dados['precoCompra'] ?? 0,
             'preco_venda' => $dados['precoVenda'],
@@ -142,7 +143,7 @@ class ProductController extends Controller
     {
         $dados = $request->validate([
             'nome' => ['sometimes', 'string', 'max:255'],
-            'codigoBarras' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'codigoBarras' => ProductValidation::regrasCodigoBarras($product->id, true),
             'categoria' => ['sometimes', 'nullable', 'string', 'max:255'],
             'precoCompra' => ['sometimes', 'numeric'],
             'precoVenda' => ['sometimes', 'numeric'],
@@ -178,6 +179,10 @@ class ProductController extends Controller
         } else {
             $dados['ivaValor'] = 0;
             $dados['ivaPercentual'] = 0;
+        }
+
+        if (array_key_exists('codigoBarras', $dados)) {
+            $dados['codigoBarras'] = ProductValidation::normalizarCodigoBarras($dados['codigoBarras']);
         }
 
         $mapeamento = [

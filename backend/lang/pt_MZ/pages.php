@@ -229,6 +229,8 @@ return [
         'search_placeholder' => 'Pesquisar por nome, código ou categoria...',
         'no_products' => 'Sem produtos registados.',
         'iva_exempt_note' => 'Produto isento de IVA.',
+        'iva_percent_required' => 'Informe o percentual de IVA maior que zero.',
+        'iva_amount_required' => 'Informe o valor monetário de IVA maior que zero.',
         'stock_readonly' => 'actualizado por recargas, vendas e transferências',
         'stock_initial' => 'Stock inicial 0. Após guardar, use Recarregar stock para registar a entrada de mercadoria com histórico.',
         'active_pos' => 'Ativo no POS',

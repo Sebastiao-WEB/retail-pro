@@ -229,6 +229,8 @@ return [
         'search_placeholder' => 'Raadi magaca, koodhka ama qaybta...',
         'no_products' => 'Alaab lama diiwaangelin.',
         'iva_exempt_note' => 'Alaabta laga xoreeyay IVA.',
+        'iva_percent_required' => 'Geli boqolkiiba IVA oo ka weyn eber.',
+        'iva_amount_required' => 'Geli qiimaha IVA ee lacagta oo ka weyn eber.',
         'stock_readonly' => 'waxaa cusbooneysiiya buuxinta, iibka iyo wareejinta',
         'stock_initial' => 'Kaydka bilowga ah 0. Ka dib kaydinta, isticmaal Buuxi kaydka si aad u diiwaangeliso gelitaanka alaabta.',
         'active_pos' => 'Firfircoon POS',

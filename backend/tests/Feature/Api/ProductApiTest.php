@@ -63,4 +63,20 @@ class ProductApiTest extends TestCase
         $this->assertCount(1, $resposta->json('data'));
         $this->assertSame($produto->id, $resposta->json('data.0.id'));
     }
+
+    public function test_rejeita_criar_produto_com_codigo_barras_duplicado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $ambiente['product']->update(['codigo_barras' => '5555555555555']);
+
+        $resposta = $this->postJson('/api/v1/products', [
+            'nome' => 'Outro produto',
+            'codigoBarras' => '5555555555555',
+            'precoVenda' => 10,
+        ], $this->authHeaders($token));
+
+        $resposta->assertStatus(422)->assertJsonValidationErrors(['codigoBarras']);
+        $this->assertDatabaseCount('products', 1);
+    }
 }
