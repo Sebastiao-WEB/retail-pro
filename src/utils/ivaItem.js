@@ -2,8 +2,12 @@
  * Resolve percentual de IVA e montante de IVA por linha de venda/talão.
  */
 export function resolverIvaPercentualExibicao(item) {
+  const ivaTipo = String(item?.ivaTipo ?? item?.iva_tipo ?? "").toLowerCase();
   const percentualDirecto = Number(item?.ivaPercentual ?? item?.iva_percentual ?? 0);
-  if (percentualDirecto > 0) {
+  if (ivaTipo === "percentual" && percentualDirecto > 0) {
+    return Number(percentualDirecto.toFixed(2));
+  }
+  if (percentualDirecto > 0 && ivaTipo !== "monetario") {
     return Number(percentualDirecto.toFixed(2));
   }
 

@@ -28,35 +28,58 @@ function normalizarMonetario(valor) {
   return Math.max(0, Number(numero.toFixed(2)));
 }
 
-function calcularValorIvaUnitario(precoSemIva, ivaTipo, ivaValor) {
-  const preco = Number(precoSemIva || 0);
-  if (!Number.isFinite(preco) || preco < 0) return 0;
-  if (ivaTipo === "isento") return 0;
-  if (ivaTipo === "monetario") return normalizarMonetario(ivaValor);
-  const percentual = normalizarIva(ivaValor);
-  return Number((preco * (percentual / 100)).toFixed(2));
+function extrairPrecosVendaComIvaIncluso(precoEtiqueta, ivaTipo, ivaValor) {
+  const precoVendaComIva = Math.max(0, Number(precoEtiqueta || 0));
+
+  if (ivaTipo === "isento" || precoVendaComIva <= 0) {
+    return {
+      precoSemIva: precoVendaComIva,
+      valorIvaUnitario: 0,
+      precoVendaComIva,
+      ivaPercentual: 0,
+    };
+  }
+
+  if (ivaTipo === "monetario") {
+    const valorIvaUnitario = normalizarMonetario(ivaValor);
+    const precoSemIva = Math.max(0, Number((precoVendaComIva - valorIvaUnitario).toFixed(2)));
+    const ivaPercentual =
+      precoSemIva > 0 ? Number(((valorIvaUnitario / precoSemIva) * 100).toFixed(2)) : 0;
+
+    return { precoSemIva, valorIvaUnitario, precoVendaComIva, ivaPercentual };
+  }
+
+  const taxa = normalizarIva(ivaValor);
+  const precoSemIva =
+    taxa > 0 ? Number((precoVendaComIva / (1 + taxa / 100)).toFixed(2)) : precoVendaComIva;
+  const valorIvaUnitario = Number((precoVendaComIva - precoSemIva).toFixed(2));
+
+  return {
+    precoSemIva,
+    valorIvaUnitario,
+    precoVendaComIva,
+    ivaPercentual: taxa,
+  };
 }
 
 function normalizarProduto(produto) {
   const precoCompra = normalizarMonetario(produto?.precoCompra);
-  const precoVenda = Number(produto?.precoVenda || 0);
+  const precoEtiqueta = Number(produto?.precoVenda || 0);
   const ivaTipo = normalizarIvaTipo(produto?.ivaTipo);
   const ivaValorEntrada = produto?.ivaValor ?? produto?.ivaPercentual ?? 0;
   const ivaValor = ivaTipo === "percentual" ? normalizarIva(ivaValorEntrada) : normalizarMonetario(ivaValorEntrada);
-  const valorIvaUnitario = calcularValorIvaUnitario(precoVenda, ivaTipo, ivaValor);
-  const precoVendaComIva = Number((Math.max(0, Number(precoVenda || 0)) + valorIvaUnitario).toFixed(2));
-  const ivaPercentual = ivaTipo === "percentual" ? ivaValor : 0;
+  const precos = extrairPrecosVendaComIvaIncluso(precoEtiqueta, ivaTipo, ivaValor);
 
   return {
     ...produto,
     unidadeVenda: normalizarUnidadeVenda(produto?.unidadeVenda ?? produto?.unidade_venda),
     precoCompra,
-    precoVenda: Number.isFinite(precoVenda) ? precoVenda : 0,
+    precoVenda: precos.precoSemIva,
     ivaTipo,
     ivaValor,
-    ivaPercentual,
-    valorIvaUnitario,
-    precoVendaComIva,
+    ivaPercentual: ivaTipo === "percentual" ? ivaValor : precos.ivaPercentual,
+    valorIvaUnitario: precos.valorIvaUnitario,
+    precoVendaComIva: precos.precoVendaComIva,
   };
 }
 

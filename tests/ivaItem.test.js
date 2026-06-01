@@ -38,4 +38,19 @@ describe("ivaItem", () => {
     expect(linha.ivaPercentual).toBe(16);
     expect(linha.ivaTotal).toBe(15.2);
   });
+
+  it("calcula IVA monetario incluso no preco de etiqueta", () => {
+    const linha = enriquecerItemIva({
+      nome: "Artigo",
+      quantidade: 1,
+      ivaTipo: "monetario",
+      precoSemIva: 84,
+      precoVenda: 100,
+      valorIvaUnitario: 16,
+      subtotal: 100,
+    });
+
+    expect(linha.ivaPercentual).toBeCloseTo(19.05, 2);
+    expect(linha.ivaTotal).toBe(16);
+  });
 });
