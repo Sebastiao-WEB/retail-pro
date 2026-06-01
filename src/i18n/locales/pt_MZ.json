@@ -244,6 +244,7 @@
   "history": {
     "sales": {
       "title": "Histórico de vendas do caixa",
+      "subtitle": "{total} venda(s) no turno · {perPage} por página",
       "registerLabel": "Caixa:",
       "shiftLabel": "Turno:",
       "shiftNotStarted": "não iniciado",
@@ -452,6 +453,7 @@
       "emptyCart": "O carrinho ficou vazio. Adicione produtos antes de concluir a venda.",
       "insufficientPayment": "Valor pago insuficiente para concluir a venda.",
       "syncStockFailed": "Falha ao sincronizar stock antes da venda.",
+      "offlineCatalogRequired": "Sem ligação à internet. Abra o POS com internet pelo menos uma vez para guardar o catálogo local antes de vender offline.",
       "printApiUnavailable": "API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.",
       "setPrinterToPrint": "Defina a impressora padrão em Configurações para imprimir.",
       "printFailed": "Falha ao imprimir talão.",

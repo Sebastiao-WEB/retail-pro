@@ -1,10 +1,12 @@
 import { temApiConfigurada } from "../../api";
+import { salesApi } from "../../api/modules/salesApi";
 import { ApiError } from "../../api/httpClient";
 import {
   abrirTurnoIntegrado,
   criarVendaIntegrada,
   fecharTurnoIntegrado,
 } from "../integracaoApi";
+import { extrairVendaApi, somarUnidadesVenda } from "./salePayload";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useVendaStore } from "../../store/useVendaStore";
 import {
@@ -32,7 +34,7 @@ export async function sincronizarFilaOffline() {
       if (item.tipo === "cash_open") {
         await sincronizarAberturaCaixa(item);
       } else if (item.tipo === "sale") {
-        await criarVendaIntegrada(item.payload);
+        await sincronizarVendaPendente(item.payload);
       } else if (item.tipo === "cash_close") {
         await sincronizarFechoCaixa(item);
       } else {
@@ -70,6 +72,33 @@ export async function sincronizarFilaOffline() {
   }
 
   return { enviados, pendentes: listarFilaPendente().length, interrompido: false };
+}
+
+async function sincronizarVendaPendente(payload) {
+  const vendaId = payload?.id;
+  if (vendaId) {
+    try {
+      const resposta = await salesApi.obter(vendaId);
+      const existente = extrairVendaApi(resposta);
+      const unidadesServidor = somarUnidadesVenda(existente);
+      const unidadesPendentes = somarUnidadesVenda(payload);
+
+      if (unidadesServidor >= unidadesPendentes) {
+        return;
+      }
+
+      throw new ApiError(
+        `A venda ${vendaId} já existe no servidor com quantidade inferior (${unidadesServidor} vs ${unidadesPendentes}). Verifique no backoffice.`,
+        409
+      );
+    } catch (erro) {
+      if (!(erro instanceof ApiError) || erro.status !== 404) {
+        throw erro;
+      }
+    }
+  }
+
+  await criarVendaIntegrada(payload);
 }
 
 async function sincronizarAberturaCaixa(item) {

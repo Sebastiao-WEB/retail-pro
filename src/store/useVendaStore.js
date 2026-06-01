@@ -6,6 +6,7 @@ import {
   solicitarReversaoIntegrada,
 } from "../services/integracaoApi";
 import { isErroNegocioVenda, isErroRedeOuIndisponivel } from "../services/offline/networkError";
+import { vendaJaRegistadaNoServidor } from "../services/offline/saleServerCheck";
 import { enfileirarVendaPendente } from "../services/offline/pendingQueue";
 import { useSessaoStore } from "./useSessaoStore";
 import { t } from "../services/i18nHelper.js";
@@ -123,6 +124,11 @@ export const useVendaStore = defineStore("vendas", {
         } catch (erro) {
           if (isErroNegocioVenda(erro) || !isErroRedeOuIndisponivel(erro)) {
             throw erro;
+          }
+
+          if (await vendaJaRegistadaNoServidor(id)) {
+            await this.sincronizarHistorico();
+            return { modo: "online-recuperado" };
           }
 
           enfileirarVendaPendente(vendaNormalizada);

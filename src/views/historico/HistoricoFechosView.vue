@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
+import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { temApiConfigurada } from "../../api";
@@ -217,21 +218,13 @@ onMounted(async () => {
         </table>
       </div>
 
-      <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3">
-        <p class="text-[11px] text-slate-500">{{ t("common.pageOf", { current: paginaAtual, total: totalPaginas }) }}</p>
-        <div class="flex items-center gap-2">
-          <BotaoBase variante="secundario" :disabled="carregando || paginaAtual <= 1" @click="irParaPagina(paginaAtual - 1)">
-            {{ t("common.previous") }}
-          </BotaoBase>
-          <BotaoBase
-            variante="secundario"
-            :disabled="carregando || paginaAtual >= totalPaginas"
-            @click="irParaPagina(paginaAtual + 1)"
-          >
-            {{ t("common.next") }}
-          </BotaoBase>
-        </div>
-      </div>
+      <PaginacaoTabela
+        v-if="totalFechos > 0"
+        :pagina-atual="paginaAtual"
+        :total-paginas="totalPaginas"
+        :desabilitado="carregando"
+        @mudar-pagina="irParaPagina"
+      />
     </div>
   </section>
 </template>

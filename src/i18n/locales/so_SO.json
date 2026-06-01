@@ -244,6 +244,7 @@
   "history": {
     "sales": {
       "title": "Taariikhda iibka sanduuqa",
+      "subtitle": "{total} iib wareegga · {perPage} bog kasta",
       "registerLabel": "Sanduuqa:",
       "shiftLabel": "Wareeg:",
       "shiftNotStarted": "lama bilaabin",
@@ -452,6 +453,7 @@
       "emptyCart": "Gaadhigu wuu madhan yahay. Ku dar alaab ka hor intaadan dhammeystirin iibka.",
       "insufficientPayment": "Lacagta la bixiyay kuma filna dhammeystirka iibka.",
       "syncStockFailed": "Waa fashilantay isku xirka kaydka ka hor iibka.",
+      "offlineCatalogRequired": "Internet ma jiro. Fur POS-ka marka hore internet leh si buugga maxalliga ah loo kaydiyo ka hor iibka offline.",
       "printApiUnavailable": "API daabacaadda lama hayo desktop-ka. Dib u bilow Electron si aad u cusbooneysiiso preload.",
       "setPrinterToPrint": "Deji daabacaha caadiga ah Habaynta si aad u daabacdo.",
       "printFailed": "Waa fashilantay daabacaadda rasiidka.",

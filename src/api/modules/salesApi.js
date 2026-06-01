@@ -10,6 +10,9 @@ export const salesApi = {
     const rota = query.toString() ? `/sales?${query}` : "/sales";
     return httpRequest(rota);
   },
+  async obter(id) {
+    return httpRequest(`/sales/${id}`);
+  },
   async criar(payload) {
     return httpRequest("/sales", { method: "POST", body: payload });
   },

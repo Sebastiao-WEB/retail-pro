@@ -14,7 +14,7 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada, ApiError } from "../../api";
 import { temCatalogoOffline } from "../../services/offline/catalogCache";
-import { isErroRedeOuIndisponivel } from "../../services/offline/networkError";
+import { isErroRedeOuIndisponivel, redeDisponivel } from "../../services/offline/networkError";
 import { useOfflineStore } from "../../store/useOfflineStore";
 import { mostrarToastSwal } from "../../services/toast";
 import { intlLocale } from "../../services/localeStorage.js";
@@ -65,6 +65,13 @@ const vendaPendente = ref(null);
 const imprimindoAgora = ref(false);
 const processandoConclusaoVenda = ref(false);
 const vendasEmRegisto = new Set();
+let filaProcessamentoLeitor = Promise.resolve();
+
+function enfileirarProcessamentoLeitor(tarefa) {
+  const corrida = filaProcessamentoLeitor.then(() => tarefa());
+  filaProcessamentoLeitor = corrida.catch(() => {});
+  return corrida;
+}
 const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
@@ -129,7 +136,7 @@ function aoTeclaCampoPesquisa(event, { capturaGlobal = false } = {}) {
 
   if (acao === "confirmar-leitor") {
     event.preventDefault();
-    void processarLeituraCodigoBarras();
+    void enfileirarProcessamentoLeitor(() => processarLeituraCodigoBarras());
     return acao;
   }
 
@@ -374,6 +381,10 @@ function filtrosStockPos() {
   return { source_location_id: origemStockVenda.value.id };
 }
 
+function temStockLocalParaVenda() {
+  return temCatalogoOffline(filtrosStockPos()) || produtoStore.catalogoPosPronto;
+}
+
 function ajustarCarrinhoAoStock() {
   for (const item of [...carrinhoStore.itens]) {
     const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
@@ -605,10 +616,16 @@ function finalizarVenda() {
     mostrarToast(t("pos.toast.stockLocationNotConfigured"), "erro");
     return;
   }
-  vendaPendente.value = {
-    id: gerarIdVenda(),
+  vendaPendente.value = { abertaEm: Date.now() };
+  modalImpressaoAberto.value = true;
+}
+
+function montarVendaConfirmada(idVenda) {
+  const itens = carrinhoStore.itens.map((item) => ({ ...item }));
+  return {
+    id: idVenda,
     cliente: cliente.value,
-    itens: carrinhoStore.itens.map((item) => ({ ...item })),
+    itens,
     caixa: sessaoStore.caixaAtribuido,
     registerId: sessaoStore.registerId,
     registerCodigo: sessaoStore.registerCodigo,
@@ -627,8 +644,10 @@ function finalizarVenda() {
     metodoPagamento: carrinhoStore.metodoPagamento,
     valorPago: valorPagoNumerico.value,
     troco: troco.value,
+    register_id: sessaoStore.registerId,
+    source_location_id: origemStockVenda.value.id,
+    cash_session_id: sessaoStore.cashSessionId,
   };
-  modalImpressaoAberto.value = true;
 }
 
 function limparCarrinhoAtual() {
@@ -642,15 +661,17 @@ async function concluirVenda(opcoes = { imprimir: true }) {
   if (processandoConclusaoVenda.value) return;
   if (opcoes.imprimir && imprimindoAgora.value) return;
 
-  const pendente = vendaPendente.value;
-  if (!pendente) return;
-  if (pendente.id && vendasEmRegisto.has(pendente.id)) return;
+  if (!vendaPendente.value) return;
+
+  const vendaId = gerarIdVenda();
+  if (vendasEmRegisto.has(vendaId)) return;
 
   processandoConclusaoVenda.value = true;
-  if (pendente.id) vendasEmRegisto.add(pendente.id);
+  vendasEmRegisto.add(vendaId);
 
   try {
-    const itensPendentes = Array.isArray(pendente.itens) ? pendente.itens : [];
+    const vendaBase = montarVendaConfirmada(vendaId);
+    const itensPendentes = vendaBase.itens;
     if (!itensPendentes.length) {
       mostrarToastSwal(t("pos.toast.emptyCart"), "error");
       modalImpressaoAberto.value = false;
@@ -660,8 +681,8 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     if (!validarOrigemStock()) return;
 
-    const totalPendente = Number(pendente.total ?? 0);
-    if (pendente.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < totalPendente) {
+    const totalPendente = Number(vendaBase.total ?? 0);
+    if (vendaBase.metodoPagamento === "Dinheiro" && valorPagoNumerico.value < totalPendente) {
       mostrarToastSwal(t("pos.toast.insufficientPayment"), "error");
       return;
     }
@@ -669,17 +690,34 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     const idsPendentes = [...new Set(itensPendentes.map((item) => item.produtoId).filter(Boolean))];
 
     if (temApiConfigurada()) {
-      try {
-        await atualizarStockRemoto(idsPendentes);
-      } catch (erro) {
-        if (!isErroRedeOuIndisponivel(erro) || !temCatalogoOffline(filtrosStockPos())) {
-          mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
-          return;
+      if (!temStockLocalParaVenda() && !redeDisponivel()) {
+        mostrarToastSwal(t("pos.toast.offlineCatalogRequired"), "error");
+        return;
+      }
+
+      if (redeDisponivel()) {
+        try {
+          await atualizarStockRemoto(idsPendentes);
+        } catch (erro) {
+          if (!isErroRedeOuIndisponivel(erro)) {
+            mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
+            return;
+          }
+          if (!temStockLocalParaVenda()) {
+            mostrarToastSwal(t("pos.toast.offlineCatalogRequired"), "error");
+            return;
+          }
         }
       }
+
       for (const item of itensPendentes) {
         const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
-        if (!produto || produto.stock <= 0) {
+        if (!produto) {
+          if (!redeDisponivel()) continue;
+          mostrarToastSwal(t("pos.toast.stockUnavailable", { name: item.nome }), "error");
+          return;
+        }
+        if (produto.stock <= 0) {
           mostrarToastSwal(t("pos.toast.stockUnavailable", { name: item.nome }), "error");
           return;
         }
@@ -690,28 +728,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       }
     }
 
-    const venda = {
-      ...pendente,
-      cliente: cliente.value,
-      itens: itensPendentes.map((item) => ({ ...item })),
-      subtotal: pendente.subtotal,
-      descontoTipo: pendente.descontoTipo,
-      descontoValor: pendente.descontoValor,
-      descontoAplicado: pendente.descontoAplicado,
-      total: totalPendente,
-      metodoPagamento: pendente.metodoPagamento,
-      valorPago: valorPagoNumerico.value,
-      troco: troco.value,
-      registerId: sessaoStore.registerId,
-      registerCodigo: sessaoStore.registerCodigo,
-      cashSessionId: sessaoStore.cashSessionId,
-      sourceLocationId: origemStockVenda.value.id,
-      sourceLocationCodigo: origemStockVenda.value.codigo,
-      sourceLocationNome: origemStockVenda.value.nome,
-      register_id: sessaoStore.registerId,
-      source_location_id: origemStockVenda.value.id,
-      cash_session_id: sessaoStore.cashSessionId,
-    };
+    const venda = vendaBase;
 
     if (opcoes.imprimir) {
       if (!window.api?.imprimirTalao) {
@@ -753,7 +770,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
           ? erro.message || t("pos.toast.insufficientStockToComplete")
           : erro?.message || t("pos.toast.registerSaleFailed");
 
-      if (temApiConfigurada()) {
+      if (temApiConfigurada() && redeDisponivel()) {
         try {
           await atualizarStockRemoto(idsPendentes);
         } catch {
@@ -765,16 +782,13 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       return;
     }
 
-    if (resultadoRegisto?.modo === "offline") {
-      produtoStore.aplicarVenda(venda.itens);
-    } else if (temApiConfigurada()) {
+    produtoStore.aplicarVenda(venda.itens);
+    if (temApiConfigurada() && resultadoRegisto?.modo !== "offline") {
       try {
         await sincronizarStockPos();
       } catch {
-        // A venda já foi registada; o operador pode sincronizar manualmente ao reabrir o POS.
+        // A venda já foi registada; o stock local foi ajustado e o servidor será reconciliado depois.
       }
-    } else {
-      produtoStore.aplicarVenda(venda.itens);
     }
 
     carrinhoStore.limparCarrinho();
@@ -794,7 +808,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     mostrarToastSwal(mensagemSucesso, resultadoRegisto?.modo === "offline" ? "warning" : "success");
   } finally {
-    if (pendente?.id) vendasEmRegisto.delete(pendente.id);
+    vendasEmRegisto.delete(vendaId);
     processandoConclusaoVenda.value = false;
     imprimindoAgora.value = false;
   }
