@@ -8,7 +8,7 @@ import ModalBase from "../../components/ModalBase.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
 import { useCarrinhoStore } from "../../store/useCarrinhoStore";
 import { useClienteStore } from "../../store/useClienteStore";
-import { useVendaStore } from "../../store/useVendaStore";
+import { useVendaStore, vendaPertenceTurnoAtual } from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
@@ -357,11 +357,9 @@ const valorPagoNumerico = computed(() => {
 });
 const troco = computed(() => Math.max(0, valorPagoNumerico.value - carrinhoStore.total));
 const falta = computed(() => Math.max(0, carrinhoStore.total - valorPagoNumerico.value));
-const vendasTurno = computed(() => {
-  if (!sessaoStore.aberturaEm) return [];
-  const inicio = new Date(sessaoStore.aberturaEm).getTime();
-  return vendaStore.vendas.filter((venda) => new Date(venda.data).getTime() >= inicio);
-});
+const vendasTurno = computed(() =>
+  vendaStore.vendas.filter((venda) => vendaPertenceTurnoAtual(venda, sessaoStore))
+);
 const ultimasVendasTurno = computed(() =>
   [...vendasTurno.value].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()).slice(0, 5)
 );

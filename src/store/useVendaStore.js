@@ -8,6 +8,8 @@ import {
 import { isErroNegocioVenda, isErroRedeOuIndisponivel } from "../services/offline/networkError";
 import { vendaJaRegistadaNoServidor } from "../services/offline/saleServerCheck";
 import { enfileirarVendaPendente } from "../services/offline/pendingQueue";
+import { extrairVendaApi } from "../services/offline/salePayload";
+import { mapearVenda } from "../api/mappers";
 import { useSessaoStore } from "./useSessaoStore";
 import { t } from "../services/i18nHelper.js";
 
@@ -41,6 +43,33 @@ function gerarReferenciaVenda(venda, indice = 0) {
   return `VD-${ano}${mes}${dia}-${sequencia}`;
 }
 
+export function vendaPertenceTurnoAtual(venda, sessao) {
+  if (!venda || !sessao) return false;
+
+  const sessaoId = sessao.cashSessionId;
+  const vendaSessaoId = venda.cashSessionId || venda.cash_session_id || null;
+  if (sessaoId && vendaSessaoId) {
+    return vendaSessaoId === sessaoId;
+  }
+
+  const abertura = sessao.aberturaEm ? new Date(sessao.aberturaEm).getTime() : NaN;
+  if (!Number.isFinite(abertura)) {
+    return !!venda.pendenteSync && sessao.turnoAberto;
+  }
+
+  const dataVenda = venda.data ? new Date(venda.data).getTime() : NaN;
+  return Number.isFinite(dataVenda) && dataVenda >= abertura;
+}
+
+function normalizarVendaHistorico(venda, indice = 0) {
+  return {
+    ...venda,
+    referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
+    estado: venda.estado || "Concluida",
+    pendenteSync: false,
+  };
+}
+
 export const useVendaStore = defineStore("vendas", {
   state: () => ({
     vendas: [],
@@ -70,28 +99,67 @@ export const useVendaStore = defineStore("vendas", {
     salvarSolicitacoes() {
       localStorage.setItem(CHAVE_REVERSOES, JSON.stringify(this.solicitacoesReversao));
     },
+    inserirOuActualizarVenda(venda) {
+      if (!venda?.id) return;
+      const indice = this.vendas.findIndex((item) => item.id === venda.id);
+      if (indice >= 0) {
+        this.vendas[indice] = { ...this.vendas[indice], ...venda };
+        return;
+      }
+      this.vendas.unshift(venda);
+    },
     mesclarVendasPendentesLocais(vendasRemotas = []) {
       const idsRemotos = new Set(vendasRemotas.map((v) => v.id));
       const pendentesLocais = this.vendas.filter((v) => v.pendenteSync && !idsRemotos.has(v.id));
       return [...pendentesLocais, ...vendasRemotas];
     },
+    mesclarVendasTurnoAtual(vendasRemotas = [], sessaoStore) {
+      const remotas = Array.isArray(vendasRemotas) ? vendasRemotas : [];
+      const idsRemotos = new Set(remotas.map((v) => v.id));
+      const locaisTurno = this.vendas.filter(
+        (v) => !idsRemotos.has(v.id) && vendaPertenceTurnoAtual(v, sessaoStore)
+      );
+      const porId = new Map();
+      for (const venda of [...locaisTurno, ...remotas]) {
+        if (venda?.id) porId.set(venda.id, venda);
+      }
+      return [...porId.values()].sort(
+        (a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime()
+      );
+    },
+    async carregarHistoricoRemoto(sessaoStore) {
+      const filtrosPrimarios = {};
+      if (sessaoStore.cashSessionId) {
+        filtrosPrimarios.cash_session_id = sessaoStore.cashSessionId;
+      } else if (sessaoStore.registerId) {
+        filtrosPrimarios.register_id = sessaoStore.registerId;
+      }
+
+      let { vendas } = await carregarHistoricoIntegrado(filtrosPrimarios);
+
+      if (sessaoStore.cashSessionId && vendas.length === 0 && sessaoStore.registerId) {
+        const fallback = await carregarHistoricoIntegrado({ register_id: sessaoStore.registerId });
+        const inicio = sessaoStore.aberturaEm ? new Date(sessaoStore.aberturaEm).getTime() : NaN;
+        vendas = fallback.vendas.filter((venda) => {
+          if (venda.cashSessionId === sessaoStore.cashSessionId) return true;
+          if (!Number.isFinite(inicio)) return true;
+          const dataVenda = venda.data ? new Date(venda.data).getTime() : NaN;
+          return Number.isFinite(dataVenda) && dataVenda >= inicio;
+        });
+      }
+
+      return vendas;
+    },
     async sincronizarHistorico() {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
-      const filtros = {};
-      if (temApiConfigurada()) {
-        if (sessaoStore.cashSessionId) filtros.cash_session_id = sessaoStore.cashSessionId;
-        else if (sessaoStore.registerId) filtros.register_id = sessaoStore.registerId;
-      }
       try {
-        const { vendas } = await carregarHistoricoIntegrado(filtros);
-        const normalizadas = vendas.map((venda, indice) => ({
-          ...venda,
-          referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
-          estado: venda.estado || "Concluida",
-          pendenteSync: false,
-        }));
-        this.vendas = this.mesclarVendasPendentesLocais(normalizadas);
+        if (temApiConfigurada()) {
+          const vendasRemotas = await this.carregarHistoricoRemoto(sessaoStore);
+          const normalizadas = vendasRemotas.map((venda, indice) => normalizarVendaHistorico(venda, indice));
+          const mescladas = this.mesclarVendasTurnoAtual(normalizadas, sessaoStore);
+          this.vendas = this.mesclarVendasPendentesLocais(mescladas);
+        }
       } catch (erro) {
         if (!isErroRedeOuIndisponivel(erro)) throw erro;
       }
@@ -112,13 +180,28 @@ export const useVendaStore = defineStore("vendas", {
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
         operador: novaVenda.operador || sessaoStore.utilizador || "",
         caixa: novaVenda.caixa || sessaoStore.caixaAtribuido || "",
+        cashSessionId: novaVenda.cashSessionId || novaVenda.cash_session_id || sessaoStore.cashSessionId,
+        registerId: novaVenda.registerId || novaVenda.register_id || sessaoStore.registerId,
         data: novaVenda.data || new Date().toISOString(),
         estado: "Concluida",
       };
 
       if (temApiConfigurada()) {
         try {
-          await criarVendaIntegrada(vendaNormalizada);
+          const resposta = await criarVendaIntegrada(vendaNormalizada);
+          const dadosApi = extrairVendaApi(resposta);
+          const vendaRemota = mapearVenda({ ...vendaNormalizada, ...dadosApi });
+          this.inserirOuActualizarVenda({
+            ...vendaRemota,
+            id: vendaRemota.id || id,
+            referencia: vendaRemota.referencia || vendaNormalizada.referencia,
+            cashSessionId: vendaRemota.cashSessionId || vendaNormalizada.cashSessionId,
+            pendenteSync: false,
+          });
+          if (vendaRemota.cashSessionId && vendaRemota.cashSessionId !== sessaoStore.cashSessionId) {
+            sessaoStore.cashSessionId = vendaRemota.cashSessionId;
+            sessaoStore.salvar();
+          }
           await this.sincronizarHistorico();
           return { modo: "online" };
         } catch (erro) {

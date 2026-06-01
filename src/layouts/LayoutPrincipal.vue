@@ -7,6 +7,7 @@ import SidebarApp from "../components/SidebarApp.vue";
 import { useClienteStore } from "../store/useClienteStore";
 import { useVendaStore } from "../store/useVendaStore";
 import { useSessaoStore } from "../store/useSessaoStore";
+import { temApiConfigurada } from "../api";
 import { isErroRedeOuIndisponivel } from "../services/offline/networkError";
 import { mostrarToastSwal } from "../services/toast";
 
@@ -23,6 +24,9 @@ onMounted(async () => {
     return;
   }
   try {
+    if (temApiConfigurada() && sessaoStore.registerId) {
+      await sessaoStore.sincronizarTurnoRemoto();
+    }
     await Promise.all([clienteStore.carregarClientes(), vendaStore.sincronizarHistorico()]);
   } catch (erro) {
     if (!isErroRedeOuIndisponivel(erro)) {

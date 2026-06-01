@@ -206,6 +206,85 @@ class SaleApiTest extends TestCase
 
         $this->assertCount(1, $resposta->json('data'));
         $this->assertSame('VD-TEST-A', $resposta->json('data.0.referencia'));
+        $this->assertSame($sessaoA, $resposta->json('data.0.cashSessionId'));
+    }
+
+    public function test_vincula_venda_a_sessao_aberta_quando_cash_session_id_e_invalido(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+
+        $sessao = CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'OPEN',
+            'opening_balance' => 100,
+            'opened_at' => now(),
+        ]);
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'cash_session_id' => (string) Str::uuid(),
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 50,
+            'total' => 50,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 50,
+                    'subtotal' => 50,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated()->assertJsonPath('data.cashSessionId', $sessao->id);
+
+        $this->assertDatabaseHas('sales', [
+            'cash_session_id' => $sessao->id,
+            'register_id' => $ambiente['register']->id,
+        ]);
+    }
+
+    public function test_vincula_venda_a_sessao_aberta_quando_cash_session_id_nao_enviado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+
+        $sessao = CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'OPEN',
+            'opening_balance' => 100,
+            'opened_at' => now(),
+        ]);
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 30,
+            'total' => 30,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 30,
+                    'subtotal' => 30,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated()->assertJsonPath('data.cashSessionId', $sessao->id);
     }
 
     public function test_lista_vendas_com_paginacao(): void
