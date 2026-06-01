@@ -5,6 +5,7 @@ import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
+import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
 import { useCarrinhoStore } from "../../store/useCarrinhoStore";
 import { useClienteStore } from "../../store/useClienteStore";
@@ -30,6 +31,7 @@ import {
   criarEstadoLeitorCodigoBarras,
   processarTeclaLeitorCodigoBarras,
 } from "../../utils/leitorCodigoBarras";
+import { pareceCodigoBarras } from "../../utils/produtoPesquisa";
 import {
   formatarQuantidadeExibicao,
   formatarStockExibicao,
@@ -117,12 +119,33 @@ const pesquisaDeveTerFoco = computed(() => menuPosAtivo.value === "venda" && !mo
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 
+const PRODUTOS_POR_PAGINA = 15;
+const paginaPesquisaProdutos = ref(1);
+const totalResultadosPesquisa = computed(() => resultadosPesquisa.value.length);
+const totalPaginasPesquisa = computed(() =>
+  Math.max(1, Math.ceil(totalResultadosPesquisa.value / PRODUTOS_POR_PAGINA))
+);
+const resultadosPesquisaPaginados = computed(() => {
+  const inicio = (paginaPesquisaProdutos.value - 1) * PRODUTOS_POR_PAGINA;
+  return resultadosPesquisa.value.slice(inicio, inicio + PRODUTOS_POR_PAGINA);
+});
+
+function reiniciarPaginaPesquisa() {
+  paginaPesquisaProdutos.value = 1;
+}
+
+function aoMudarPaginaPesquisa(pagina) {
+  const destino = Math.max(1, Math.min(Number(pagina) || 1, totalPaginasPesquisa.value));
+  paginaPesquisaProdutos.value = destino;
+}
+
 let debouncePesquisaTimer = null;
 let sequenciaPesquisa = 0;
 
 async function executarPesquisaProdutos(termoInformado) {
   const termo = String(termoInformado ?? pesquisa.value).trim();
   if (!termo) {
+    reiniciarPaginaPesquisa();
     produtoStore.limparPesquisa();
     return;
   }
@@ -133,6 +156,9 @@ async function executarPesquisaProdutos(termoInformado) {
       search: termo,
       ...filtrosCatalogoProdutos(),
     });
+    if (sequencia === sequenciaPesquisa) {
+      reiniciarPaginaPesquisa();
+    }
   } catch (erro) {
     if (sequencia !== sequenciaPesquisa) return;
     mostrarToastSwal(erro?.message || t("pos.toast.searchFailed"), "error");
@@ -143,6 +169,7 @@ function limparCampoPesquisa({ manterEstadoLeitor = false } = {}) {
   clearTimeout(debouncePesquisaTimer);
   sequenciaPesquisa += 1;
   pesquisa.value = "";
+  reiniciarPaginaPesquisa();
   produtoStore.limparPesquisa();
   if (!manterEstadoLeitor) {
     Object.assign(estadoLeitorCodigo, criarEstadoLeitorCodigoBarras());
@@ -161,7 +188,13 @@ function aoTeclaCampoPesquisa(event, { capturaGlobal = false } = {}) {
 
   if (acao === "confirmar-manual") {
     event.preventDefault();
-    pesquisarProdutosAgora();
+    const termo = pesquisa.value.trim();
+    if (pareceCodigoBarras(termo)) {
+      void enfileirarProcessamentoLeitor(() => processarLeituraCodigoBarras());
+    } else {
+      reiniciarPaginaPesquisa();
+      pesquisarProdutosAgora();
+    }
     return acao;
   }
 
@@ -207,7 +240,7 @@ async function processarLeituraCodigoBarras() {
 
   const produto =
     produtoStore.resolverPorCodigoBarras(codigo) ||
-    (produtoStore.usarStockLocalPos ? null : await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros));
+    (await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros));
 
   if (!produto) {
     mostrarToastSwal(t("pos.toast.productNotFound", { code: codigo }), "error");
@@ -295,6 +328,7 @@ function aoBlurQuantidadePreview(produtoId, valor) {
 
 function pesquisarProdutosAgora() {
   clearTimeout(debouncePesquisaTimer);
+  reiniciarPaginaPesquisa();
   executarPesquisaProdutos(pesquisa.value);
 }
 
@@ -305,10 +339,12 @@ watch(pesquisa, (valor) => {
   const termo = String(valor || "").trim();
   if (!termo) {
     sequenciaPesquisa += 1;
+    reiniciarPaginaPesquisa();
     produtoStore.limparPesquisa();
     return;
   }
   debouncePesquisaTimer = setTimeout(() => {
+    reiniciarPaginaPesquisa();
     executarPesquisaProdutos(termo);
   }, 300);
 });
@@ -1124,7 +1160,7 @@ async function confirmarFechoCaixa() {
 <template>
   <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr] xl:items-center">
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
-      <div class="rp-card p-4 h-[420px]">
+      <div class="rp-card flex h-[520px] flex-col p-4">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="mb-1 text-xl font-bold text-slate-800">{{ t("pos.catalog.title") }}</p>
@@ -1150,7 +1186,8 @@ async function confirmarFechoCaixa() {
             </div>
           </div>
         </div>
-        <div v-if="pesquisaAtiva" class="overflow-hidden rounded-lg border border-slate-200">
+        <div v-if="pesquisaAtiva" class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200">
+          <div class="min-h-0 flex-1 overflow-y-auto">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
@@ -1173,7 +1210,7 @@ async function confirmarFechoCaixa() {
               <tr v-else-if="!resultadosPesquisa.length">
                 <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">{{ t("pos.catalog.noProducts") }}</td>
               </tr>
-              <tr v-for="produto in resultadosPesquisa" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
+              <tr v-for="produto in resultadosPesquisaPaginados" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
                 <td class="px-3 py-2 font-semibold text-slate-800">
                   {{ produto.nome }}
                   <span
@@ -1211,6 +1248,21 @@ async function confirmarFechoCaixa() {
               </tr>
             </tbody>
           </table>
+          </div>
+          <div
+            v-if="!pesquisaEmCurso && resultadosPesquisa.length"
+            class="border-t border-slate-200 bg-slate-50 px-3 py-2"
+          >
+            <p class="text-[11px] text-slate-500">
+              {{ t("pos.catalog.resultsCount", { count: totalResultadosPesquisa }) }}
+            </p>
+            <PaginacaoTabela
+              v-if="totalPaginasPesquisa > 1"
+              :pagina-atual="paginaPesquisaProdutos"
+              :total-paginas="totalPaginasPesquisa"
+              @mudar-pagina="aoMudarPaginaPesquisa"
+            />
+          </div>
         </div>
         <div
           v-else

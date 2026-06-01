@@ -1,5 +1,5 @@
-export const INTERVALO_RAPIDO_LEITOR_MS = 55;
-export const INTERVALO_RESET_LEITOR_MS = 120;
+export const INTERVALO_RAPIDO_LEITOR_MS = 80;
+export const INTERVALO_RESET_LEITOR_MS = 150;
 
 export function criarEstadoLeitorCodigoBarras() {
   return {

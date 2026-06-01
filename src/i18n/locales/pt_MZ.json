@@ -310,8 +310,9 @@
       "price": "Preço (MT)",
       "stock": "Stock",
       "action": "Ação",
-      "searching": "A pesquisar no backend...",
+      "searching": "A pesquisar produtos...",
       "noProducts": "Nenhum produto encontrado.",
+      "resultsCount": "{count} produto(s) encontrado(s)",
       "addToCart": "Adicionar ao carrinho",
       "emptyHint": "Digite no campo de pesquisa para listar produtos.",
       "pricePerKg": "/ kg"

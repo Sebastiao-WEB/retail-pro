@@ -310,8 +310,9 @@
       "price": "Qiimaha (MT)",
       "stock": "Kayd",
       "action": "Ficil",
-      "searching": "Waa la raadinayaa backend-ka...",
+      "searching": "Waa la raadinayaa alaabta...",
       "noProducts": "Alaab lama helin.",
+      "resultsCount": "{count} alaab(o) ayaa la helay",
       "addToCart": "Ku dar gaadhiga",
       "emptyHint": "Ku qor goobta raadinta si aad u liis gareyso alaabta.",
       "pricePerKg": "/ kg"

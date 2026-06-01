@@ -8,6 +8,11 @@ import {
 } from "../services/offline/catalogCache";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/networkError";
 import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
+import {
+  normalizarCodigoBarras,
+  pesquisarProdutosNoCatalogo,
+  resolverProdutoPorCodigoBarras,
+} from "../utils/produtoPesquisa";
 
 function normalizarIva(valor) {
   const numero = Number(valor || 0);
@@ -108,7 +113,7 @@ export const useProdutoStore = defineStore("produtos", {
     reconstruirIndiceCodigosBarras() {
       const indice = {};
       for (const produto of this.produtos) {
-        const codigo = String(produto.codigoBarras || "").trim();
+        const codigo = normalizarCodigoBarras(produto.codigoBarras);
         if (codigo) indice[codigo] = produto;
       }
       this.indiceCodigosBarras = indice;
@@ -231,27 +236,26 @@ export const useProdutoStore = defineStore("produtos", {
       this.pesquisaEmCurso = false;
     },
     resolverPorCodigoBarras(codigo) {
-      const normalizado = String(codigo || "").trim();
-      if (!normalizado) return null;
-      return this.indiceCodigosBarras[normalizado] || null;
+      return resolverProdutoPorCodigoBarras(
+        this.produtos,
+        this.indiceCodigosBarras,
+        codigo,
+        (produto) => normalizarProduto(produto)
+      );
     },
-    pesquisarLocalmente(termo, limite = 5) {
-      const consulta = String(termo || "").trim().toLowerCase();
-      if (!consulta) return [];
-
-      return this.produtos
-        .filter((produto) => `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta))
-        .slice(0, limite)
-        .map((produto) => normalizarProduto(produto));
+    pesquisarLocalmente(termo) {
+      return pesquisarProdutosNoCatalogo(this.produtos, termo, (produto) => normalizarProduto(produto));
     },
     async resolverPorCodigoBarrasComFallback(codigo, filtros = {}) {
-      const normalizado = String(codigo || "").trim();
+      const normalizado = normalizarCodigoBarras(codigo);
       if (!normalizado) return null;
 
       const local = this.resolverPorCodigoBarras(normalizado);
       if (local) return local;
 
-      if (this.usarStockLocalPos) return null;
+      if (this.inventarioPosPronto || this.usarStockLocalPos || this.produtos.length > 0) {
+        return null;
+      }
 
       if (!temApiConfigurada()) return null;
 
@@ -301,15 +305,9 @@ export const useProdutoStore = defineStore("produtos", {
 
         try {
           let produtos = await carregarProdutosIntegrado(filtros);
-          if (!temApiConfigurada()) {
-            const consulta = termo.toLowerCase();
-            produtos = produtos.filter((produto) =>
-              `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
-            );
-          }
           const normalizados = produtos.map((produto) => normalizarProduto(produto));
-          this.resultadosPesquisa = normalizados.slice(0, 5);
           this.mesclarProdutosConsultados(normalizados);
+          this.resultadosPesquisa = this.pesquisarLocalmente(termo);
           return this.resultadosPesquisa;
         } catch (erro) {
           if (this.catalogoPosPronto && isErroRedeOuIndisponivel(erro)) {
