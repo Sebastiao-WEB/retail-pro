@@ -74,6 +74,14 @@ class SaleReversalApiTest extends TestCase
             'reason' => 'Duplicada',
         ], $this->authHeaders($token));
 
-        $resposta->assertStatus(409);
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.reutilizada', true)
+            ->assertJsonPath('data.status', 'PENDING');
+
+        $this->assertSame(
+            1,
+            SaleReversalRequest::query()->where('sale_id', $venda->id)->where('status', 'PENDING')->count()
+        );
     }
 }

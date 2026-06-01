@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\SaleReversalRequest;
+use App\Models\Sale;
 use App\Services\SaleReversalService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SaleReversalRequestController extends Controller
@@ -51,51 +53,69 @@ class SaleReversalRequestController extends Controller
             ], 422);
         }
 
-        $sale = \App\Models\Sale::query()->find($saleId);
-        if (! $sale) {
-            return response()->json(['message' => 'Venda não encontrada.'], 404);
-        }
+        $userId = auth('api')->id();
 
-        if (strcasecmp((string) $sale->estado, 'Revertida') === 0) {
-            return response()->json(['message' => 'A venda já está revertida.'], 409);
-        }
+        $resultado = DB::transaction(function () use ($saleId, $dados, $userId) {
+            $sale = Sale::query()->lockForUpdate()->find($saleId);
+            if (! $sale) {
+                return ['status' => 404, 'body' => ['message' => 'Venda não encontrada.']];
+            }
 
-        $aprovada = SaleReversalRequest::query()
-            ->where('sale_id', $sale->id)
-            ->where('status', 'APPROVED')
-            ->exists();
+            if (strcasecmp((string) $sale->estado, 'Revertida') === 0) {
+                return ['status' => 409, 'body' => ['message' => 'A venda já está revertida.']];
+            }
 
-        if ($aprovada) {
-            return response()->json(['message' => 'A venda já foi revertida anteriormente.'], 409);
-        }
+            $aprovada = SaleReversalRequest::query()
+                ->where('sale_id', $sale->id)
+                ->where('status', 'APPROVED')
+                ->exists();
 
-        $duplicada = SaleReversalRequest::query()
-            ->where('sale_id', $sale->id)
-            ->where('status', 'PENDING')
-            ->exists();
+            if ($aprovada) {
+                return ['status' => 409, 'body' => ['message' => 'A venda já foi revertida anteriormente.']];
+            }
 
-        if ($duplicada) {
-            return response()->json([
-                'message' => 'Já existe solicitação de reversão pendente para esta venda.',
-            ], 409);
-        }
+            $pendente = SaleReversalRequest::query()
+                ->where('sale_id', $sale->id)
+                ->where('status', 'PENDING')
+                ->latest('requested_at')
+                ->first();
 
-        $solicitacao = SaleReversalRequest::create([
-            'id' => (string) Str::uuid(),
-            'sale_id' => $sale->id,
-            'requested_by' => auth('api')->id(),
-            'status' => 'PENDING',
-            'reason' => $dados['reason'] ?? null,
-            'requested_at' => now(),
-        ]);
+            if ($pendente) {
+                return [
+                    'status' => 200,
+                    'body' => [
+                        'message' => 'Já existe solicitação de reversão pendente para esta venda.',
+                        'data' => [
+                            'id' => $pendente->id,
+                            'status' => $pendente->status,
+                            'reutilizada' => true,
+                        ],
+                    ],
+                ];
+            }
 
-        return response()->json([
-            'message' => 'Solicitação de reversão criada.',
-            'data' => [
-                'id' => $solicitacao->id,
-                'status' => $solicitacao->status,
-            ],
-        ], 201);
+            $solicitacao = SaleReversalRequest::create([
+                'id' => (string) Str::uuid(),
+                'sale_id' => $sale->id,
+                'requested_by' => $userId,
+                'status' => 'PENDING',
+                'reason' => $dados['reason'] ?? null,
+                'requested_at' => now(),
+            ]);
+
+            return [
+                'status' => 201,
+                'body' => [
+                    'message' => 'Solicitação de reversão criada.',
+                    'data' => [
+                        'id' => $solicitacao->id,
+                        'status' => $solicitacao->status,
+                    ],
+                ],
+            ];
+        });
+
+        return response()->json($resultado['body'], $resultado['status']);
     }
 
     public function update(Request $request, SaleReversalRequest $saleReversalRequest)

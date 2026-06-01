@@ -82,8 +82,13 @@ export async function solicitarReversaoIntegrada(payload) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) return { ok: !modoApiAtivo() };
   try {
-    await salesApi.solicitarReversao(payload);
-    return { ok: true };
+    const resposta = await salesApi.solicitarReversao(payload);
+    const dados = resposta?.data;
+    return {
+      ok: true,
+      reutilizada: !!dados?.reutilizada,
+      id: dados?.id || null,
+    };
   } catch (erro) {
     return { ok: false, erro: erro?.message || t("api.reversalFailed"), status: erro?.status };
   }

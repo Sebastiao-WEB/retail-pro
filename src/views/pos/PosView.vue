@@ -100,6 +100,7 @@ const justificativaDiferenca = ref("");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
+const processandoReversao = ref(false);
 const listaPreVisualizacaoRef = ref(null);
 const ignorarBlurQuantidadePreview = ref(false);
 const processandoAberturaCaixa = ref(false);
@@ -984,8 +985,10 @@ function abrirSolicitacaoReversao(venda) {
 }
 
 async function confirmarSolicitacaoReversao() {
-  if (!vendaParaReversao.value) return;
+  if (!vendaParaReversao.value || processandoReversao.value) return;
+  processandoReversao.value = true;
   const venda = vendaParaReversao.value;
+  try {
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
     venda,
@@ -1000,6 +1003,9 @@ async function confirmarSolicitacaoReversao() {
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
   mostrarToastSwal(t("pos.toast.reversalSent"), "success");
+  } finally {
+    processandoReversao.value = false;
+  }
 }
 
 async function refrescarPosAposSyncOffline(detail = {}) {
@@ -1788,7 +1794,7 @@ async function confirmarFechoCaixa() {
             <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">
+        <BotaoBase variante="sucesso" :disabled="processandoReversao" @click="confirmarSolicitacaoReversao">
           <span class="inline-flex items-center gap-1.5">
             <Check :size="14" />
             <span>{{ t("pos.reversalModal.confirm") }}</span>

@@ -33,6 +33,7 @@ const modalDetalhesAberto = ref(false);
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
+const processandoReversao = ref(false);
 
 onMounted(async () => {
   sessaoStore.hidratar();
@@ -145,8 +146,10 @@ function abrirSolicitacaoReversao(venda) {
 }
 
 async function solicitarReversao() {
-  if (!vendaParaReversao.value) return;
+  if (!vendaParaReversao.value || processandoReversao.value) return;
+  processandoReversao.value = true;
   const venda = vendaParaReversao.value;
+  try {
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
     venda,
@@ -161,6 +164,9 @@ async function solicitarReversao() {
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
   mostrarToastSwal(t("history.sales.toast.reversalSent"), "success");
+  } finally {
+    processandoReversao.value = false;
+  }
 }
 </script>
 
@@ -336,7 +342,7 @@ async function solicitarReversao() {
             <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="sucesso" @click="solicitarReversao">
+        <BotaoBase variante="sucesso" :disabled="processandoReversao" @click="solicitarReversao">
           <span class="inline-flex items-center gap-1.5">
             <Check :size="14" />
             <span>{{ t("history.sales.reversalModal.confirm") }}</span>

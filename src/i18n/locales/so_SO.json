@@ -520,6 +520,7 @@
     "reversalAlreadyPending": "Codsi sugaya ayaa hore u jiray iibkan.",
     "reversalSaleNotSynced": "Iibkan weli lama xidhin serverka. Sug xiriirka ama isku-dubarid iibaha sugaya.",
     "reversalInvalidSaleId": "Iibkan ma laha aqoonsi sax ah serverka. Isku-dubarid ka hor intaadan codsan celinta.",
+    "reversalInProgress": "Codsiga celinta ayaa socda. Fadlan sug.",
     "httpError": "Khalad HTTP {status}"
   }
 }

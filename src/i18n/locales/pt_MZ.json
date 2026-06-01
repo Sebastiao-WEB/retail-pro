@@ -520,6 +520,7 @@
     "reversalAlreadyPending": "Já existe uma solicitação pendente para esta venda.",
     "reversalSaleNotSynced": "Esta venda ainda não foi sincronizada com o servidor. Aguarde a ligação ou sincronize as vendas pendentes.",
     "reversalInvalidSaleId": "Esta venda ainda não tem identificador válido no servidor. Sincronize-a antes de solicitar reversão.",
+    "reversalInProgress": "Pedido de reversão em curso. Aguarde um momento.",
     "httpError": "Erro HTTP {status}"
   }
 }
