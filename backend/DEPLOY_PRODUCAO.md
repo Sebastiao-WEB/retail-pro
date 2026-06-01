@@ -3,6 +3,8 @@
 Domínio de referência: `https://padaria.mozretailpos.com`  
 Branch: `dev`
 
+**Primeira instalação (clone do zero, import SQL, assets no Git):** ver `SETUP_DO_ZERO.md`.
+
 Use este guia quando o sistema **já está em produção** com stock, vendas e utilizadores registados.
 
 ---
@@ -131,11 +133,16 @@ APP_URL=https://padaria.mozretailpos.com
 JWT_SECRET=...   # não vazio
 ```
 
+**Nunca** `APP_URL=http://...` com SSL — o admin deixa de gravar (Mixed Content em `/livewire/.../update`).
+
 Depois de alterar `.env`:
 
 ```bash
+php artisan config:clear
 php artisan config:cache
 ```
+
+Se o erro persistir: `git pull` (inclui `trustProxies` + HTTPS em `AppServiceProvider`) e repetir `config:cache`.
 
 ---
 
