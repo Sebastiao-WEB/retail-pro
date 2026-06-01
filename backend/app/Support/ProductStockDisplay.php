@@ -63,31 +63,32 @@ final class ProductStockDisplay
     }
 
     /**
-     * Saldo em stock_balances para baixar na venda, alinhado com products.stock quando necessário.
+     * Garante saldo no local de venda alinhado com products.stock (fonte do admin/POS).
+     *
+     * @param  float  $quantidadeNecessaria  Quantidade total a debitar neste local (0 = só garantir linha)
      */
-    public static function resolverSaldoParaVenda(string $locationId, string $productId): ?StockBalance
-    {
+    public static function resolverSaldoParaVenda(
+        string $locationId,
+        string $productId,
+        float $quantidadeNecessaria = 0.0,
+    ): ?StockBalance {
+        $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
+        if (! $produto) {
+            return null;
+        }
+
+        $global = (float) $produto->stock;
+        if ($global <= 0) {
+            return null;
+        }
+
         $balance = StockBalance::query()
             ->where('location_id', $locationId)
             ->where('product_id', $productId)
             ->lockForUpdate()
             ->first();
 
-        $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
-        if (! $produto) {
-            return $balance;
-        }
-
-        $global = (float) $produto->stock;
-        if ($global <= 0) {
-            return $balance;
-        }
-
         if (! $balance) {
-            if (StockBalance::query()->where('product_id', $productId)->exists()) {
-                return null;
-            }
-
             return StockBalance::query()->create([
                 'id' => (string) Str::uuid(),
                 'location_id' => $locationId,
@@ -96,7 +97,13 @@ final class ProductStockDisplay
             ]);
         }
 
-        if ((float) $balance->quantity <= 0 && $global > 0) {
+        $local = (float) $balance->quantity;
+        $necessario = $quantidadeNecessaria > 0 ? $quantidadeNecessaria : $local;
+
+        if ($local < $necessario && $global >= $necessario) {
+            $balance->quantity = $global;
+            $balance->save();
+        } elseif ($local <= 0 && $global > 0) {
             $balance->quantity = $global;
             $balance->save();
         }

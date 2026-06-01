@@ -81,11 +81,52 @@ class SaleApiTest extends TestCase
         ]);
     }
 
+    public function test_cria_venda_quando_saldo_local_zero_mas_stock_global_disponivel(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['stock' => 25]);
+
+        StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->update(['quantity' => 0]);
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 100,
+                    'subtotal' => 100,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated();
+
+        $saldo = StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->first();
+
+        $this->assertSame(24.0, (float) $saldo->quantity);
+    }
+
     public function test_rejeita_venda_quando_stock_insuficiente(): void
     {
         $ambiente = $this->criarAmbienteApi();
         $token = $this->loginApi($ambiente['user']);
         $produto = $ambiente['product'];
+        $produto->update(['stock' => 1]);
 
         StockBalance::query()
             ->where('location_id', $ambiente['location']->id)
