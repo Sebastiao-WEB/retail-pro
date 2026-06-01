@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,12 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if ($this->shouldForceHttps()) {
-            $this->configureHttpsUrls();
+        if ($this->shouldForceHttpsAtBoot()) {
+            $this->applyHttpsUrls();
         }
     }
 
-    private function shouldForceHttps(): bool
+    private function shouldForceHttpsAtBoot(): bool
     {
         if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOL)) {
             return true;
@@ -36,31 +35,21 @@ class AppServiceProvider extends ServiceProvider
             return true;
         }
 
-        if (str_starts_with((string) config('app.url'), 'https://')) {
-            return true;
-        }
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: '';
 
-        if (! $this->app->bound('request')) {
-            return false;
-        }
-
-        /** @var Request $request */
-        $request = $this->app->make('request');
-
-        if ($request->isSecure()) {
-            return true;
-        }
-
-        if (strtolower((string) $request->header('X-Forwarded-Proto')) === 'https') {
-            return true;
-        }
-
-        $cfVisitor = (string) $request->header('CF-Visitor', '');
-
-        return str_contains($cfVisitor, 'https');
+        return $host !== '' && ! $this->isLocalHost($host);
     }
 
-    private function configureHttpsUrls(): void
+    private function isLocalHost(string $host): bool
+    {
+        if (in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)) {
+            return true;
+        }
+
+        return str_ends_with($host, '.test') || str_ends_with($host, '.local');
+    }
+
+    private function applyHttpsUrls(): void
     {
         $appUrl = (string) config('app.url');
 
@@ -72,6 +61,6 @@ class AppServiceProvider extends ServiceProvider
             URL::forceRootUrl(rtrim($appUrl, '/'));
         }
 
-        URL::forceScheme('https');
+        URL::forceHttps();
     }
 }
