@@ -1,4 +1,5 @@
 import { temApiConfigurada } from "../api/config";
+import { calcularIvaTotalLinha, enriquecerItemIva, resolverIvaPercentualExibicao } from "../utils/ivaItem.js";
 import { buildReceiptLabels, generalClientLabel, isGeneralClient, t } from "./i18nHelper.js";
 import { getStoredLocale, intlLocale } from "./localeStorage.js";
 
@@ -33,13 +34,7 @@ function formatarIva(valor) {
 }
 
 function obterIvaItem(item) {
-  const subtotal = Number(item?.subtotal || 0);
-  const ivaPercentual = Number(item?.ivaPercentual || 0);
-  if (Number.isFinite(item?.valorIvaUnitario)) {
-    return Number(item.valorIvaUnitario || 0) * Number(item?.quantidade || 0);
-  }
-  if (ivaPercentual <= 0 || subtotal <= 0) return 0;
-  return subtotal - subtotal / (1 + ivaPercentual / 100);
+  return calcularIvaTotalLinha(item);
 }
 
 function obterTotalIvaVenda(venda) {
@@ -47,12 +42,13 @@ function obterTotalIvaVenda(venda) {
 }
 
 function normalizarItem(item) {
+  const enriquecido = enriquecerItemIva(item);
   return {
-    nome: String(item?.nome || ""),
-    quantidade: Number(item?.quantidade || 0),
-    ivaPercentual: Number(item?.ivaPercentual || 0),
-    subtotal: Number(item?.subtotal || 0),
-    ivaTotal: obterIvaItem(item),
+    nome: String(enriquecido?.nome || ""),
+    quantidade: Number(enriquecido?.quantidade || 0),
+    ivaPercentual: resolverIvaPercentualExibicao(enriquecido),
+    subtotal: Number(enriquecido?.subtotal || 0),
+    ivaTotal: Number(enriquecido?.ivaTotal ?? calcularIvaTotalLinha(enriquecido)),
   };
 }
 

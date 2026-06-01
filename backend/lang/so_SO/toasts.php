@@ -23,6 +23,7 @@ return [
     'location_created' => 'Goobta waa la abuuray.',
     'location_disabled' => 'Goobta waa la joojiyay.',
     'stock_reloaded' => 'Kaydka si guul leh ayaa loo buuxiyay.',
+    'stock_adjusted' => 'Kaydka si guul leh ayaa loo hagaajiyay.',
     'transfer_completed' => 'Wareejinta si guul leh ayaa loo dhammeeyay.',
     'balance_calculated' => 'Dheelitirka waa la xisaabiyay iyadoo la isticmaalayo xilliga, iibka iyo kaydka.',
     'balance_locked' => 'Dheelitirka la dhammeeyay lama beddeli karo.',

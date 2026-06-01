@@ -230,4 +230,17 @@ document.addEventListener('livewire:initialized', () => {
             renderLucideIcons();
         });
     }
+
+    Livewire.on('rp-focus-field', ({ field }) => {
+        const campo = String(field || '').trim();
+        if (!campo) return;
+
+        const input = document.getElementById(`campo-${campo}`);
+        if (!input) return;
+
+        input.focus();
+        if (typeof input.select === 'function' && input.type !== 'checkbox') {
+            input.select();
+        }
+    });
 });

@@ -58,6 +58,64 @@ class AuthController extends Controller
         return $this->issueTokenResponse($user, $selectedRegister, $registers);
     }
 
+    public function adminLogin(Request $request)
+    {
+        $dados = $request->validate([
+            'username' => ['required', 'string'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = $this->findUserByCredentials($dados['username'], $dados['password']);
+        if ($user instanceof \Illuminate\Http\JsonResponse) {
+            return $user;
+        }
+
+        if (! $this->userCanAccessMobileAdmin($user)) {
+            return response()->json([
+                'message' => 'Acesso mobile reservado a gerentes e administradores.',
+            ], 403);
+        }
+
+        if ($this->userRequiresTwoFactor($user)) {
+            $token = app(ApiTwoFactorChallengeService::class)->create($user->id, null);
+
+            return response()->json([
+                'message' => 'Confirme o acesso com autenticação em dois factores.',
+                'requires_two_factor' => true,
+                'two_factor_token' => $token,
+                'expires_in' => ApiTwoFactorChallengeService::TTL_SECONDS,
+                'client' => 'admin',
+            ], 422);
+        }
+
+        return $this->issueAdminTokenResponse($user);
+    }
+
+    public function me(Request $request)
+    {
+        $user = $request->user('api');
+        abort_unless($user, 401);
+
+        $user->loadMissing(['registers.sourceLocation', 'register.sourceLocation']);
+
+        $registers = $user->assignedRegisters();
+        $selectedRegister = $user->register_id
+            ? $registers->firstWhere('id', $user->register_id) ?? Register::query()->find($user->register_id)
+            : null;
+
+        if ($selectedRegister instanceof Register) {
+            return response()->json([
+                'user' => $this->serializeUser($user, $selectedRegister, $registers),
+                'client' => 'pos',
+            ]);
+        }
+
+        return response()->json([
+            'user' => $this->serializeAdminUser($user),
+            'client' => 'admin',
+        ]);
+    }
+
     public function twoFactorChallenge(Request $request)
     {
         $dados = $request->validate([
@@ -110,8 +168,11 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $selectedRegister = Register::query()->find($challenge['register_id']);
-        if (! $selectedRegister) {
+        $selectedRegister = filled($challenge['register_id'] ?? null)
+            ? Register::query()->find($challenge['register_id'])
+            : null;
+
+        if (filled($challenge['register_id'] ?? null) && ! $selectedRegister) {
             app(ApiTwoFactorChallengeService::class)->forget($dados['two_factor_token']);
 
             return response()->json([
@@ -121,7 +182,17 @@ class AuthController extends Controller
 
         app(ApiTwoFactorChallengeService::class)->forget($dados['two_factor_token']);
 
-        return $this->issueTokenResponse($user, $selectedRegister, $user->assignedRegisters());
+        if ($selectedRegister instanceof Register) {
+            return $this->issueTokenResponse($user, $selectedRegister, $user->assignedRegisters());
+        }
+
+        if (! $this->userCanAccessMobileAdmin($user)) {
+            return response()->json([
+                'message' => 'Acesso mobile reservado a gerentes e administradores.',
+            ], 403);
+        }
+
+        return $this->issueAdminTokenResponse($user);
     }
 
     public function refresh()
@@ -236,6 +307,51 @@ class AuthController extends Controller
             Fortify::currentEncrypter()->decrypt($user->two_factor_secret),
             (string) ($dados['code'] ?? '')
         );
+    }
+
+    private function issueAdminTokenResponse(User $user)
+    {
+        $token = auth('api')->login($user);
+        $ttl = config('jwt.ttl', 60) * 60;
+
+        return response()->json([
+            'access_token' => $token,
+            'refresh_token' => $token,
+            'token_type' => 'Bearer',
+            'expires_in' => $ttl,
+            'client' => 'admin',
+            'user' => $this->serializeAdminUser($user),
+        ]);
+    }
+
+    private function userCanAccessMobileAdmin(User $user): bool
+    {
+        if (in_array((string) ($user->role ?? ''), ['ADMIN', 'MANAGER'], true)) {
+            return true;
+        }
+
+        if ($user->hasRole(['ADMIN', 'MANAGER'])) {
+            return true;
+        }
+
+        return $user->can('dashboard.view');
+    }
+
+    private function serializeAdminUser(User $user): array
+    {
+        $registers = $user->assignedRegisters();
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'email' => $user->email,
+            'role' => $user->getRoleNames()->first() ?? $user->role,
+            'roles' => $user->getRoleNames()->values()->all(),
+            'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
+            'caixa_atribuido' => $user->caixa_atribuido,
+            'registers' => $this->serializeRegisters($registers),
+        ];
     }
 
     private function issueTokenResponse(User $user, Register $selectedRegister, $allRegisters)

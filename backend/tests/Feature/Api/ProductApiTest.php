@@ -33,6 +33,19 @@ class ProductApiTest extends TestCase
         );
         $respostaLocal->assertOk();
         $this->assertSame(42.0, (float) collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['stock']);
+        $this->assertSame('UN', collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['unidadeVenda']);
+    }
+
+    public function test_lista_unidade_venda_kg(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $ambiente['product']->update(['unidade_venda' => 'KG']);
+
+        $resposta = $this->getJson('/api/v1/products', $this->authHeaders($token));
+
+        $resposta->assertOk();
+        $this->assertSame('KG', $resposta->json('data.0.unidadeVenda'));
     }
 
     public function test_filtra_produtos_por_pesquisa(): void
@@ -62,5 +75,21 @@ class ProductApiTest extends TestCase
         $resposta->assertOk();
         $this->assertCount(1, $resposta->json('data'));
         $this->assertSame($produto->id, $resposta->json('data.0.id'));
+    }
+
+    public function test_rejeita_criar_produto_com_codigo_barras_duplicado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $ambiente['product']->update(['codigo_barras' => '5555555555555']);
+
+        $resposta = $this->postJson('/api/v1/products', [
+            'nome' => 'Outro produto',
+            'codigoBarras' => '5555555555555',
+            'precoVenda' => 10,
+        ], $this->authHeaders($token));
+
+        $resposta->assertStatus(422)->assertJsonValidationErrors(['codigoBarras']);
+        $this->assertDatabaseCount('products', 1);
     }
 }

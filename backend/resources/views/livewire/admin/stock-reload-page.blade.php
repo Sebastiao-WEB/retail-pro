@@ -28,9 +28,14 @@
                         <td class="px-3 py-2">{{ number_format((float) $product->preco_compra, 2, ',', '.') }} {{ __('app.currency') }}</td>
                         <td class="px-3 py-2">
                             @can('stock.reload')
-                                <button type="button" wire:click="openReloadModal('{{ $product->id }}')" class="rounded-md border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
-                                    {{ __('pages.common.reload_action') }}
-                                </button>
+                                <div class="flex flex-wrap gap-1">
+                                    <button type="button" wire:click="openReloadModal('{{ $product->id }}')" class="rounded-md border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
+                                        {{ __('pages.common.reload_action') }}
+                                    </button>
+                                    <button type="button" wire:click="openAdjustModal('{{ $product->id }}')" class="rounded-md border border-amber-200 px-2 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50">
+                                        {{ __('pages.stock_reload.adjust_action') }}
+                                    </button>
+                                </div>
                             @else
                                 <span class="text-xs text-slate-400">{{ __('pages.common.no_permission') }}</span>
                             @endcan
@@ -136,6 +141,56 @@
                     <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
                         <button type="button" wire:click="$set('reloadModalOpen', false)" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{{ __('app.cancel') }}</button>
                         <button type="button" wire:click="applyReload" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black">{{ __('pages.common.confirm_reload') }}</button>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if ($adjustModalOpen)
+            <div class="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
+                <div class="w-full max-w-xl rounded-xl bg-white shadow-xl">
+                    <div class="border-b border-slate-200 px-5 py-3">
+                        <h3 class="text-base font-semibold">{{ __('pages.stock_reload.adjust_modal_title') }}</h3>
+                        <p class="text-sm text-slate-500">{{ $productName }}</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 p-5">
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                            {{ __('pages.stock_reload.adjust_hint') }}
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('pages.common.destination_location') }}</label>
+                            <select wire:model.live="to_location_id" class="rp-input">
+                                <option value="">{{ __('app.select') }}</option>
+                                @foreach ($locations as $location)
+                                    <option value="{{ $location->id }}">{{ $location->code }} - {{ $location->name }} ({{ $location->type }})</option>
+                                @endforeach
+                            </select>
+                            @error('to_location_id') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                            <span class="text-slate-500">{{ __('pages.stock_reload.stock_at_location') }}:</span>
+                            <strong class="text-slate-900">{{ number_format($this->saldoNaLocalizacao, 2, ',', '.') }}</strong>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600" for="campo-adjustmentDelta">{{ __('pages.stock_reload.adjust_delta_label') }}</label>
+                            <input
+                                id="campo-adjustmentDelta"
+                                wire:model.defer="adjustmentDelta"
+                                type="number"
+                                step="0.01"
+                                class="rp-input @error('adjustmentDelta') border-red-500 ring-1 ring-red-300 @enderror"
+                                placeholder="{{ __('pages.stock_reload.adjust_delta_placeholder') }}"
+                            >
+                            @error('adjustmentDelta') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.note') }}</label>
+                            <textarea wire:model.defer="note" rows="2" class="rp-input" placeholder="{{ __('pages.common.reload_note_placeholder') }}"></textarea>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+                        <button type="button" wire:click="$set('adjustModalOpen', false)" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{{ __('app.cancel') }}</button>
+                        <button type="button" wire:click="applyAdjustment" class="rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-black">{{ __('pages.stock_reload.confirm_adjustment') }}</button>
                     </div>
                 </div>
             </div>

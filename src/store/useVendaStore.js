@@ -5,6 +5,9 @@ import {
   criarVendaIntegrada,
   solicitarReversaoIntegrada,
 } from "../services/integracaoApi";
+import { isErroNegocioVenda, isErroRedeOuIndisponivel } from "../services/offline/networkError";
+import { vendaJaRegistadaNoServidor } from "../services/offline/saleServerCheck";
+import { enfileirarVendaPendente } from "../services/offline/pendingQueue";
 import { useSessaoStore } from "./useSessaoStore";
 import { t } from "../services/i18nHelper.js";
 
@@ -67,6 +70,11 @@ export const useVendaStore = defineStore("vendas", {
     salvarSolicitacoes() {
       localStorage.setItem(CHAVE_REVERSOES, JSON.stringify(this.solicitacoesReversao));
     },
+    mesclarVendasPendentesLocais(vendasRemotas = []) {
+      const idsRemotos = new Set(vendasRemotas.map((v) => v.id));
+      const pendentesLocais = this.vendas.filter((v) => v.pendenteSync && !idsRemotos.has(v.id));
+      return [...pendentesLocais, ...vendasRemotas];
+    },
     async sincronizarHistorico() {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
@@ -75,12 +83,18 @@ export const useVendaStore = defineStore("vendas", {
         if (sessaoStore.cashSessionId) filtros.cash_session_id = sessaoStore.cashSessionId;
         else if (sessaoStore.registerId) filtros.register_id = sessaoStore.registerId;
       }
-      const { vendas } = await carregarHistoricoIntegrado(filtros);
-      this.vendas = vendas.map((venda, indice) => ({
-        ...venda,
-        referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
-        estado: venda.estado || "Concluida",
-      }));
+      try {
+        const { vendas } = await carregarHistoricoIntegrado(filtros);
+        const normalizadas = vendas.map((venda, indice) => ({
+          ...venda,
+          referencia: venda.referencia || gerarReferenciaVenda(venda, indice),
+          estado: venda.estado || "Concluida",
+          pendenteSync: false,
+        }));
+        this.vendas = this.mesclarVendasPendentesLocais(normalizadas);
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+      }
       this.hidratarSolicitacoes();
       this.carregado = true;
     },
@@ -88,20 +102,43 @@ export const useVendaStore = defineStore("vendas", {
       return this.sincronizarHistorico();
     },
     async registarVenda(novaVenda) {
-      if (temApiConfigurada()) {
-        await criarVendaIntegrada(novaVenda);
-        await this.sincronizarHistorico();
-        return;
-      }
+      const sessaoStore = useSessaoStore();
+      sessaoStore.hidratar();
 
       const id = novaVenda?.id || gerarIdLocal();
-      const vendaLocal = {
+      const vendaNormalizada = {
         ...novaVenda,
         id,
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
+        operador: novaVenda.operador || sessaoStore.utilizador || "",
+        caixa: novaVenda.caixa || sessaoStore.caixaAtribuido || "",
+        data: novaVenda.data || new Date().toISOString(),
         estado: "Concluida",
       };
-      this.vendas.unshift(vendaLocal);
+
+      if (temApiConfigurada()) {
+        try {
+          await criarVendaIntegrada(vendaNormalizada);
+          await this.sincronizarHistorico();
+          return { modo: "online" };
+        } catch (erro) {
+          if (isErroNegocioVenda(erro) || !isErroRedeOuIndisponivel(erro)) {
+            throw erro;
+          }
+
+          if (await vendaJaRegistadaNoServidor(id)) {
+            await this.sincronizarHistorico();
+            return { modo: "online-recuperado" };
+          }
+
+          enfileirarVendaPendente(vendaNormalizada);
+          this.vendas.unshift({ ...vendaNormalizada, pendenteSync: true });
+          return { modo: "offline" };
+        }
+      }
+
+      this.vendas.unshift(vendaNormalizada);
+      return { modo: "local" };
     },
     async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
       const existePendente = this.solicitacoesReversao.some((item) => item.vendaId === vendaId && item.estado === "Pendente");

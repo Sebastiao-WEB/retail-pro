@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
+import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
 import { useVendaStore } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
@@ -12,11 +13,14 @@ import { temApiConfigurada } from "../../api";
 import { intlLocale } from "../../services/localeStorage.js";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
 
+const ITENS_POR_PAGINA = 10;
+
 const { t, locale } = useI18n();
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
 const imprimindoAgora = ref(false);
+const paginaAtual = ref(1);
 
 const vendaSelecionada = ref(null);
 const modalDetalhesAberto = ref(false);
@@ -39,12 +43,36 @@ const vendasDoTurnoCaixa = computed(() => {
   const caixaAtual = sessaoStore.caixaAtribuido;
   const abertura = sessaoStore.aberturaEm ? new Date(sessaoStore.aberturaEm).getTime() : null;
   if (!caixaAtual || !abertura) return [];
-  return vendaStore.vendas.filter((venda) => {
-    const dataVenda = new Date(venda.data).getTime();
-    const mesmaCaixa = venda.caixa ? venda.caixa === caixaAtual : true;
-    return mesmaCaixa && dataVenda >= abertura;
-  });
+  return vendaStore.vendas
+    .filter((venda) => {
+      const dataVenda = new Date(venda.data).getTime();
+      const mesmaCaixa = venda.caixa ? venda.caixa === caixaAtual : true;
+      return mesmaCaixa && dataVenda >= abertura;
+    })
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 });
+
+const totalVendas = computed(() => vendasDoTurnoCaixa.value.length);
+const totalPaginas = computed(() => Math.max(1, Math.ceil(totalVendas.value / ITENS_POR_PAGINA)));
+
+const vendasPagina = computed(() => {
+  const inicio = (paginaAtual.value - 1) * ITENS_POR_PAGINA;
+  return vendasDoTurnoCaixa.value.slice(inicio, inicio + ITENS_POR_PAGINA);
+});
+
+const subtituloPagina = computed(() =>
+  t("history.sales.subtitle", { total: totalVendas.value, perPage: ITENS_POR_PAGINA })
+);
+
+watch(totalPaginas, (total) => {
+  if (paginaAtual.value > total) {
+    paginaAtual.value = total;
+  }
+});
+
+function irParaPagina(pagina) {
+  paginaAtual.value = Math.min(Math.max(1, pagina), totalPaginas.value);
+}
 const solicitacoesPendentesPorVenda = computed(() => {
   const mapa = new Map();
   vendaStore.solicitacoesPendentes.forEach((item) => {
@@ -137,6 +165,7 @@ async function solicitarReversao() {
           <p class="text-xs text-slate-500">
             {{ t("history.sales.registerLabel") }} <strong>{{ sessaoStore.caixaAtribuido || t("common.noRegister") }}</strong> ·
             {{ t("history.sales.shiftLabel") }} <strong>{{ sessaoStore.aberturaEm ? formatarData(sessaoStore.aberturaEm) : t("history.sales.shiftNotStarted") }}</strong>
+            · {{ subtituloPagina }}
           </p>
         </div>
       </div>
@@ -155,12 +184,12 @@ async function solicitarReversao() {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="!vendasDoTurnoCaixa.length">
+            <tr v-if="!vendasPagina.length">
               <td colspan="7" class="px-3 py-8 text-center text-xs text-slate-500">
                 {{ t("history.sales.empty") }}
               </td>
             </tr>
-            <tr v-for="venda in vendasDoTurnoCaixa" :key="venda.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
+            <tr v-for="venda in vendasPagina" :key="venda.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
               <td class="px-3 py-2 font-semibold text-slate-700">{{ venda.referencia || venda.id }}</td>
               <td class="px-3 py-2 text-slate-600">{{ formatarData(venda.data) }}</td>
               <td class="px-3 py-2 font-semibold text-slate-800">{{ venda.cliente }}</td>
@@ -214,6 +243,12 @@ async function solicitarReversao() {
         </table>
       </div>
 
+      <PaginacaoTabela
+        v-if="totalVendas > 0"
+        :pagina-atual="paginaAtual"
+        :total-paginas="totalPaginas"
+        @mudar-pagina="irParaPagina"
+      />
     </div>
   </section>
 

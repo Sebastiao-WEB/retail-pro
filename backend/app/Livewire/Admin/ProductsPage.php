@@ -3,6 +3,8 @@
 namespace App\Livewire\Admin;
 
 use App\Models\Product;
+use App\Support\ProductValidation;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -19,6 +21,7 @@ class ProductsPage extends Component
     public string $nome = '';
     public string $codigo_barras = '';
     public string $categoria = '';
+    public string $unidade_venda = 'UN';
     public string $preco_compra = '0';
     public string $preco_venda = '0';
     public string $iva_tipo = 'ISENTO';
@@ -47,6 +50,7 @@ class ProductsPage extends Component
         $this->nome = $produto->nome;
         $this->codigo_barras = (string) ($produto->codigo_barras ?? '');
         $this->categoria = (string) ($produto->categoria ?? '');
+        $this->unidade_venda = ProductValidation::normalizarUnidadeVenda($produto->unidade_venda);
         $this->preco_compra = (string) $produto->preco_compra;
         $this->preco_venda = (string) $produto->preco_venda;
         $this->iva_tipo = (string) ($produto->iva_tipo ?? 'ISENTO');
@@ -60,37 +64,50 @@ class ProductsPage extends Component
     public function save(): void
     {
         abort_unless(auth()->user()?->can('products.manage'), 403);
-        $dados = $this->validate([
-            'nome' => ['required', 'string', 'max:255'],
-            'codigo_barras' => ['nullable', 'string', 'max:255'],
-            'categoria' => ['nullable', 'string', 'max:255'],
-            'preco_compra' => ['required', 'numeric'],
-            'preco_venda' => ['required', 'numeric'],
-            'iva_tipo' => ['required', 'in:ISENTO,PERCENTUAL,MONETARIO'],
-            'iva_percentual' => ['required_if:iva_tipo,PERCENTUAL', 'nullable', 'numeric', 'gte:0'],
-            'iva_valor' => ['required_if:iva_tipo,MONETARIO', 'nullable', 'numeric', 'gte:0'],
-            'is_active' => ['boolean'],
-        ]);
+
+        try {
+            $dados = $this->validate(
+                $this->regrasValidacao(),
+                [],
+                $this->atributosValidacao()
+            );
+        } catch (ValidationException $exception) {
+            $campo = array_key_first($exception->errors());
+            if (is_string($campo) && $campo !== '') {
+                $this->dispatch('rp-focus-field', field: $campo);
+            }
+            throw $exception;
+        }
 
         $ivaTipo = $dados['iva_tipo'];
         $ivaPercentual = $ivaTipo === 'PERCENTUAL' ? (float) ($dados['iva_percentual'] ?? 0) : 0.0;
         $ivaValor = $ivaTipo === 'MONETARIO' ? (float) ($dados['iva_valor'] ?? 0) : 0.0;
 
         if ($ivaTipo === 'PERCENTUAL' && $ivaPercentual <= 0) {
-            $this->addError('iva_percentual', 'Informe o percentual de IVA maior que zero.');
+            $this->addError('iva_percentual', __('pages.products.iva_percent_required'));
+            $this->dispatch('rp-focus-field', field: 'iva_percentual');
+
             return;
         }
 
         if ($ivaTipo === 'MONETARIO' && $ivaValor <= 0) {
-            $this->addError('iva_valor', 'Informe o valor monetário de IVA maior que zero.');
+            $this->addError('iva_valor', __('pages.products.iva_amount_required'));
+            $this->dispatch('rp-focus-field', field: 'iva_valor');
+
             return;
         }
 
         $payload = [
-            ...$dados,
+            'nome' => $dados['nome'],
+            'codigo_barras' => ProductValidation::normalizarCodigoBarras($dados['codigo_barras'] ?? null),
+            'categoria' => $dados['categoria'] ?: null,
+            'unidade_venda' => ProductValidation::normalizarUnidadeVenda($dados['unidade_venda'] ?? null),
+            'preco_compra' => $dados['preco_compra'],
+            'preco_venda' => $dados['preco_venda'],
             'iva_tipo' => $ivaTipo,
             'iva_valor' => $ivaValor,
             'iva_percentual' => $ivaPercentual,
+            'is_active' => $dados['is_active'],
         ];
 
         if ($this->editingId) {
@@ -117,12 +134,46 @@ class ProductsPage extends Component
         $this->resetForm();
     }
 
+    private function regrasValidacao(): array
+    {
+        return [
+            'nome' => ['required', 'string', 'max:255'],
+            'codigo_barras' => ProductValidation::regrasCodigoBarras($this->editingId),
+            'categoria' => ['nullable', 'string', 'max:255'],
+            'unidade_venda' => ['required', 'in:UN,KG'],
+            'preco_compra' => ['required', 'numeric'],
+            'preco_venda' => ['required', 'numeric'],
+            'iva_tipo' => ['required', 'in:ISENTO,PERCENTUAL,MONETARIO'],
+            'iva_percentual' => ['required_if:iva_tipo,PERCENTUAL', 'nullable', 'numeric', 'gte:0'],
+            'iva_valor' => ['required_if:iva_tipo,MONETARIO', 'nullable', 'numeric', 'gte:0'],
+            'is_active' => ['boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function atributosValidacao(): array
+    {
+        return [
+            'nome' => __('app.fields.name'),
+            'codigo_barras' => __('app.fields.barcode'),
+            'categoria' => __('app.fields.category'),
+            'unidade_venda' => __('app.fields.sale_unit'),
+            'preco_compra' => __('app.fields.purchase_price'),
+            'preco_venda' => __('app.fields.sale_price'),
+            'iva_percentual' => __('app.fields.iva_percent'),
+            'iva_valor' => __('app.fields.iva_amount'),
+        ];
+    }
+
     private function resetForm(): void
     {
         $this->editingId = null;
         $this->nome = '';
         $this->codigo_barras = '';
         $this->categoria = '';
+        $this->unidade_venda = 'UN';
         $this->preco_compra = '0';
         $this->preco_venda = '0';
         $this->iva_tipo = 'ISENTO';
@@ -130,6 +181,7 @@ class ProductsPage extends Component
         $this->iva_valor = '0';
         $this->stockAtual = '0';
         $this->is_active = true;
+        $this->resetValidation();
     }
 
     public function render()

@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gerarBufferEscpos, gerarBufferEscposRelatorioFecho, gerarBufferAbrirGaveta, normalizarGavetaPin } from "./escposTalao.js";
 import { enviarRawParaImpressora } from "./imprimirRaw.js";
+import { executarPowerShellWindows } from "./powershellWindows.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,12 +66,7 @@ async function listarImpressorasWindows() {
   try {
     const comando =
       "Get-Printer | Select-Object Name,Default | ConvertTo-Json -Compress";
-    const { stdout } = await execFileAsync("powershell.exe", [
-      "-NoProfile",
-      "-NonInteractive",
-      "-Command",
-      comando,
-    ]);
+    const { stdout } = await executarPowerShellWindows(["-Command", comando]);
 
     if (!stdout?.trim()) {
       return { impressoras: [], debug: { windowsRaw: "" } };
@@ -144,9 +140,13 @@ async function obterDadosImpressoras(alvo) {
 
 function obterIconeAplicacao() {
   const candidatos = [
+    process.resourcesPath ? path.join(process.resourcesPath, "icon.png") : null,
+    path.join(app.getAppPath(), "build/icon.png"),
     path.join(app.getAppPath(), "src/assets/rp.png"),
+    path.join(process.cwd(), "build/icon.png"),
     path.join(process.cwd(), "src/assets/rp.png"),
-  ];
+  ].filter(Boolean);
+
   return candidatos.find((caminho) => fs.existsSync(caminho));
 }
 

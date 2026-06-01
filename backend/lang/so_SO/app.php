@@ -71,6 +71,7 @@ return [
         'barcode' => 'Koodhka barkoodhka',
         'category' => 'Qaybta',
         'sale_price' => 'Qiimaha iibka',
+        'sale_unit' => 'Unugga iibka',
         'purchase_price' => 'Qiimaha iibsiga',
         'iva' => 'IVA',
         'iva_type' => 'Nooca IVA',

@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Services\StockAdjustmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
@@ -120,13 +121,52 @@ class StockController extends Controller
         $balances = StockBalance::query()
             ->where('location_id', $dados['location_id'])
             ->whereIn('product_id', $productIds)
-            ->pluck('quantity', 'product_id');
+            ->get(['product_id', 'quantity', 'updated_at']);
+
+        $porProduto = $balances->keyBy('product_id');
 
         $data = [];
         foreach ($productIds as $productId) {
-            $data[$productId] = (float) ($balances[$productId] ?? 0);
+            $balance = $porProduto->get($productId);
+            $data[$productId] = [
+                'quantity' => (float) ($balance?->quantity ?? 0),
+                'version' => optional($balance?->updated_at)->toJSON(),
+            ];
         }
 
         return response()->json(['data' => $data]);
+    }
+
+    public function adjust(Request $request, StockAdjustmentService $stockAdjustmentService)
+    {
+        $dados = $request->validate([
+            'product_id' => ['required', 'uuid', 'exists:products,id'],
+            'location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
+            'delta' => ['required', 'numeric', 'not_in:0'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'unit_cost' => ['nullable', 'numeric', 'gte:0'],
+        ]);
+
+        $movement = $stockAdjustmentService->aplicar(
+            $dados['product_id'],
+            $dados['location_id'],
+            (float) $dados['delta'],
+            $dados['note'] ?? null,
+            auth('api')->id(),
+            isset($dados['unit_cost']) ? (float) $dados['unit_cost'] : null,
+        );
+
+        $balance = StockBalance::query()
+            ->where('location_id', $dados['location_id'])
+            ->where('product_id', $dados['product_id'])
+            ->first();
+
+        return response()->json([
+            'message' => 'Stock ajustado com sucesso.',
+            'data' => [
+                'movement_id' => $movement->id,
+                'novo_stock_local' => (float) ($balance?->quantity ?? 0),
+            ],
+        ]);
     }
 }

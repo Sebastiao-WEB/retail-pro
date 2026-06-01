@@ -33,6 +33,14 @@ const configuracoesPadrao = {
   somToastsAtivo: true,
 };
 
+function construirPayloadPersistencia(estado) {
+  const payload = {};
+  for (const chave of Object.keys(configuracoesPadrao)) {
+    payload[chave] = estado[chave] ?? configuracoesPadrao[chave];
+  }
+  return payload;
+}
+
 export const useConfiguracaoStore = defineStore("configuracoes", {
   state: () => ({
     ...configuracoesPadrao,
@@ -92,9 +100,10 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
       this.aplicarDadosEmpresa(resposta?.data || payload);
     },
     salvar() {
-      const payload = { ...this };
-      delete payload.carregado;
-      localStorage.setItem(CHAVE_LOCAL_STORAGE, JSON.stringify(payload));
+      localStorage.setItem(
+        CHAVE_LOCAL_STORAGE,
+        JSON.stringify(construirPayloadPersistencia(this.$state))
+      );
     },
     definirImpressoraPadrao(impressora) {
       this.impressoraPadrao = String(impressora || "");

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CashSessionController;
 use App\Http\Controllers\Api\V1\CompanyProfileController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\RegisterController;
 use App\Http\Controllers\Api\V1\SaleController;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('admin-login', [AuthController::class, 'adminLogin']);
         Route::post('two-factor-challenge', [AuthController::class, 'twoFactorChallenge'])
             ->middleware('throttle:5,1');
         Route::post('refresh', [AuthController::class, 'refresh']);
@@ -26,6 +28,9 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware('auth:api')->group(function () {
+        Route::get('auth/me', [AuthController::class, 'me']);
+        Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+
         Route::prefix('auth/two-factor')->group(function () {
             Route::get('status', [TwoFactorSettingsController::class, 'status']);
             Route::post('enable', [TwoFactorSettingsController::class, 'enable']);
@@ -74,6 +79,7 @@ Route::prefix('v1')->group(function () {
         Route::put('stock-locations/{stockLocation}', [StockLocationController::class, 'update']);
 
         Route::post('stock/reload', [StockController::class, 'reload']);
+        Route::post('stock/adjust', [StockController::class, 'adjust']);
         Route::get('stock/availability', [StockController::class, 'availability']);
         Route::get('stock/movements', [StockMovementController::class, 'index']);
         Route::get('stock/transfers', [StockTransferController::class, 'index']);

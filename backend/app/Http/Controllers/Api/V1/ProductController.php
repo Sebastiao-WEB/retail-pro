@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockBalance;
+use App\Support\ProductValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -48,6 +49,7 @@ class ProductController extends Controller
                 'nome' => $produto->nome,
                 'codigoBarras' => $produto->codigo_barras,
                 'categoria' => $produto->categoria,
+                'unidadeVenda' => ProductValidation::normalizarUnidadeVenda($produto->unidade_venda),
                 'precoCompra' => (float) $produto->preco_compra,
                 'precoVenda' => (float) $produto->preco_venda,
                 'ivaTipo' => $produto->iva_tipo,
@@ -69,7 +71,7 @@ class ProductController extends Controller
     {
         $dados = $request->validate([
             'nome' => ['required', 'string', 'max:255'],
-            'codigoBarras' => ['nullable', 'string', 'max:255'],
+            'codigoBarras' => ProductValidation::regrasCodigoBarras(),
             'categoria' => ['nullable', 'string', 'max:255'],
             'precoCompra' => ['nullable', 'numeric'],
             'precoVenda' => ['required', 'numeric'],
@@ -77,6 +79,7 @@ class ProductController extends Controller
             'ivaValor' => ['nullable', 'numeric', 'gte:0'],
             'ivaPercentual' => ['nullable', 'numeric', 'gte:0'],
             'stock' => ['nullable', 'numeric'],
+            'unidadeVenda' => ProductValidation::regrasUnidadeVenda(),
         ]);
 
         $ivaTipo = $dados['ivaTipo'] ?? 'ISENTO';
@@ -100,8 +103,9 @@ class ProductController extends Controller
         $produto = Product::create([
             'id' => (string) Str::uuid(),
             'nome' => $dados['nome'],
-            'codigo_barras' => $dados['codigoBarras'] ?? null,
+            'codigo_barras' => ProductValidation::normalizarCodigoBarras($dados['codigoBarras'] ?? null),
             'categoria' => $dados['categoria'] ?? null,
+            'unidade_venda' => ProductValidation::normalizarUnidadeVenda($dados['unidadeVenda'] ?? null),
             'preco_compra' => $dados['precoCompra'] ?? 0,
             'preco_venda' => $dados['precoVenda'],
             'iva_tipo' => $ivaTipo,
@@ -127,6 +131,7 @@ class ProductController extends Controller
                 'nome' => $product->nome,
                 'codigoBarras' => $product->codigo_barras,
                 'categoria' => $product->categoria,
+                'unidadeVenda' => ProductValidation::normalizarUnidadeVenda($product->unidade_venda),
                 'precoCompra' => (float) $product->preco_compra,
                 'precoVenda' => (float) $product->preco_venda,
                 'ivaTipo' => $product->iva_tipo,
@@ -142,7 +147,7 @@ class ProductController extends Controller
     {
         $dados = $request->validate([
             'nome' => ['sometimes', 'string', 'max:255'],
-            'codigoBarras' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'codigoBarras' => ProductValidation::regrasCodigoBarras($product->id, true),
             'categoria' => ['sometimes', 'nullable', 'string', 'max:255'],
             'precoCompra' => ['sometimes', 'numeric'],
             'precoVenda' => ['sometimes', 'numeric'],
@@ -151,6 +156,7 @@ class ProductController extends Controller
             'ivaPercentual' => ['sometimes', 'numeric', 'gte:0'],
             'stock' => ['sometimes', 'numeric'],
             'is_active' => ['sometimes', 'boolean'],
+            'unidadeVenda' => ProductValidation::regrasUnidadeVenda(true),
         ]);
 
         $ivaTipoFinal = $dados['ivaTipo'] ?? $product->iva_tipo;
@@ -180,6 +186,10 @@ class ProductController extends Controller
             $dados['ivaPercentual'] = 0;
         }
 
+        if (array_key_exists('codigoBarras', $dados)) {
+            $dados['codigoBarras'] = ProductValidation::normalizarCodigoBarras($dados['codigoBarras']);
+        }
+
         $mapeamento = [
             'nome' => 'nome',
             'codigoBarras' => 'codigo_barras',
@@ -191,7 +201,12 @@ class ProductController extends Controller
             'ivaPercentual' => 'iva_percentual',
             'stock' => 'stock',
             'is_active' => 'is_active',
+            'unidadeVenda' => 'unidade_venda',
         ];
+
+        if (array_key_exists('unidadeVenda', $dados)) {
+            $dados['unidadeVenda'] = ProductValidation::normalizarUnidadeVenda($dados['unidadeVenda']);
+        }
 
         foreach ($dados as $chave => $valor) {
             $product->{$mapeamento[$chave]} = $valor;

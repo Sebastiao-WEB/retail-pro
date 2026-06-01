@@ -20,6 +20,7 @@ class Product extends Model
         'nome',
         'codigo_barras',
         'categoria',
+        'unidade_venda',
         'preco_compra',
         'preco_venda',
         'iva_tipo',

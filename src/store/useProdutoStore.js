@@ -1,6 +1,9 @@
 import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import { carregarProdutosIntegrado, consultarStockRemotoIntegrado } from "../services/integracaoApi";
+import { carregarCatalogoOffline, salvarCatalogoOffline } from "../services/offline/catalogCache";
+import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/networkError";
+import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
 
 function normalizarIva(valor) {
   const numero = Number(valor || 0);
@@ -9,8 +12,9 @@ function normalizarIva(valor) {
 }
 
 function normalizarIvaTipo(valor) {
-  if (valor === "monetario") return "monetario";
-  if (valor === "isento") return "isento";
+  const texto = String(valor || "").toLowerCase();
+  if (texto === "monetario" || texto === "monetário") return "monetario";
+  if (texto === "isento") return "isento";
   return "percentual";
 }
 
@@ -41,6 +45,7 @@ function normalizarProduto(produto) {
 
   return {
     ...produto,
+    unidadeVenda: normalizarUnidadeVenda(produto?.unidadeVenda ?? produto?.unidade_venda),
     precoCompra,
     precoVenda: Number.isFinite(precoVenda) ? precoVenda : 0,
     ivaTipo,
@@ -91,15 +96,31 @@ export const useProdutoStore = defineStore("produtos", {
       });
       this.reconstruirIndiceCodigosBarras();
     },
+    aplicarCatalogoLocal(produtos, filtros = {}) {
+      this.produtos = produtos.map((produto) => normalizarProduto(produto));
+      this.catalogoPosChave = chaveCatalogoPos(filtros);
+      this.reconstruirIndiceCodigosBarras();
+      this.carregado = true;
+      return this.produtos;
+    },
+    carregarCatalogoDeCache(filtros = {}) {
+      const cache = carregarCatalogoOffline(filtros);
+      if (!cache?.produtos?.length) return null;
+      return this.aplicarCatalogoLocal(cache.produtos, filtros);
+    },
     async sincronizarProdutos(filtros = {}) {
       this.emProcessamento = true;
       try {
         const produtos = await carregarProdutosIntegrado(filtros);
-        this.produtos = produtos.map((produto) => normalizarProduto(produto));
-        this.catalogoPosChave = chaveCatalogoPos(filtros);
-        this.reconstruirIndiceCodigosBarras();
-        this.carregado = true;
+        this.aplicarCatalogoLocal(produtos, filtros);
+        salvarCatalogoOffline(filtros, this.produtos);
         return this.produtos;
+      } catch (erro) {
+        const cache = this.carregarCatalogoDeCache(filtros);
+        if (cache && isErroRedeOuIndisponivel(erro)) {
+          return cache;
+        }
+        throw erro;
       } finally {
         this.emProcessamento = false;
       }
@@ -107,9 +128,9 @@ export const useProdutoStore = defineStore("produtos", {
     async carregarProdutos(filtros = {}) {
       return this.sincronizarProdutos(filtros);
     },
-    async garantirCatalogoPos(filtros = {}) {
+    async garantirCatalogoPos(filtros = {}, { forcar = false } = {}) {
       const chave = chaveCatalogoPos(filtros);
-      if (this.catalogoPosPronto && this.catalogoPosChave === chave) {
+      if (!forcar && this.catalogoPosPronto && this.catalogoPosChave === chave) {
         return this.produtos;
       }
       return this.sincronizarProdutos(filtros);
@@ -141,13 +162,17 @@ export const useProdutoStore = defineStore("produtos", {
 
       if (!temApiConfigurada()) return null;
 
-      const produtos = await carregarProdutosIntegrado({
-        ...filtros,
-        barcode: normalizado,
-      });
-      const normalizados = produtos.map((produto) => normalizarProduto(produto));
-      if (normalizados.length) {
-        this.mesclarProdutosConsultados(normalizados);
+      try {
+        const produtos = await carregarProdutosIntegrado({
+          ...filtros,
+          barcode: normalizado,
+        });
+        const normalizados = produtos.map((produto) => normalizarProduto(produto));
+        if (normalizados.length) {
+          this.mesclarProdutosConsultados(normalizados);
+        }
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
       }
       return this.resolverPorCodigoBarras(normalizado);
     },
@@ -160,22 +185,35 @@ export const useProdutoStore = defineStore("produtos", {
 
       this.pesquisaEmCurso = true;
       try {
-        if (this.catalogoPosPronto && this.catalogoPosChave === chaveCatalogoPos(filtros)) {
+        const podeUsarCacheLocal =
+          this.catalogoPosPronto &&
+          this.catalogoPosChave === chaveCatalogoPos(filtros) &&
+          (!temApiConfigurada() || !redeDisponivel());
+
+        if (podeUsarCacheLocal) {
           this.resultadosPesquisa = this.pesquisarLocalmente(termo);
           return this.resultadosPesquisa;
         }
 
-        let produtos = await carregarProdutosIntegrado(filtros);
-        if (!temApiConfigurada()) {
-          const consulta = termo.toLowerCase();
-          produtos = produtos.filter((produto) =>
-            `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
-          );
+        try {
+          let produtos = await carregarProdutosIntegrado(filtros);
+          if (!temApiConfigurada()) {
+            const consulta = termo.toLowerCase();
+            produtos = produtos.filter((produto) =>
+              `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
+            );
+          }
+          const normalizados = produtos.map((produto) => normalizarProduto(produto));
+          this.resultadosPesquisa = normalizados.slice(0, 5);
+          this.mesclarProdutosConsultados(normalizados);
+          return this.resultadosPesquisa;
+        } catch (erro) {
+          if (this.catalogoPosPronto && isErroRedeOuIndisponivel(erro)) {
+            this.resultadosPesquisa = this.pesquisarLocalmente(termo);
+            return this.resultadosPesquisa;
+          }
+          throw erro;
         }
-        const normalizados = produtos.map((produto) => normalizarProduto(produto));
-        this.resultadosPesquisa = normalizados.slice(0, 5);
-        this.mesclarProdutosConsultados(normalizados);
-        return this.resultadosPesquisa;
       } finally {
         this.pesquisaEmCurso = false;
       }
@@ -187,20 +225,29 @@ export const useProdutoStore = defineStore("produtos", {
         return;
       }
 
-      const stocks = await consultarStockRemotoIntegrado({
-        location_id: locationId,
-        product_ids: ids,
-      });
+      let stocks = {};
+      try {
+        stocks = await consultarStockRemotoIntegrado({
+          location_id: locationId,
+          product_ids: ids,
+        });
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+        return;
+      }
 
-      Object.entries(stocks).forEach(([productId, quantity]) => {
-        const stock = Number(quantity || 0);
+      Object.entries(stocks).forEach(([productId, entrada]) => {
+        const stock = Number(entrada?.quantity ?? entrada ?? 0);
+        const stockVersion = entrada?.version ? String(entrada.version) : null;
         const produto = this.produtos.find((reg) => reg.id === productId);
         if (produto) {
           produto.stock = stock;
+          produto.stockVersion = stockVersion;
         }
         const resultado = this.resultadosPesquisa.find((reg) => reg.id === productId);
         if (resultado) {
           resultado.stock = stock;
+          resultado.stockVersion = stockVersion;
         }
       });
     },
@@ -218,7 +265,13 @@ export const useProdutoStore = defineStore("produtos", {
       itensVenda.forEach((item) => {
         const produto = this.produtos.find((reg) => reg.id === item.produtoId);
         if (!produto) return;
-        produto.stock = Math.max(0, produto.stock - item.quantidade);
+        const quantidade = normalizarQuantidadeVenda(item.quantidade, produto.unidadeVenda) ?? 0;
+        if (quantidade <= 0) return;
+        const novoStock = Math.max(0, produto.stock - quantidade);
+        produto.stock =
+          normalizarUnidadeVenda(produto.unidadeVenda) === "KG"
+            ? Math.round(novoStock * 1000) / 1000
+            : novoStock;
       });
     },
     reporStock(produtoId, quantidade) {

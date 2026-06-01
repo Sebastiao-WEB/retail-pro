@@ -23,6 +23,7 @@ return [
     'location_created' => 'Localização criada.',
     'location_disabled' => 'Localização desactivada.',
     'stock_reloaded' => 'Stock recarregado com sucesso.',
+    'stock_adjusted' => 'Stock corrigido com sucesso.',
     'transfer_completed' => 'Transferência concluída com sucesso.',
     'balance_calculated' => 'Balanço calculado com recargas, vendas e stock do período.',
     'balance_locked' => 'Balanço finalizado não pode ser alterado.',

@@ -19,11 +19,20 @@ export function mapearProduto(item) {
   const ivaValor = pick(item, "ivaValor", "iva_valor", "tax_value");
   const ivaPercentual = pick(item, "ivaPercentual", "iva_percentual", "tax_rate");
 
+  const unidadeBruta = pick(item, "unidadeVenda", "unidade_venda", "sale_unit");
+  const unidadeVenda =
+    String(unidadeBruta || "")
+      .toUpperCase()
+      .trim() === "KG"
+      ? "KG"
+      : "UN";
+
   return {
     id: pick(item, "id"),
     nome: pick(item, "nome", "name") ?? "",
     codigoBarras: pick(item, "codigoBarras", "codigo_barras", "barcode") ?? "",
     categoria: pick(item, "categoria", "category") ?? "",
+    unidadeVenda,
     precoCompra: Number(pick(item, "precoCompra", "preco_compra", "purchase_price") ?? 0),
     precoVenda: Number(pick(item, "precoVenda", "preco_venda", "sale_price") ?? 0),
     ivaTipo,
@@ -46,14 +55,24 @@ export function mapearCliente(item) {
 
 function mapearItemVenda(item) {
   if (!item || typeof item !== "object") return item;
+  const precoVenda = Number(pick(item, "precoVenda", "preco_venda", "unit_price") ?? 0);
+  const precoSemIva = Number(pick(item, "precoSemIva", "preco_sem_iva") ?? 0);
+  const valorIvaUnitario = Number(pick(item, "valorIvaUnitario", "valor_iva_unitario", "tax_amount") ?? 0);
+  let ivaPercentual = Number(pick(item, "ivaPercentual", "iva_percentual", "tax_rate") ?? 0);
+  if (ivaPercentual <= 0 && valorIvaUnitario > 0 && precoSemIva > 0) {
+    ivaPercentual = Number(((valorIvaUnitario / precoSemIva) * 100).toFixed(2));
+  } else if (ivaPercentual <= 0 && precoVenda > precoSemIva && precoSemIva > 0) {
+    ivaPercentual = Number((((precoVenda - precoSemIva) / precoSemIva) * 100).toFixed(2));
+  }
+
   return {
     produtoId: pick(item, "produtoId", "produto_id", "product_id"),
     nome: pick(item, "nome", "name", "product_name_snapshot") ?? "",
     quantidade: Number(pick(item, "quantidade", "quantity") ?? 0),
-    precoVenda: Number(pick(item, "precoVenda", "preco_venda", "unit_price") ?? 0),
-    precoSemIva: Number(pick(item, "precoSemIva", "preco_sem_iva") ?? 0),
-    ivaPercentual: Number(pick(item, "ivaPercentual", "iva_percentual", "tax_rate") ?? 0),
-    valorIvaUnitario: Number(pick(item, "valorIvaUnitario", "valor_iva_unitario", "tax_amount") ?? 0),
+    precoVenda,
+    precoSemIva,
+    ivaPercentual,
+    valorIvaUnitario,
     subtotal: Number(pick(item, "subtotal", "line_total", "line_subtotal") ?? 0),
   };
 }

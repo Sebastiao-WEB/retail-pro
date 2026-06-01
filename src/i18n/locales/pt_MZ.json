@@ -132,6 +132,8 @@
       "checking": "A verificar backend...",
       "connected": "Backend conectado",
       "disconnected": "Backend desconectado",
+      "offlineReady": "Modo offline (catálogo local)",
+      "offlinePending": "Offline · {count} pendente(s)",
       "reasonOk": "Conectividade e resposta OK.",
       "reasonNetwork": "Falha de rede/timeout ao alcançar o backend.",
       "reasonNoUrl": "VITE_API_MODE=api activo sem VITE_API_URL.",
@@ -153,7 +155,8 @@
       "timeout": "Timeout configurado:",
       "lastHttpStatus": "Último HTTP status:",
       "lastCheck": "Última verificação:",
-      "description": "Diagnóstico operacional em tempo real do backend da API."
+      "description": "Diagnóstico operacional em tempo real do backend da API.",
+      "syncNow": "Sincronizar pendentes"
     }
   },
   "settings": {
@@ -241,6 +244,7 @@
   "history": {
     "sales": {
       "title": "Histórico de vendas do caixa",
+      "subtitle": "{total} venda(s) no turno · {perPage} por página",
       "registerLabel": "Caixa:",
       "shiftLabel": "Turno:",
       "shiftNotStarted": "não iniciado",
@@ -306,7 +310,18 @@
       "searching": "A pesquisar no backend...",
       "noProducts": "Nenhum produto encontrado.",
       "addToCart": "Adicionar ao carrinho",
-      "emptyHint": "Digite no campo de pesquisa para listar produtos."
+      "emptyHint": "Digite no campo de pesquisa para listar produtos.",
+      "pricePerKg": "/ kg"
+    },
+    "weightModal": {
+      "title": "Quantidade por peso",
+      "kgLabel": "Quantidade (kg)",
+      "kgPlaceholder": "Ex: 0,7",
+      "hint": "Ex.: 0,7 kg (700 g) ou 1,2 kg. O preço é por quilograma.",
+      "pricePerKg": "Preço: {price} / kg",
+      "stockAvailable": "Disponível: {stock}",
+      "confirm": "Adicionar ao carrinho",
+      "invalidKg": "Informe a quantidade em kg (número maior que zero)."
     },
     "preview": {
       "title": "Pré-visualização",
@@ -449,6 +464,7 @@
       "emptyCart": "O carrinho ficou vazio. Adicione produtos antes de concluir a venda.",
       "insufficientPayment": "Valor pago insuficiente para concluir a venda.",
       "syncStockFailed": "Falha ao sincronizar stock antes da venda.",
+      "offlineCatalogRequired": "Sem ligação à internet. Abra o POS com internet pelo menos uma vez para guardar o catálogo local antes de vender offline.",
       "printApiUnavailable": "API de impressão não disponível no desktop. Reinicie o Electron para recarregar o preload.",
       "setPrinterToPrint": "Defina a impressora padrão em Configurações para imprimir.",
       "printFailed": "Falha ao imprimir talão.",
@@ -457,6 +473,11 @@
       "registerSaleFailed": "Falha ao registar venda na API.",
       "salePrinted": "Venda realizada e enviada para impressão em {printer}.",
       "saleSuccess": "Venda realizada com sucesso.",
+      "saleOfflineQueued": "Venda guardada localmente. Será sincronizada quando a internet voltar.",
+      "saleOfflinePrinted": "Venda guardada offline e talão enviado para {printer}.",
+      "openRegisterOffline": "Caixa aberto em modo offline. Vendas serão sincronizadas depois.",
+      "catalogCacheRequired": "Sem catálogo local. Abra o turno com internet pelo menos uma vez.",
+      "closeCompleteOfflinePending": "Caixa fechado localmente. {count} operação(ões) aguardam sincronização.",
       "reprintDesktopOnly": "Reimpressão disponível apenas na versão desktop (Electron).",
       "setPrinterToReprint": "Defina a impressora padrão em Configurações para reimprimir.",
       "reprintFailed": "Falha ao reimprimir talão.",

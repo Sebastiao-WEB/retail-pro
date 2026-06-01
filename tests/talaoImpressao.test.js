@@ -74,6 +74,41 @@ describe("talaoImpressao", () => {
     expect(obterOpcoesGaveta({ gavetaPin: 0 }).gavetaPin).toBe(0);
   });
 
+  it("mostra percentual e total de IVA no talao quando detalharIva activo", () => {
+    const talao = montarPayloadTalao(
+      {
+        ...vendaBase,
+        itens: [
+          {
+            nome: "Leite",
+            quantidade: 1,
+            precoSemIva: 95,
+            precoVenda: 110.2,
+            valorIvaUnitario: 15.2,
+            subtotal: 110.2,
+          },
+        ],
+      },
+      { nomeEmpresa: "Empresa Demo" },
+      { detalharIva: true }
+    );
+
+    expect(talao.venda.itens[0].ivaPercentual).toBe(16);
+    expect(talao.venda.itens[0].ivaTotal).toBe(15.2);
+    expect(talao.venda.totalIva).toBe(15.2);
+    expect(talao.detalharIva).toBe(true);
+  });
+
+  it("nao trata valorIvaUnitario zero como bloqueio do percentual", () => {
+    const talao = montarPayloadTalao({
+      ...vendaBase,
+      itens: [{ nome: "Bolacha", quantidade: 1, ivaPercentual: 16, subtotal: 116 }],
+    });
+
+    expect(talao.venda.itens[0].ivaPercentual).toBe(16);
+    expect(talao.venda.totalIva).toBeGreaterThan(0);
+  });
+
   it("nao abre gaveta quando venda nao e em dinheiro", async () => {
     const resultado = await abrirGavetaPosVenda({
       venda: { ...vendaBase, metodoPagamento: "Transferência" },

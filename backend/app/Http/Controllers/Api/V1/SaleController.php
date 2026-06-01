@@ -10,6 +10,7 @@ use App\Models\SaleItem;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -23,48 +24,41 @@ class SaleController extends Controller
      */
     public function index(Request $request)
     {
-        $registerId = $this->resolverRegisterIdConsulta($request, $request->query('register_id'));
+        $dados = $request->validate([
+            'register_id' => ['nullable', 'uuid'],
+            'cash_session_id' => ['nullable', 'uuid'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $registerId = $this->resolverRegisterIdConsulta($request, $dados['register_id'] ?? null);
         if ($registerId instanceof \Illuminate\Http\JsonResponse) {
             return $registerId;
         }
 
-        $query = Sale::query()->with('itens')->latest('data');
+        $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
 
-        $query->where('register_id', $registerId);
+        $query = Sale::query()
+            ->with('itens')
+            ->where('register_id', $registerId)
+            ->latest('data');
 
-        if ($cashSessionId = request('cash_session_id')) {
-            $query->where('cash_session_id', $cashSessionId);
+        if (! empty($dados['cash_session_id'])) {
+            $query->where('cash_session_id', $dados['cash_session_id']);
         }
 
-        $sales = $query->get()->map(function (Sale $sale) {
-            return [
-                'id' => $sale->id,
-                'referencia' => $sale->referencia,
-                'cliente' => $sale->cliente,
-                'caixa' => $sale->caixa,
-                'operador' => $sale->operador,
-                'metodoPagamento' => $sale->metodo_pagamento,
-                'estado' => $sale->estado,
-                'subtotal' => (float) $sale->subtotal,
-                'descontoAplicado' => (float) $sale->desconto_aplicado,
-                'total' => (float) $sale->total,
-                'valorPago' => (float) $sale->valor_pago,
-                'troco' => (float) $sale->troco,
-                'data' => optional($sale->data)->toISOString(),
-                'itens' => $sale->itens->map(fn (SaleItem $item) => [
-                    'produtoId' => $item->produto_id,
-                    'nome' => $item->nome,
-                    'quantidade' => (float) $item->quantidade,
-                    'precoVenda' => (float) $item->preco_venda,
-                    'precoSemIva' => (float) $item->preco_sem_iva,
-                    'ivaPercentual' => (float) $item->iva_percentual,
-                    'valorIvaUnitario' => (float) $item->valor_iva_unitario,
-                    'subtotal' => (float) $item->subtotal,
-                ])->values(),
-            ];
-        });
+        $paginado = $query->paginate($perPage);
 
-        return response()->json(['data' => $sales]);
+        return response()->json([
+            'data' => collect($paginado->items())->map(fn (Sale $sale) => $this->serializarVenda($sale))->values(),
+            'meta' => [
+                'current_page' => $paginado->currentPage(),
+                'last_page' => $paginado->lastPage(),
+                'per_page' => $paginado->perPage(),
+                'total' => $paginado->total(),
+                'register_id' => $registerId,
+            ],
+        ]);
     }
 
     /**
@@ -100,14 +94,27 @@ class SaleController extends Controller
             'itens.*.ivaPercentual' => ['nullable', 'numeric'],
             'itens.*.valorIvaUnitario' => ['nullable', 'numeric'],
             'itens.*.subtotal' => ['required', 'numeric'],
+            'stockVersions' => ['nullable', 'array'],
+            'stockVersions.*' => ['nullable', 'string', 'max:64'],
         ]);
 
-        $sale = DB::transaction(function () use ($dados) {
+        $stockVersions = is_array($dados['stockVersions'] ?? null) ? $dados['stockVersions'] : [];
+
+        $sale = DB::transaction(function () use ($dados, $stockVersions) {
             $locationId = $dados['source_location_id'] ?? ($dados['sourceLocationId'] ?? null);
             $saleId = $dados['id'] ?? (string) Str::uuid();
 
-            if ($saleId !== '' && Sale::query()->where('id', $saleId)->exists()) {
-                return Sale::query()->with('itens')->findOrFail($saleId);
+            if ($saleId !== '') {
+                $existente = Sale::query()->with('itens')->find($saleId);
+                if ($existente) {
+                    if (! $this->vendaCorrespondePayload($existente, $dados)) {
+                        throw ValidationException::withMessages([
+                            'id' => ['Já existe uma venda com este identificador, mas com conteúdo diferente.'],
+                        ]);
+                    }
+
+                    return $existente;
+                }
             }
 
             $itensComProduto = collect($dados['itens'])
@@ -137,6 +144,16 @@ class SaleController extends Controller
                         ->where('product_id', $produtoId)
                         ->lockForUpdate()
                         ->first();
+
+                    $versaoCliente = trim((string) ($stockVersions[$produtoId] ?? ''));
+                    if ($versaoCliente !== '' && $balance) {
+                        $versaoServidor = (string) optional($balance->updated_at)->toJSON();
+                        if ($versaoServidor !== '' && $versaoCliente !== $versaoServidor) {
+                            throw ValidationException::withMessages([
+                                'itens' => ["O stock de \"{$item['nome']}\" foi actualizado noutro caixa. Actualize o ecrã e tente novamente."],
+                            ]);
+                        }
+                    }
 
                     $saldosPorProduto[$produtoId] = [
                         'balance' => $balance,
@@ -259,36 +276,82 @@ class SaleController extends Controller
         $sale->load('itens');
 
         return response()->json([
-            'data' => [
-                'id' => $sale->id,
-                'referencia' => $sale->referencia,
-                'cliente' => $sale->cliente,
-                'caixa' => $sale->caixa,
-                'operador' => $sale->operador,
-                'metodoPagamento' => $sale->metodo_pagamento,
-                'estado' => $sale->estado,
-                'subtotal' => (float) $sale->subtotal,
-                'descontoAplicado' => (float) $sale->desconto_aplicado,
-                'total' => (float) $sale->total,
-                'valorPago' => (float) $sale->valor_pago,
-                'troco' => (float) $sale->troco,
-                'data' => optional($sale->data)->toISOString(),
-                'itens' => $sale->itens->map(fn (SaleItem $item) => [
-                    'produtoId' => $item->produto_id,
-                    'nome' => $item->nome,
-                    'quantidade' => (float) $item->quantidade,
-                    'precoVenda' => (float) $item->preco_venda,
-                    'precoSemIva' => (float) $item->preco_sem_iva,
-                    'ivaPercentual' => (float) $item->iva_percentual,
-                    'valorIvaUnitario' => (float) $item->valor_iva_unitario,
-                    'subtotal' => (float) $item->subtotal,
-                ])->values(),
-            ],
+            'data' => $this->serializarVenda($sale),
         ]);
     }
 
     public function update(Request $request, string $id) {}
     public function destroy(string $id) {}
+
+    private function serializarVenda(Sale $sale): array
+    {
+        $sale->loadMissing('itens');
+
+        return [
+            'id' => $sale->id,
+            'referencia' => $sale->referencia,
+            'cliente' => $sale->cliente,
+            'caixa' => $sale->caixa,
+            'operador' => $sale->operador,
+            'metodoPagamento' => $sale->metodo_pagamento,
+            'estado' => $sale->estado,
+            'subtotal' => (float) $sale->subtotal,
+            'descontoAplicado' => (float) $sale->desconto_aplicado,
+            'total' => (float) $sale->total,
+            'valorPago' => (float) $sale->valor_pago,
+            'troco' => (float) $sale->troco,
+            'data' => optional($sale->data)->toISOString(),
+            'itens' => $sale->itens->map(fn (SaleItem $item) => [
+                'produtoId' => $item->produto_id,
+                'nome' => $item->nome,
+                'quantidade' => (float) $item->quantidade,
+                'precoVenda' => (float) $item->preco_venda,
+                'precoSemIva' => (float) $item->preco_sem_iva,
+                'ivaPercentual' => (float) $item->iva_percentual,
+                'valorIvaUnitario' => (float) $item->valor_iva_unitario,
+                'subtotal' => (float) $item->subtotal,
+            ])->values(),
+        ];
+    }
+
+    private function vendaCorrespondePayload(Sale $sale, array $dados): bool
+    {
+        return $this->assinaturaItensPayload($dados['itens'] ?? [])
+            === $this->assinaturaItensVenda($sale->itens)
+            && abs((float) $sale->total - (float) ($dados['total'] ?? 0)) < 0.02;
+    }
+
+    private function assinaturaItensPayload(array $itens): string
+    {
+        return $this->hashAssinaturaItens(
+            collect($itens)->map(fn (array $item) => [
+                'produtoId' => (string) ($item['produtoId'] ?? ''),
+                'quantidade' => round((float) ($item['quantidade'] ?? 0), 3),
+                'subtotal' => round((float) ($item['subtotal'] ?? 0), 2),
+            ])
+        );
+    }
+
+    private function assinaturaItensVenda(Collection $itens): string
+    {
+        return $this->hashAssinaturaItens(
+            $itens->map(fn (SaleItem $item) => [
+                'produtoId' => (string) ($item->produto_id ?? ''),
+                'quantidade' => round((float) $item->quantidade, 3),
+                'subtotal' => round((float) $item->subtotal, 2),
+            ])
+        );
+    }
+
+    private function hashAssinaturaItens(Collection $linhas): string
+    {
+        $ordenadas = $linhas
+            ->sortBy(fn (array $linha) => $linha['produtoId'].'|'.$linha['quantidade'])
+            ->values()
+            ->all();
+
+        return hash('sha256', json_encode($ordenadas));
+    }
 
     private function gerarReferenciaUnica(?string $preferida = null): string
     {

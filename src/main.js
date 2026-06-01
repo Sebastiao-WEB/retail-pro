@@ -6,6 +6,7 @@ import { createPinia } from "pinia";
 import router from "./router";
 import i18n from "./i18n";
 import { getStoredLocale, htmlLang } from "./services/localeStorage.js";
+import { useOfflineStore } from "./store/useOfflineStore";
 import logoRetailPro from "./assets/rp.png";
 
 document.documentElement.lang = htmlLang(getStoredLocale());
@@ -103,3 +104,10 @@ app.use(router);
 app.use(i18n);
 
 app.mount("#app");
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    const offlineStore = useOfflineStore();
+    void offlineStore.atualizarConectividade();
+  });
+}

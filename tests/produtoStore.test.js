@@ -41,7 +41,7 @@ describe("useProdutoStore busca remota", () => {
     expect(carregarProdutosIntegrado).toHaveBeenCalledTimes(1);
   });
 
-  it("pesquisa localmente sem chamar backend quando catalogo pos ja esta pronto", async () => {
+  it("volta a consultar backend na pesquisa quando online mesmo com catalogo pronto", async () => {
     const produtoStore = useProdutoStore();
     await produtoStore.garantirCatalogoPos({ source_location_id: "loc-1" });
     vi.mocked(carregarProdutosIntegrado).mockClear();
@@ -49,7 +49,7 @@ describe("useProdutoStore busca remota", () => {
     const resultados = await produtoStore.buscarProdutos({ search: "Leite", source_location_id: "loc-1" });
 
     expect(resultados).toHaveLength(1);
-    expect(carregarProdutosIntegrado).not.toHaveBeenCalled();
+    expect(carregarProdutosIntegrado).toHaveBeenCalledTimes(1);
   });
 
   it("resolve codigo de barras em memoria e so consulta backend em fallback", async () => {

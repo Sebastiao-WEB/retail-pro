@@ -28,7 +28,10 @@ class StockAvailabilityApiTest extends TestCase
             $this->authHeaders($token)
         );
 
-        $resposta->assertOk();
-        $this->assertSame(17.0, (float) $resposta->json('data.'.$produto->id));
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.'.$produto->id.'.quantity', 17);
+
+        $this->assertNotEmpty($resposta->json('data.'.$produto->id.'.version'));
     }
 }

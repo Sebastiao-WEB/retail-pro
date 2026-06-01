@@ -159,9 +159,127 @@ class SaleApiTest extends TestCase
             $this->authHeaders($token)
         );
 
-        $resposta->assertOk();
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1);
+
         $this->assertCount(1, $resposta->json('data'));
         $this->assertSame('VD-TEST-A', $resposta->json('data.0.referencia'));
+    }
+
+    public function test_lista_vendas_com_paginacao(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $sessao = (string) Str::uuid();
+
+        for ($i = 0; $i < 12; $i++) {
+            Sale::query()->create([
+                'id' => (string) Str::uuid(),
+                'referencia' => 'VD-PAG-'.$i,
+                'register_id' => $ambiente['register']->id,
+                'cash_session_id' => $sessao,
+                'cliente' => 'Cliente Geral',
+                'metodo_pagamento' => 'Dinheiro',
+                'subtotal' => 10,
+                'total' => 10,
+                'data' => now()->subMinutes($i),
+            ]);
+        }
+
+        $resposta = $this->getJson(
+            '/api/v1/sales?cash_session_id='.$sessao.'&page=1&per_page=10',
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonPath('meta.total', 12)
+            ->assertJsonPath('meta.last_page', 2);
+
+        $this->assertCount(10, $resposta->json('data'));
+    }
+
+    public function test_rejeita_reenvio_com_mesmo_id_e_conteudo_diferente(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $saleId = (string) Str::uuid();
+
+        $base = [
+            'id' => $saleId,
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'valorPago' => 100,
+            'troco' => 0,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 100,
+                    'subtotal' => 100,
+                ],
+            ],
+        ];
+
+        $this->postJson('/api/v1/sales', $base, $this->authHeaders($token))->assertCreated();
+
+        $conflito = $base;
+        $conflito['itens'][0]['quantidade'] = 17;
+        $conflito['subtotal'] = 1700;
+        $conflito['total'] = 1700;
+
+        $this->postJson('/api/v1/sales', $conflito, $this->authHeaders($token))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['id']);
+
+        $this->assertDatabaseCount('sales', 1);
+        $this->assertDatabaseHas('sale_items', ['sale_id' => $saleId, 'quantidade' => 1]);
+    }
+
+    public function test_rejeita_venda_quando_versao_de_stock_esta_desatualizada(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+
+        $balance = StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->first();
+
+        $balance->touch();
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'stockVersions' => [
+                $produto->id => '2000-01-01T00:00:00.000000Z',
+            ],
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 100,
+                    'subtotal' => 100,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertStatus(422);
+        $this->assertDatabaseCount('sales', 0);
     }
 
     public function test_gera_referencias_unicas_quando_nao_informadas(): void
