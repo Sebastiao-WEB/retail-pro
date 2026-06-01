@@ -878,7 +878,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       return;
     }
 
-    produtoStore.aplicarVenda(venda.itens);
+    produtoStore.aplicarVenda(venda.itens, filtrosCatalogoProdutos());
     carrinhoStore.limparCarrinho();
     limparCampoPesquisa();
 
