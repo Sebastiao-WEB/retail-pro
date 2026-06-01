@@ -163,8 +163,9 @@ class SaleController extends Controller
             }
 
             foreach ($saldosPorProduto as $produtoId => $info) {
-                $balance = $info['balance'];
                 $reservado = (float) $info['reservado'];
+                $balance = ProductStockDisplay::resolverSaldoParaVenda($locationId, $produtoId, $reservado);
+                $saldosPorProduto[$produtoId]['balance'] = $balance;
 
                 if (! $balance || (float) $balance->quantity < $reservado) {
                     throw ValidationException::withMessages([
