@@ -518,6 +518,8 @@
     "noRegisterIdQuery": "Hawlgale ma laha register_id si uu u hubiyo sanduuqa.",
     "activeSessionFailedShort": "Waa guuldareystay hubinta fadhiga firfircoon.",
     "reversalAlreadyPending": "Codsi sugaya ayaa hore u jiray iibkan.",
+    "reversalSaleNotSynced": "Iibkan weli lama xidhin serverka. Sug xiriirka ama isku-dubarid iibaha sugaya.",
+    "reversalInvalidSaleId": "Iibkan ma laha aqoonsi sax ah serverka. Isku-dubarid ka hor intaadan codsan celinta.",
     "httpError": "Khalad HTTP {status}"
   }
 }

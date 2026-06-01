@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import {
   carregarHistoricoIntegrado,
+  carregarSolicitacoesReversaoIntegrado,
   criarVendaIntegrada,
   solicitarReversaoIntegrada,
 } from "../services/integracaoApi";
@@ -14,6 +15,32 @@ import { useSessaoStore } from "./useSessaoStore";
 import { t } from "../services/i18nHelper.js";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
+const UUID_VENDA_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function mapearEstadoReversaoRemota(status) {
+  const valor = String(status || "").toUpperCase();
+  if (valor === "APPROVED") return "Aprovada";
+  if (valor === "REJECTED") return "Cancelada";
+  return "Pendente";
+}
+
+export function vendaTemIdValidoParaReversao(venda) {
+  return UUID_VENDA_REGEX.test(String(venda?.id || "").trim());
+}
+
+export function motivoBloqueioReversao(venda, solicitacoesReversao = []) {
+  if (!venda) return t("api.reversalFailed");
+  if (venda.pendenteSync) return t("api.reversalSaleNotSynced");
+  if (!vendaTemIdValidoParaReversao(venda)) return t("api.reversalInvalidSaleId");
+  if (String(venda.estado || "") === "Revertida") return t("history.sales.toast.alreadyReverted");
+  const pendente = solicitacoesReversao.some((item) => item.vendaId === venda.id && item.estado === "Pendente");
+  if (pendente) return t("api.reversalAlreadyPending");
+  return "";
+}
+
+export function podeSolicitarReversao(venda, solicitacoesReversao = []) {
+  return !motivoBloqueioReversao(venda, solicitacoesReversao);
+}
 
 function gerarIdLocal() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -160,11 +187,74 @@ export const useVendaStore = defineStore("vendas", {
           const mescladas = this.mesclarVendasTurnoAtual(normalizadas, sessaoStore);
           this.vendas = this.mesclarVendasPendentesLocais(mescladas);
         }
+        await this.sincronizarSolicitacoesReversao();
       } catch (erro) {
         if (!isErroRedeOuIndisponivel(erro)) throw erro;
       }
       this.hidratarSolicitacoes();
       this.carregado = true;
+    },
+    async sincronizarSolicitacoesReversao() {
+      if (!temApiConfigurada()) return;
+      this.hidratarSolicitacoes();
+      try {
+        const remotas = await carregarSolicitacoesReversaoIntegrado();
+        const maisRecentePorVenda = new Map();
+
+        for (const item of remotas) {
+          if (!item?.saleId) continue;
+          const actual = maisRecentePorVenda.get(item.saleId);
+          const dataItem = String(item.requestedAt || item.decidedAt || "");
+          const dataActual = String(actual?.requestedAt || actual?.decidedAt || "");
+          if (!actual || dataItem >= dataActual) {
+            maisRecentePorVenda.set(item.saleId, item);
+          }
+        }
+
+        for (const [saleId, item] of maisRecentePorVenda) {
+          const estadoLocal = mapearEstadoReversaoRemota(item.status);
+          let local = this.solicitacoesReversao.find((s) => s.vendaId === saleId);
+
+          if (!local) {
+            local = {
+              id: item.id || Date.now(),
+              idRemoto: item.id,
+              vendaId: saleId,
+              referencia: "",
+              solicitadoPor: "",
+              motivo: item.reason || "",
+              estado: estadoLocal,
+              dataSolicitacao: item.requestedAt || new Date().toISOString(),
+            };
+            this.solicitacoesReversao.unshift(local);
+          } else {
+            local.estado = estadoLocal;
+            local.idRemoto = item.id || local.idRemoto;
+            if (item.reason) local.motivo = item.reason;
+          }
+
+          if (item.status === "APPROVED") {
+            const venda = this.vendas.find((v) => v.id === saleId);
+            if (venda) venda.estado = "Revertida";
+          }
+        }
+
+        for (const local of this.solicitacoesReversao) {
+          if (local.estado !== "Pendente") continue;
+          const remota = maisRecentePorVenda.get(local.vendaId);
+          if (remota && remota.status !== "PENDING") {
+            local.estado = mapearEstadoReversaoRemota(remota.status);
+            if (remota.status === "APPROVED") {
+              const venda = this.vendas.find((v) => v.id === local.vendaId);
+              if (venda) venda.estado = "Revertida";
+            }
+          }
+        }
+
+        this.salvarSolicitacoes();
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+      }
     },
     async carregarHistorico() {
       return this.sincronizarHistorico();
@@ -223,13 +313,18 @@ export const useVendaStore = defineStore("vendas", {
       this.vendas.unshift(vendaNormalizada);
       return { modo: "local" };
     },
-    async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
-      const existePendente = this.solicitacoesReversao.some((item) => item.vendaId === vendaId && item.estado === "Pendente");
-      if (existePendente) {
-        return { ok: false, erro: t("api.reversalAlreadyPending") };
+    async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo, venda }) {
+      const vendaRef = venda || this.vendas.find((item) => item.id === vendaId) || { id: vendaId };
+      const bloqueio = motivoBloqueioReversao(vendaRef, this.solicitacoesReversao);
+      if (bloqueio) {
+        return { ok: false, erro: bloqueio };
       }
+
       const remoto = await solicitarReversaoIntegrada({ venda_id: vendaId, reason: motivo || "" });
       if (remoto?.ok === false && remoto?.erro) {
+        if (remoto.status === 409 || remoto.status === 404) {
+          await this.sincronizarSolicitacoesReversao();
+        }
         return { ok: false, erro: remoto.erro };
       }
       this.solicitacoesReversao.unshift({

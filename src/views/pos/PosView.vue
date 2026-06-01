@@ -8,7 +8,12 @@ import ModalBase from "../../components/ModalBase.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
 import { useCarrinhoStore } from "../../store/useCarrinhoStore";
 import { useClienteStore } from "../../store/useClienteStore";
-import { useVendaStore, vendaPertenceTurnoAtual } from "../../store/useVendaStore";
+import {
+  useVendaStore,
+  vendaPertenceTurnoAtual,
+  podeSolicitarReversao,
+  motivoBloqueioReversao,
+} from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
@@ -968,12 +973,9 @@ async function reimprimirVenda(venda) {
 }
 
 function abrirSolicitacaoReversao(venda) {
-  if (venda.estado === "Revertida") {
-    mostrarToastSwal(t("pos.toast.alreadyReverted"), "error");
-    return;
-  }
-  if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    mostrarToastSwal(t("pos.toast.reversalPending"), "error");
+  const bloqueio = motivoBloqueioReversao(venda, vendaStore.solicitacoesReversao);
+  if (bloqueio) {
+    mostrarToastSwal(bloqueio, "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -986,6 +988,7 @@ async function confirmarSolicitacaoReversao() {
   const venda = vendaParaReversao.value;
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
+    venda,
     referencia: venda.referencia || String(venda.id),
     solicitadoPor: sessaoStore.utilizador || "Operador",
     motivo: motivoReversao.value.trim(),
@@ -1494,7 +1497,7 @@ async function confirmarFechoCaixa() {
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                         :title="t('history.sales.requestReversal')"
                         :aria-label="t('history.sales.requestReversal')"
-                        :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                        :disabled="!podeSolicitarReversao(venda, vendaStore.solicitacoesReversao)"
                         @click="abrirSolicitacaoReversao(venda)"
                       >
                         <RotateCcw :size="13" :stroke-width="2.1" />

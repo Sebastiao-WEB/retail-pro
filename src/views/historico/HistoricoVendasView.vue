@@ -4,8 +4,14 @@ import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
-import { useVendaStore } from "../../store/useVendaStore";
+import {
+  useVendaStore,
+  vendaPertenceTurnoAtual,
+  podeSolicitarReversao,
+  motivoBloqueioReversao,
+} from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
+import { isErroRedeOuIndisponivel } from "../../services/offline/networkError";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao, formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda } from "../../services/talaoImpressao";
@@ -29,6 +35,7 @@ const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
 
 onMounted(async () => {
+  sessaoStore.hidratar();
   configuracaoStore.hidratar();
   if (temApiConfigurada()) {
     try {
@@ -36,21 +43,24 @@ onMounted(async () => {
     } catch {
       // Mantem dados locais quando a API falhar.
     }
+    try {
+      if (sessaoStore.registerId) {
+        await sessaoStore.sincronizarTurnoRemoto();
+      }
+      await vendaStore.sincronizarHistorico();
+    } catch (erro) {
+      if (!isErroRedeOuIndisponivel(erro)) {
+        mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
+      }
+    }
   }
 });
 
-const vendasDoTurnoCaixa = computed(() => {
-  const caixaAtual = sessaoStore.caixaAtribuido;
-  const abertura = sessaoStore.aberturaEm ? new Date(sessaoStore.aberturaEm).getTime() : null;
-  if (!caixaAtual || !abertura) return [];
-  return vendaStore.vendas
-    .filter((venda) => {
-      const dataVenda = new Date(venda.data).getTime();
-      const mesmaCaixa = venda.caixa ? venda.caixa === caixaAtual : true;
-      return mesmaCaixa && dataVenda >= abertura;
-    })
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-});
+const vendasDoTurnoCaixa = computed(() =>
+  vendaStore.vendas
+    .filter((venda) => vendaPertenceTurnoAtual(venda, sessaoStore))
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+);
 
 const totalVendas = computed(() => vendasDoTurnoCaixa.value.length);
 const totalPaginas = computed(() => Math.max(1, Math.ceil(totalVendas.value / ITENS_POR_PAGINA)));
@@ -124,12 +134,9 @@ async function reimprimirVenda(venda) {
 }
 
 function abrirSolicitacaoReversao(venda) {
-  if (venda.estado === "Revertida") {
-    mostrarToastSwal(t("history.sales.toast.alreadyReverted"), "error");
-    return;
-  }
-  if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    mostrarToastSwal(t("history.sales.toast.reversalPending"), "error");
+  const bloqueio = motivoBloqueioReversao(venda, vendaStore.solicitacoesReversao);
+  if (bloqueio) {
+    mostrarToastSwal(bloqueio, "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -142,6 +149,7 @@ async function solicitarReversao() {
   const venda = vendaParaReversao.value;
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
+    venda,
     referencia: venda.referencia || String(venda.id),
     solicitadoPor: sessaoStore.utilizador || t("common.operator"),
     motivo: motivoReversao.value.trim(),
@@ -223,7 +231,7 @@ async function solicitarReversao() {
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                     :title="t('history.sales.requestReversal')"
                     :aria-label="t('history.sales.requestReversal')"
-                    :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                    :disabled="!podeSolicitarReversao(venda, vendaStore.solicitacoesReversao)"
                     @click="abrirSolicitacaoReversao(venda)"
                   >
                     <RotateCcw :size="15" />

@@ -518,6 +518,8 @@
     "noRegisterIdQuery": "Operador sem register_id para consultar caixa.",
     "activeSessionFailedShort": "Falha ao consultar sessão ativa.",
     "reversalAlreadyPending": "Já existe uma solicitação pendente para esta venda.",
+    "reversalSaleNotSynced": "Esta venda ainda não foi sincronizada com o servidor. Aguarde a ligação ou sincronize as vendas pendentes.",
+    "reversalInvalidSaleId": "Esta venda ainda não tem identificador válido no servidor. Sincronize-a antes de solicitar reversão.",
     "httpError": "Erro HTTP {status}"
   }
 }

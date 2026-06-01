@@ -60,6 +60,15 @@ class SaleReversalRequestController extends Controller
             return response()->json(['message' => 'A venda já está revertida.'], 409);
         }
 
+        $aprovada = SaleReversalRequest::query()
+            ->where('sale_id', $sale->id)
+            ->where('status', 'APPROVED')
+            ->exists();
+
+        if ($aprovada) {
+            return response()->json(['message' => 'A venda já foi revertida anteriormente.'], 409);
+        }
+
         $duplicada = SaleReversalRequest::query()
             ->where('sale_id', $sale->id)
             ->where('status', 'PENDING')

@@ -85,8 +85,28 @@ export async function solicitarReversaoIntegrada(payload) {
     await salesApi.solicitarReversao(payload);
     return { ok: true };
   } catch (erro) {
-    return { ok: false, erro: erro?.message || t("api.reversalFailed") };
+    return { ok: false, erro: erro?.message || t("api.reversalFailed"), status: erro?.status };
   }
+}
+
+export async function carregarSolicitacoesReversaoIntegrado() {
+  garantirBackendDisponivel();
+  if (!temApiConfigurada()) return [];
+  const resposta = await salesApi.listarSolicitacoesReversao();
+  return mapearLista(mapearSolicitacaoReversao, normalizarLista(resposta));
+}
+
+function mapearSolicitacaoReversao(item) {
+  if (!item || typeof item !== "object") return item;
+  const status = String(item.status || item.estado || "").toUpperCase();
+  return {
+    id: item.id,
+    saleId: item.saleId || item.sale_id || item.vendaId || item.venda_id,
+    status,
+    reason: item.reason || item.motivo || "",
+    requestedAt: item.requestedAt || item.requested_at || "",
+    decidedAt: item.decidedAt || item.decided_at || "",
+  };
 }
 
 function normalizarObjeto(resposta) {
