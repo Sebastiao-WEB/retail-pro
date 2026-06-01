@@ -3,6 +3,7 @@ import { temApiConfigurada } from "../api";
 import { limparTokens, salvarTokens } from "../services/authStorage";
 import { abrirTurnoIntegrado, fecharTurnoIntegrado, obterSessaoAtivaIntegrada } from "../services/integracaoApi";
 import { temCatalogoOffline } from "../services/offline/catalogCache";
+import { useProdutoStore } from "./useProdutoStore";
 import { podeTentarOperacaoOffline } from "../services/offline/networkError";
 import {
   enfileirarAberturaCaixaPendente,
@@ -101,6 +102,7 @@ export const useSessaoStore = defineStore("sessao", {
           refreshToken: refreshToken || "",
         });
       }
+      useProdutoStore().limparCatalogoPos();
       this.salvar();
     },
     logout() {

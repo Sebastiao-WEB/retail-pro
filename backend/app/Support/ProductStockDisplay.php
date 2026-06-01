@@ -15,13 +15,11 @@ final class ProductStockDisplay
 {
     /**
      * @param  Collection<string, float>|array<string, float>  $saldoLocalPorProduto  quantity por product_id no local pedido
-     * @param  Collection<string>|array<int, string>  $produtosComSaldoEmQualquerLocal
      */
     public static function quantidade(
         Product $product,
         ?string $locationId,
         Collection|array $saldoLocalPorProduto = [],
-        Collection|array $produtosComSaldoEmQualquerLocal = [],
     ): float {
         $global = (float) $product->stock;
 
@@ -37,33 +35,13 @@ final class ProductStockDisplay
             return (float) $mapaLocal[$product->id];
         }
 
-        $comSaldo = $produtosComSaldoEmQualquerLocal instanceof Collection
-            ? $produtosComSaldoEmQualquerLocal->contains($product->id)
-            : in_array($product->id, $produtosComSaldoEmQualquerLocal, true);
-
-        if ($comSaldo) {
-            return 0.0;
-        }
-
         return $global;
     }
 
-    public static function produtosComSaldoEmQualquerLocal(Collection $productIds): Collection
-    {
-        if ($productIds->isEmpty()) {
-            return collect();
-        }
-
-        return StockBalance::query()
-            ->whereIn('product_id', $productIds)
-            ->distinct()
-            ->pluck('product_id');
-    }
-
     /**
-     * Garante linha em stock_balances para baixar inventário quando só existe stock global.
+     * Saldo em stock_balances para baixar na venda, alinhado com products.stock quando necessário.
      */
-    public static function garantirSaldoLocalParaVenda(string $locationId, string $productId): ?StockBalance
+    public static function resolverSaldoParaVenda(string $locationId, string $productId): ?StockBalance
     {
         $balance = StockBalance::query()
             ->where('location_id', $locationId)
@@ -71,24 +49,35 @@ final class ProductStockDisplay
             ->lockForUpdate()
             ->first();
 
-        if ($balance) {
+        $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
+        if (! $produto) {
             return $balance;
         }
 
-        $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
-        if (! $produto || (float) $produto->stock <= 0) {
-            return null;
+        $global = (float) $produto->stock;
+        if ($global <= 0) {
+            return $balance;
         }
 
-        if (StockBalance::query()->where('product_id', $productId)->exists()) {
-            return null;
+        if (! $balance) {
+            if (StockBalance::query()->where('product_id', $productId)->exists()) {
+                return null;
+            }
+
+            return StockBalance::query()->create([
+                'id' => (string) Str::uuid(),
+                'location_id' => $locationId,
+                'product_id' => $productId,
+                'quantity' => $global,
+            ]);
         }
 
-        return StockBalance::query()->create([
-            'id' => (string) Str::uuid(),
-            'location_id' => $locationId,
-            'product_id' => $productId,
-            'quantity' => (float) $produto->stock,
-        ]);
+        return $balance;
+    }
+
+    /** @deprecated Use resolverSaldoParaVenda() */
+    public static function garantirSaldoLocalParaVenda(string $locationId, string $productId): ?StockBalance
+    {
+        return self::resolverSaldoParaVenda($locationId, $productId);
     }
 }
