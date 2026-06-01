@@ -437,7 +437,9 @@ async function sincronizarStockPos() {
       throw erro;
     }
   }
-  ajustarCarrinhoAoStock();
+  if (carrinhoStore.itens.length > 0) {
+    ajustarCarrinhoAoStock();
+  }
 }
 
 function idsProdutosCarrinho() {
@@ -845,6 +847,41 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     const venda = vendaBase;
 
+    let resultadoRegisto = null;
+    try {
+      resultadoRegisto = await vendaStore.registarVenda(venda);
+    } catch (erro) {
+      const stockDesatualizado =
+        erro instanceof ApiError &&
+        erro.status === 422 &&
+        String(erro.message || "").toLowerCase().includes("noutro caixa");
+
+      const mensagemStock =
+        erro instanceof ApiError && erro.status === 422
+          ? erro.message || t("pos.toast.insufficientStockToComplete")
+          : erro?.message || t("pos.toast.registerSaleFailed");
+
+      if (temApiConfigurada() && redeDisponivel()) {
+        try {
+          await sincronizarStockPos();
+          if (stockDesatualizado) {
+            validarStockCarrinhoAtual();
+          } else {
+            await atualizarStockRemoto(idsPendentes);
+          }
+        } catch {
+          // Mantém mensagem principal da venda rejeitada.
+        }
+      }
+
+      mostrarToastSwal(mensagemStock, "error");
+      return;
+    }
+
+    produtoStore.aplicarVenda(venda.itens, filtrosCatalogoProdutos());
+    carrinhoStore.limparCarrinho();
+    limparCampoPesquisa();
+
     if (opcoes.imprimir) {
       if (!window.api?.imprimirTalao) {
         mostrarToastSwal(t("pos.toast.printApiUnavailable"), "error");
@@ -877,38 +914,6 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
     }
 
-    let resultadoRegisto = null;
-    try {
-      resultadoRegisto = await vendaStore.registarVenda(venda);
-    } catch (erro) {
-      const stockDesatualizado =
-        erro instanceof ApiError &&
-        erro.status === 422 &&
-        String(erro.message || "").toLowerCase().includes("noutro caixa");
-
-      const mensagemStock =
-        erro instanceof ApiError && erro.status === 422
-          ? erro.message || t("pos.toast.insufficientStockToComplete")
-          : erro?.message || t("pos.toast.registerSaleFailed");
-
-      if (temApiConfigurada() && redeDisponivel()) {
-        try {
-          await sincronizarStockPos();
-          if (stockDesatualizado) {
-            validarStockCarrinhoAtual();
-          } else {
-            await atualizarStockRemoto(idsPendentes);
-          }
-        } catch {
-          // Mantém mensagem principal da venda rejeitada.
-        }
-      }
-
-      mostrarToastSwal(mensagemStock, "error");
-      return;
-    }
-
-    produtoStore.aplicarVenda(venda.itens);
     if (temApiConfigurada() && resultadoRegisto?.modo !== "offline") {
       try {
         await sincronizarStockPos();
@@ -917,7 +922,6 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       }
     }
 
-    carrinhoStore.limparCarrinho();
     valorPagoInteiro.value = "0";
     valorPagoDecimal.value = "00";
     modalImpressaoAberto.value = false;

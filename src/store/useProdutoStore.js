@@ -253,7 +253,7 @@ export const useProdutoStore = defineStore("produtos", {
         const stockVersion = entrada?.version ? String(entrada.version) : null;
         const produto = this.produtos.find((reg) => reg.id === productId);
         if (produto) {
-          produto.stock = Math.max(Number(produto.stock ?? 0), stock);
+          produto.stock = stock;
           produto.stockVersion = stockVersion;
         }
         const resultado = this.resultadosPesquisa.find((reg) => reg.id === productId);
@@ -273,7 +273,7 @@ export const useProdutoStore = defineStore("produtos", {
       this.produtos[indice] = normalizarProduto(produtoAtualizado);
       this.reconstruirIndiceCodigosBarras();
     },
-    aplicarVenda(itensVenda) {
+    aplicarVenda(itensVenda, filtros = {}) {
       itensVenda.forEach((item) => {
         const produto = this.produtos.find((reg) => reg.id === item.produtoId);
         if (!produto) return;
@@ -285,6 +285,9 @@ export const useProdutoStore = defineStore("produtos", {
             ? Math.round(novoStock * 1000) / 1000
             : novoStock;
       });
+      if (this.produtos.length) {
+        salvarCatalogoOffline(filtros, this.produtos);
+      }
     },
     reporStock(produtoId, quantidade) {
       const produto = this.produtos.find((reg) => reg.id === produtoId);

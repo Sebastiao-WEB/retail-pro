@@ -137,9 +137,7 @@ export const useSessaoStore = defineStore("sessao", {
           opened_at: aberturaEm,
         });
         if (!remoto?.ok) {
-          const filtrosCatalogo = this.sourceLocationId
-            ? { source_location_id: this.sourceLocationId }
-            : {};
+          const filtrosCatalogo = {};
           const podeOffline =
             podeTentarOperacaoOffline(remoto?.erro) && temCatalogoOffline(filtrosCatalogo);
 

@@ -39,6 +39,27 @@ final class ProductStockDisplay
     }
 
     /**
+     * Stock que a venda vai realmente consumir (saldo no local; senão global se não houver saldos).
+     */
+    public static function quantidadeParaVenda(Product $product, string $locationId, ?StockBalance $balance = null): float
+    {
+        if ($balance) {
+            return (float) $balance->quantity;
+        }
+
+        $global = (float) $product->stock;
+        if ($global <= 0) {
+            return 0.0;
+        }
+
+        if (StockBalance::query()->where('product_id', $product->id)->exists()) {
+            return 0.0;
+        }
+
+        return $global;
+    }
+
+    /**
      * Saldo em stock_balances para baixar na venda, alinhado com products.stock quando necessário.
      */
     public static function resolverSaldoParaVenda(string $locationId, string $productId): ?StockBalance

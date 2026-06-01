@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Support\ProductStockDisplay;
 use App\Services\StockAdjustmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -132,7 +133,9 @@ class StockController extends Controller
             $produto = $produtos->firstWhere('id', $productId);
 
             $data[$productId] = [
-                'quantity' => (float) ($produto?->stock ?? 0),
+                'quantity' => $produto
+                    ? ProductStockDisplay::quantidadeParaVenda($produto, $dados['location_id'], $balance)
+                    : 0.0,
                 'version' => optional($balance?->updated_at)->toJSON(),
             ];
         }
