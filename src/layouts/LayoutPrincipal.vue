@@ -7,6 +7,7 @@ import SidebarApp from "../components/SidebarApp.vue";
 import { useClienteStore } from "../store/useClienteStore";
 import { useVendaStore } from "../store/useVendaStore";
 import { useSessaoStore } from "../store/useSessaoStore";
+import { isErroRedeOuIndisponivel } from "../services/offline/networkError";
 import { mostrarToastSwal } from "../services/toast";
 
 const router = useRouter();
@@ -24,7 +25,9 @@ onMounted(async () => {
   try {
     await Promise.all([clienteStore.carregarClientes(), vendaStore.sincronizarHistorico()]);
   } catch (erro) {
-    mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
+    if (!isErroRedeOuIndisponivel(erro)) {
+      mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
+    }
   }
 });
 </script>

@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import { carregarProdutosIntegrado, consultarStockRemotoIntegrado } from "../services/integracaoApi";
+import { carregarCatalogoOffline, salvarCatalogoOffline } from "../services/offline/catalogCache";
+import { isErroRedeOuIndisponivel } from "../services/offline/networkError";
 
 function normalizarIva(valor) {
   const numero = Number(valor || 0);
@@ -91,15 +93,31 @@ export const useProdutoStore = defineStore("produtos", {
       });
       this.reconstruirIndiceCodigosBarras();
     },
+    aplicarCatalogoLocal(produtos, filtros = {}) {
+      this.produtos = produtos.map((produto) => normalizarProduto(produto));
+      this.catalogoPosChave = chaveCatalogoPos(filtros);
+      this.reconstruirIndiceCodigosBarras();
+      this.carregado = true;
+      return this.produtos;
+    },
+    carregarCatalogoDeCache(filtros = {}) {
+      const cache = carregarCatalogoOffline(filtros);
+      if (!cache?.produtos?.length) return null;
+      return this.aplicarCatalogoLocal(cache.produtos, filtros);
+    },
     async sincronizarProdutos(filtros = {}) {
       this.emProcessamento = true;
       try {
         const produtos = await carregarProdutosIntegrado(filtros);
-        this.produtos = produtos.map((produto) => normalizarProduto(produto));
-        this.catalogoPosChave = chaveCatalogoPos(filtros);
-        this.reconstruirIndiceCodigosBarras();
-        this.carregado = true;
+        this.aplicarCatalogoLocal(produtos, filtros);
+        salvarCatalogoOffline(filtros, this.produtos);
         return this.produtos;
+      } catch (erro) {
+        const cache = this.carregarCatalogoDeCache(filtros);
+        if (cache && isErroRedeOuIndisponivel(erro)) {
+          return cache;
+        }
+        throw erro;
       } finally {
         this.emProcessamento = false;
       }
@@ -141,13 +159,17 @@ export const useProdutoStore = defineStore("produtos", {
 
       if (!temApiConfigurada()) return null;
 
-      const produtos = await carregarProdutosIntegrado({
-        ...filtros,
-        barcode: normalizado,
-      });
-      const normalizados = produtos.map((produto) => normalizarProduto(produto));
-      if (normalizados.length) {
-        this.mesclarProdutosConsultados(normalizados);
+      try {
+        const produtos = await carregarProdutosIntegrado({
+          ...filtros,
+          barcode: normalizado,
+        });
+        const normalizados = produtos.map((produto) => normalizarProduto(produto));
+        if (normalizados.length) {
+          this.mesclarProdutosConsultados(normalizados);
+        }
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
       }
       return this.resolverPorCodigoBarras(normalizado);
     },
@@ -165,17 +187,25 @@ export const useProdutoStore = defineStore("produtos", {
           return this.resultadosPesquisa;
         }
 
-        let produtos = await carregarProdutosIntegrado(filtros);
-        if (!temApiConfigurada()) {
-          const consulta = termo.toLowerCase();
-          produtos = produtos.filter((produto) =>
-            `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
-          );
+        try {
+          let produtos = await carregarProdutosIntegrado(filtros);
+          if (!temApiConfigurada()) {
+            const consulta = termo.toLowerCase();
+            produtos = produtos.filter((produto) =>
+              `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
+            );
+          }
+          const normalizados = produtos.map((produto) => normalizarProduto(produto));
+          this.resultadosPesquisa = normalizados.slice(0, 5);
+          this.mesclarProdutosConsultados(normalizados);
+          return this.resultadosPesquisa;
+        } catch (erro) {
+          if (this.catalogoPosPronto && isErroRedeOuIndisponivel(erro)) {
+            this.resultadosPesquisa = this.pesquisarLocalmente(termo);
+            return this.resultadosPesquisa;
+          }
+          throw erro;
         }
-        const normalizados = produtos.map((produto) => normalizarProduto(produto));
-        this.resultadosPesquisa = normalizados.slice(0, 5);
-        this.mesclarProdutosConsultados(normalizados);
-        return this.resultadosPesquisa;
       } finally {
         this.pesquisaEmCurso = false;
       }
@@ -187,10 +217,16 @@ export const useProdutoStore = defineStore("produtos", {
         return;
       }
 
-      const stocks = await consultarStockRemotoIntegrado({
-        location_id: locationId,
-        product_ids: ids,
-      });
+      let stocks = {};
+      try {
+        stocks = await consultarStockRemotoIntegrado({
+          location_id: locationId,
+          product_ids: ids,
+        });
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+        return;
+      }
 
       Object.entries(stocks).forEach(([productId, quantity]) => {
         const stock = Number(quantity || 0);

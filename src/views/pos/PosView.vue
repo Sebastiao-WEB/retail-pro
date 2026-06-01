@@ -13,6 +13,9 @@ import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada, ApiError } from "../../api";
+import { temCatalogoOffline } from "../../services/offline/catalogCache";
+import { isErroRedeOuIndisponivel } from "../../services/offline/networkError";
+import { useOfflineStore } from "../../store/useOfflineStore";
 import { mostrarToastSwal } from "../../services/toast";
 import { intlLocale } from "../../services/localeStorage.js";
 import { GENERAL_CLIENT_CANONICAL, isGeneralClient } from "../../services/i18nHelper.js";
@@ -46,6 +49,7 @@ const clienteStore = useClienteStore();
 const vendaStore = useVendaStore();
 const configuracaoStore = useConfiguracaoStore();
 const sessaoStore = useSessaoStore();
+const offlineStore = useOfflineStore();
 const route = useRoute();
 const { t, locale } = useI18n();
 
@@ -217,7 +221,6 @@ async function processarLeituraCodigoBarras() {
   }
 
   await adicionarAoCarrinho(produtoAtualizado, quantidade);
-  limparCampoPesquisa();
 }
 
 async function focarCampoPesquisa() {
@@ -386,7 +389,14 @@ function ajustarCarrinhoAoStock() {
 
 async function sincronizarStockPos() {
   if (!temApiConfigurada()) return;
-  await produtoStore.garantirCatalogoPos(filtrosStockPos());
+  try {
+    await produtoStore.garantirCatalogoPos(filtrosStockPos());
+  } catch (erro) {
+    const cache = produtoStore.carregarCatalogoDeCache(filtrosStockPos());
+    if (!cache || !isErroRedeOuIndisponivel(erro)) {
+      throw erro;
+    }
+  }
   ajustarCarrinhoAoStock();
 }
 
@@ -515,14 +525,8 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
   if (listaPreVisualizacaoRef.value) {
     listaPreVisualizacaoRef.value.scrollTop = 0;
   }
-  focarQuantidadePreview(produtoAtualizado.id);
-}
-
-function focarQuantidadePreview(produtoId) {
-  const input = listaPreVisualizacaoRef.value?.querySelector(`[data-pos-quantidade="${produtoId}"]`);
-  if (!input) return;
-  input.focus({ preventScroll: true });
-  input.select();
+  limparCampoPesquisa();
+  await focarCampoPesquisa();
 }
 
 async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}) {
@@ -668,8 +672,10 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       try {
         await atualizarStockRemoto(idsPendentes);
       } catch (erro) {
-        mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
-        return;
+        if (!isErroRedeOuIndisponivel(erro) || !temCatalogoOffline(filtrosStockPos())) {
+          mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
+          return;
+        }
       }
       for (const item of itensPendentes) {
         const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
@@ -738,8 +744,9 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
     }
 
+    let resultadoRegisto = null;
     try {
-      await vendaStore.registarVenda(venda);
+      resultadoRegisto = await vendaStore.registarVenda(venda);
     } catch (erro) {
       const mensagemStock =
         erro instanceof ApiError && erro.status === 422
@@ -758,7 +765,9 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       return;
     }
 
-    if (temApiConfigurada()) {
+    if (resultadoRegisto?.modo === "offline") {
+      produtoStore.aplicarVenda(venda.itens);
+    } else if (temApiConfigurada()) {
       try {
         await sincronizarStockPos();
       } catch {
@@ -774,12 +783,16 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     modalImpressaoAberto.value = false;
     vendaPendente.value = null;
 
-    mostrarToastSwal(
-      opcoes.imprimir
-        ? t("pos.toast.salePrinted", { printer: configuracaoStore.impressoraPadrao })
-        : t("pos.toast.saleSuccess"),
-      "success"
-    );
+    const mensagemSucesso =
+      resultadoRegisto?.modo === "offline"
+        ? opcoes.imprimir
+          ? t("pos.toast.saleOfflinePrinted", { printer: configuracaoStore.impressoraPadrao })
+          : t("pos.toast.saleOfflineQueued")
+        : opcoes.imprimir
+          ? t("pos.toast.salePrinted", { printer: configuracaoStore.impressoraPadrao })
+          : t("pos.toast.saleSuccess");
+
+    mostrarToastSwal(mensagemSucesso, resultadoRegisto?.modo === "offline" ? "warning" : "success");
   } finally {
     if (pendente?.id) vendasEmRegisto.delete(pendente.id);
     processandoConclusaoVenda.value = false;
@@ -847,10 +860,17 @@ async function confirmarSolicitacaoReversao() {
   mostrarToastSwal(t("pos.toast.reversalSent"), "success");
 }
 
+function aoEventoSyncOffline() {
+  void offlineStore.sincronizarPendentes();
+}
+
 onMounted(async () => {
   window.addEventListener("keydown", capturarTeclasPosGlobais, true);
+  window.addEventListener("online", aoEventoSyncOffline);
+  window.addEventListener("retailpro:offline-sync", aoEventoSyncOffline);
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
+  await offlineStore.atualizarConectividade();
   if (temApiConfigurada()) {
     try {
       await configuracaoStore.hidratarDadosEmpresaRemotos();
@@ -858,8 +878,11 @@ onMounted(async () => {
       // Mantem dados locais quando a API falhar.
     }
     const sincronizacao = await sessaoStore.sincronizarTurnoRemoto();
-    if (!sincronizacao.remotoOk && sincronizacao.erro) {
+    if (!sincronizacao.remotoOk && !sincronizacao.offlineLocal && sincronizacao.erro) {
       mostrarToastSwal(sincronizacao.erro, "error");
+    }
+    if (offlineStore.totalPendentes) {
+      void offlineStore.sincronizarPendentes();
     }
   }
   if (!sessaoStore.turnoAberto) {
@@ -880,6 +903,8 @@ onActivated(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", capturarTeclasPosGlobais, true);
+  window.removeEventListener("online", aoEventoSyncOffline);
+  window.removeEventListener("retailpro:offline-sync", aoEventoSyncOffline);
   pararSincronizacaoStockPeriodica();
 });
 
@@ -888,19 +913,27 @@ async function abrirTurnoCaixa() {
   processandoAberturaCaixa.value = true;
   const fundo = Number(fundoInicialInput.value || 0);
   const resultado = await sessaoStore.abrirTurno({ fundoInicial: fundo });
-  if (temApiConfigurada() && !resultado.remotoOk) {
+  if (temApiConfigurada() && !resultado.remotoOk && !resultado.offlineLocal) {
     mostrarToastSwal(resultado.erro || t("pos.toast.openRegisterApiFailed"), "error");
     processandoAberturaCaixa.value = false;
     return;
   }
   modalAberturaCaixa.value = false;
   if (temApiConfigurada()) {
-    if (resultado.remotoOk) {
+    if (resultado.offlineLocal) {
+      mostrarToastSwal(t("pos.toast.openRegisterOffline"), "warning");
+    } else if (resultado.remotoOk) {
       mostrarToastSwal(t("pos.toast.openRegisterSuccessRemote", { amount: formatarMT(fundo) }), "success");
     } else {
       mostrarToastSwal(t("pos.toast.openRegisterSuccessLocal", { error: resultado.erro || "erro não detalhado" }), "warning");
     }
-    await sincronizarStockPos();
+    try {
+      await sincronizarStockPos();
+    } catch {
+      if (!produtoStore.catalogoPosPronto) {
+        mostrarToastSwal(t("pos.toast.catalogCacheRequired"), "error");
+      }
+    }
   } else {
     mostrarToastSwal(t("pos.toast.openRegisterSuccess", { amount: formatarMT(fundo) }), "success");
   }
@@ -957,7 +990,9 @@ async function confirmarFechoCaixa() {
     return;
   }
 
-  let mensagemSucesso = t("pos.toast.closeComplete");
+  let mensagemSucesso = offlineStore.totalPendentes
+    ? t("pos.toast.closeCompleteOfflinePending", { count: offlineStore.totalPendentes })
+    : t("pos.toast.closeComplete");
   if (window.api?.imprimirRelatorioFecho && configuracaoStore.impressoraPadrao) {
     const impressao = await enviarRelatorioFechoParaImpressao({
       relatorio,
@@ -1057,7 +1092,7 @@ async function confirmarFechoCaixa() {
                     :title="t('pos.catalog.addToCart')"
                     :disabled="!podeAdicionarProduto(produto)"
                     :class="!podeAdicionarProduto(produto) ? 'cursor-not-allowed opacity-40' : ''"
-                    @click="adicionarAoCarrinho(produto)"
+                    @click="void adicionarAoCarrinho(produto)"
                   >
                     <span class="relative inline-flex h-4 w-4 items-center justify-center">
                       <ShoppingCartIcon :size="14" />

@@ -7,7 +7,7 @@ import ModalBase from "./ModalBase.vue";
 import SeletorIdioma from "./SeletorIdioma.vue";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { apiConfig, authApi, modoApiAtivo, temApiConfigurada } from "../api";
-import { verificarConexaoBackend } from "../services/backendStatus";
+import { useOfflineStore } from "../store/useOfflineStore";
 import { intlLocale } from "../services/localeStorage.js";
 import {
   Activity,
@@ -27,6 +27,7 @@ const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const sessaoStore = useSessaoStore();
+const offlineStore = useOfflineStore();
 
 const dataAtual = computed(() =>
   new Intl.DateTimeFormat(intlLocale(locale.value), {
@@ -62,13 +63,17 @@ const textoStatusBackend = computed(() => {
   if (!modoApiAtivo()) return t("header.backend.mock");
   if (!temApiConfigurada()) return t("header.backend.notConfigured");
   if (verificandoBackend.value) return t("header.backend.checking");
-  return backendConectado.value ? t("header.backend.connected") : t("header.backend.disconnected");
+  if (offlineStore.totalPendentes > 0) {
+    return t("header.backend.offlinePending", { count: offlineStore.totalPendentes });
+  }
+  return backendConectado.value ? t("header.backend.connected") : t("header.backend.offlineReady");
 });
 const classeStatusBackend = computed(() => {
   if (!modoApiAtivo()) return "bg-slate-100 text-slate-600";
   if (!temApiConfigurada()) return "bg-amber-100 text-amber-800";
   if (verificandoBackend.value) return "bg-blue-100 text-blue-800";
-  return backendConectado.value ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700";
+  if (offlineStore.totalPendentes > 0) return "bg-amber-100 text-amber-900";
+  return backendConectado.value ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-800";
 });
 const timeoutBackendMs = computed(() => Number(apiConfig.timeoutMs || 15000));
 const endpointBackend = computed(() => ultimoStatusBackend.value?.endpoint || t("common.notAvailable"));
@@ -91,11 +96,18 @@ const motivoDetalhadoBackend = computed(() => {
 async function atualizarStatusBackend() {
   if (!modoApiAtivo()) return;
   verificandoBackend.value = true;
-  const status = await verificarConexaoBackend();
-  ultimoStatusBackend.value = status;
+  const resultado = await offlineStore.atualizarConectividade();
+  ultimoStatusBackend.value = { conectado: resultado.conectado, motivo: resultado.conectado ? "ok" : "network" };
   ultimaVerificacaoEm.value = new Date().toISOString();
-  backendConectado.value = !!status.conectado;
+  backendConectado.value = !!resultado.conectado;
   verificandoBackend.value = false;
+}
+
+async function sincronizarManualmente() {
+  const resultado = await offlineStore.sincronizarPendentes();
+  if (resultado.enviados > 0) {
+    window.dispatchEvent(new CustomEvent("retailpro:offline-sync-complete", { detail: resultado }));
+  }
 }
 
 onMounted(async () => {
@@ -231,6 +243,17 @@ async function confirmarSaida() {
           <span class="inline-flex items-center gap-1.5">
             <X :size="14" />
             <span>{{ t("common.close") }}</span>
+          </span>
+        </BotaoBase>
+        <BotaoBase
+          v-if="offlineStore.totalPendentes > 0"
+          variante="primario"
+          :disabled="offlineStore.sincronizando"
+          @click="sincronizarManualmente"
+        >
+          <span class="inline-flex items-center gap-1.5">
+            <RotateCcw :size="14" :class="offlineStore.sincronizando ? 'animate-spin' : ''" />
+            <span>{{ t("header.backendModal.syncNow") }}</span>
           </span>
         </BotaoBase>
         <BotaoBase variante="aviso" :disabled="verificandoBackend" @click="atualizarStatusBackend">

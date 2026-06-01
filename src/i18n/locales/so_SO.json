@@ -132,6 +132,8 @@
       "checking": "Waa la hubinayaa backend-ka...",
       "connected": "Backend waa ku xiran yahay",
       "disconnected": "Backend waa go'an yahay",
+      "offlineReady": "Habka offline (buugga maxalliga ah)",
+      "offlinePending": "Offline · {count} sugaya",
       "reasonOk": "Isku xirka iyo jawaabtu waa sax.",
       "reasonNetwork": "Shabakadda ama waqtiga ayaa ku fashilmay gaadhista backend-ka.",
       "reasonNoUrl": "VITE_API_MODE=api waa firfircoon laakiin VITE_API_URL ma jirto.",
@@ -153,7 +155,8 @@
       "timeout": "Waqtiga la habeeyay:",
       "lastHttpStatus": "Xaaladda HTTP ee ugu dambeysay:",
       "lastCheck": "Hubintii ugu dambeysay:",
-      "description": "Baaritaanka hawlgalka ee backend-ka API waqtiga dhabta ah."
+      "description": "Baaritaanka hawlgalka ee backend-ka API waqtiga dhabta ah.",
+      "syncNow": "Isku dubarid kuwa sugaya"
     }
   },
   "settings": {
@@ -457,6 +460,11 @@
       "registerSaleFailed": "Waa fashilantay diiwaangelinta iibka API-ga.",
       "salePrinted": "Iibka waa la sameeyay oo waxaa loo diray daabacaadda {printer}.",
       "saleSuccess": "Iibka si guul leh ayaa loo sameeyay.",
+      "saleOfflineQueued": "Iibka waa lagu kaydiyay maxalliga. Shabakadda soo noqoto ayaa la isku dubaridayaa.",
+      "saleOfflinePrinted": "Iibka offline waa la kaydiyay, rasiidkana waxaa loo diray {printer}.",
+      "openRegisterOffline": "Sanduuqa waa la furay habka offline. Iibabka waa la isku dubaridayaa marka dambe.",
+      "catalogCacheRequired": "Buugga maxalliga ah ma jiro. Ugu yaraan hal mar fur sanduuqa adigoo internet ku jira.",
+      "closeCompleteOfflinePending": "Sanduuqa waa la xiray maxalliga. {count} hawlgal ayaa sugaya isku dubarid.",
       "reprintDesktopOnly": "Dib u daabacaadda waxaa laga heli karaa kaliya nooca desktop (Electron).",
       "setPrinterToReprint": "Deji daabacaha caadiga ah Habaynta si aad dib u daabacdo.",
       "reprintFailed": "Waa fashilantay dib u daabacaadda rasiidka.",
