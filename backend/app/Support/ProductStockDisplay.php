@@ -43,11 +43,14 @@ final class ProductStockDisplay
      */
     public static function quantidadeParaVenda(Product $product, string $locationId, ?StockBalance $balance = null): float
     {
+        $global = (float) $product->stock;
+
         if ($balance) {
-            return (float) $balance->quantity;
+            $local = (float) $balance->quantity;
+
+            return $local > 0 ? $local : max(0.0, $global);
         }
 
-        $global = (float) $product->stock;
         if ($global <= 0) {
             return 0.0;
         }
@@ -91,6 +94,11 @@ final class ProductStockDisplay
                 'product_id' => $productId,
                 'quantity' => $global,
             ]);
+        }
+
+        if ((float) $balance->quantity <= 0 && $global > 0) {
+            $balance->quantity = $global;
+            $balance->save();
         }
 
         return $balance;
