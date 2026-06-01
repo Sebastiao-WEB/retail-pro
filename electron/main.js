@@ -152,18 +152,34 @@ function obterIconeAplicacao() {
 
 function createWindow() {
   const iconeAplicacao = obterIconeAplicacao();
+  const modoJanela = process.env.POS_DESKTOP_WINDOWED === "1";
   const window = new BrowserWindow({
-    width: 1280,
-    height: 735,
-    minWidth: 1280,
-    minHeight: 735,
-    maxWidth: 1280,
-    maxHeight: 735,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
+    show: false,
     backgroundColor: "#0f172a",
     icon: iconeAplicacao,
+    autoHideMenuBar: true,
+    ...(modoJanela
+      ? {
+          width: 1280,
+          height: 735,
+          minWidth: 1280,
+          minHeight: 735,
+          maxWidth: 1280,
+          maxHeight: 735,
+          resizable: false,
+          maximizable: false,
+          fullscreenable: false,
+        }
+      : {
+          frame: false,
+          fullscreen: true,
+          alwaysOnTop: true,
+          resizable: false,
+          maximizable: false,
+          minimizable: false,
+          fullscreenable: true,
+          skipTaskbar: false,
+        }),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -172,6 +188,23 @@ function createWindow() {
     },
   });
   mainWindow = window;
+
+  window.once("ready-to-show", () => {
+    if (!modoJanela) {
+      window.setAlwaysOnTop(true, "screen-saver");
+      window.setFullScreen(true);
+      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      window.focus();
+    }
+    window.show();
+  });
+
+  window.on("blur", () => {
+    if (!modoJanela && !window.isDestroyed()) {
+      window.setAlwaysOnTop(true, "screen-saver");
+      window.focus();
+    }
+  });
 
   // Fallback para ambientes onde preload não injeta window.api.
   window.webContents.on("did-finish-load", async () => {
