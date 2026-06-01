@@ -437,7 +437,9 @@ async function sincronizarStockPos() {
       throw erro;
     }
   }
-  ajustarCarrinhoAoStock();
+  if (carrinhoStore.itens.length > 0) {
+    ajustarCarrinhoAoStock();
+  }
 }
 
 function idsProdutosCarrinho() {
@@ -845,38 +847,6 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
     const venda = vendaBase;
 
-    if (opcoes.imprimir) {
-      if (!window.api?.imprimirTalao) {
-        mostrarToastSwal(t("pos.toast.printApiUnavailable"), "error");
-        return;
-      }
-      if (!configuracaoStore.impressoraPadrao) {
-        mostrarToastSwal(t("pos.toast.setPrinterToPrint"), "error");
-        return;
-      }
-      imprimindoAgora.value = true;
-      const resultado = await enviarTalaoParaImpressao({
-        venda,
-        configuracao: configuracaoStore,
-        opcoes: {
-          detalharIva: true,
-          copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
-          corteAutomatico: !!configuracaoStore.corteAutomatico,
-          abrirGaveta: false,
-        },
-      });
-      imprimindoAgora.value = false;
-      if (!resultado?.ok) {
-        mostrarToastSwal(resultado?.error || t("pos.toast.printFailed"), "error");
-        return;
-      }
-    }
-
-    const resultadoGaveta = await abrirGavetaPosVenda({ venda, configuracao: configuracaoStore });
-    if (!resultadoGaveta?.ok && !resultadoGaveta?.skipped) {
-      mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
-    }
-
     let resultadoRegisto = null;
     try {
       resultadoRegisto = await vendaStore.registarVenda(venda);
@@ -909,6 +879,41 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     }
 
     produtoStore.aplicarVenda(venda.itens);
+    carrinhoStore.limparCarrinho();
+    limparCampoPesquisa();
+
+    if (opcoes.imprimir) {
+      if (!window.api?.imprimirTalao) {
+        mostrarToastSwal(t("pos.toast.printApiUnavailable"), "error");
+        return;
+      }
+      if (!configuracaoStore.impressoraPadrao) {
+        mostrarToastSwal(t("pos.toast.setPrinterToPrint"), "error");
+        return;
+      }
+      imprimindoAgora.value = true;
+      const resultado = await enviarTalaoParaImpressao({
+        venda,
+        configuracao: configuracaoStore,
+        opcoes: {
+          detalharIva: true,
+          copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
+          corteAutomatico: !!configuracaoStore.corteAutomatico,
+          abrirGaveta: false,
+        },
+      });
+      imprimindoAgora.value = false;
+      if (!resultado?.ok) {
+        mostrarToastSwal(resultado?.error || t("pos.toast.printFailed"), "error");
+        return;
+      }
+    }
+
+    const resultadoGaveta = await abrirGavetaPosVenda({ venda, configuracao: configuracaoStore });
+    if (!resultadoGaveta?.ok && !resultadoGaveta?.skipped) {
+      mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
+    }
+
     if (temApiConfigurada() && resultadoRegisto?.modo !== "offline") {
       try {
         await sincronizarStockPos();
@@ -917,7 +922,6 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       }
     }
 
-    carrinhoStore.limparCarrinho();
     valorPagoInteiro.value = "0";
     valorPagoDecimal.value = "00";
     modalImpressaoAberto.value = false;
