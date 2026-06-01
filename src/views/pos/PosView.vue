@@ -14,6 +14,7 @@ import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada, ApiError } from "../../api";
 import { temCatalogoOffline } from "../../services/offline/catalogCache";
+import { construirStockVersionsParaVenda } from "../../services/stockDisponibilidade";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../../services/offline/networkError";
 import { useOfflineStore } from "../../store/useOfflineStore";
 import { mostrarToastSwal } from "../../services/toast";
@@ -622,10 +623,12 @@ function finalizarVenda() {
 
 function montarVendaConfirmada(idVenda) {
   const itens = carrinhoStore.itens.map((item) => ({ ...item }));
+  const stockVersions = construirStockVersionsParaVenda(itens, produtoStore.produtos);
   return {
     id: idVenda,
     cliente: cliente.value,
     itens,
+    stockVersions,
     caixa: sessaoStore.caixaAtribuido,
     registerId: sessaoStore.registerId,
     registerCodigo: sessaoStore.registerCodigo,
@@ -765,6 +768,11 @@ async function concluirVenda(opcoes = { imprimir: true }) {
     try {
       resultadoRegisto = await vendaStore.registarVenda(venda);
     } catch (erro) {
+      const stockDesatualizado =
+        erro instanceof ApiError &&
+        erro.status === 422 &&
+        String(erro.message || "").toLowerCase().includes("noutro caixa");
+
       const mensagemStock =
         erro instanceof ApiError && erro.status === 422
           ? erro.message || t("pos.toast.insufficientStockToComplete")
@@ -772,7 +780,12 @@ async function concluirVenda(opcoes = { imprimir: true }) {
 
       if (temApiConfigurada() && redeDisponivel()) {
         try {
-          await atualizarStockRemoto(idsPendentes);
+          await sincronizarStockPos();
+          if (stockDesatualizado) {
+            validarStockCarrinhoAtual();
+          } else {
+            await atualizarStockRemoto(idsPendentes);
+          }
         } catch {
           // Mantém mensagem principal da venda rejeitada.
         }
@@ -874,14 +887,39 @@ async function confirmarSolicitacaoReversao() {
   mostrarToastSwal(t("pos.toast.reversalSent"), "success");
 }
 
-function aoEventoSyncOffline() {
-  void offlineStore.sincronizarPendentes();
+async function refrescarPosAposSyncOffline(detail = {}) {
+  const enviados = Number(detail?.enviados || 0);
+  if (enviados <= 0) return;
+
+  try {
+    await vendaStore.sincronizarHistorico();
+  } catch {
+    // Mantém histórico local se o remoto falhar.
+  }
+
+  if (menuPosAtivo.value !== "venda") return;
+
+  try {
+    await sincronizarStockPos();
+    validarStockCarrinhoAtual();
+  } catch {
+    // O operador pode actualizar manualmente ao voltar ao POS.
+  }
+}
+
+function aoVoltarOnline() {
+  void offlineStore.atualizarConectividade();
+}
+
+function aoSyncOfflineConcluido(evento) {
+  void refrescarPosAposSyncOffline(evento?.detail || {});
 }
 
 onMounted(async () => {
   window.addEventListener("keydown", capturarTeclasPosGlobais, true);
-  window.addEventListener("online", aoEventoSyncOffline);
-  window.addEventListener("retailpro:offline-sync", aoEventoSyncOffline);
+  window.addEventListener("online", aoVoltarOnline);
+  window.addEventListener("retailpro:offline-sync", aoSyncOfflineConcluido);
+  window.addEventListener("retailpro:offline-sync-complete", aoSyncOfflineConcluido);
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
   await offlineStore.atualizarConectividade();
@@ -917,8 +955,9 @@ onActivated(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", capturarTeclasPosGlobais, true);
-  window.removeEventListener("online", aoEventoSyncOffline);
-  window.removeEventListener("retailpro:offline-sync", aoEventoSyncOffline);
+  window.removeEventListener("online", aoVoltarOnline);
+  window.removeEventListener("retailpro:offline-sync", aoSyncOfflineConcluido);
+  window.removeEventListener("retailpro:offline-sync-complete", aoSyncOfflineConcluido);
   pararSincronizacaoStockPeriodica();
 });
 

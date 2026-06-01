@@ -7,6 +7,8 @@ export const salesApi = {
     if (params.register_id) query.set("register_id", String(params.register_id));
     if (params.from) query.set("from", params.from);
     if (params.to) query.set("to", params.to);
+    if (params.page) query.set("page", String(params.page));
+    if (params.per_page) query.set("per_page", String(params.per_page));
     const rota = query.toString() ? `/sales?${query}` : "/sales";
     return httpRequest(rota);
   },

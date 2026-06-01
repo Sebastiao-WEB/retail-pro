@@ -120,11 +120,17 @@ class StockController extends Controller
         $balances = StockBalance::query()
             ->where('location_id', $dados['location_id'])
             ->whereIn('product_id', $productIds)
-            ->pluck('quantity', 'product_id');
+            ->get(['product_id', 'quantity', 'updated_at']);
+
+        $porProduto = $balances->keyBy('product_id');
 
         $data = [];
         foreach ($productIds as $productId) {
-            $data[$productId] = (float) ($balances[$productId] ?? 0);
+            $balance = $porProduto->get($productId);
+            $data[$productId] = [
+                'quantity' => (float) ($balance?->quantity ?? 0),
+                'version' => optional($balance?->updated_at)->toJSON(),
+            ];
         }
 
         return response()->json(['data' => $data]);

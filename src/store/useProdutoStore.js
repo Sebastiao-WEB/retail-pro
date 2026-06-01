@@ -228,15 +228,18 @@ export const useProdutoStore = defineStore("produtos", {
         return;
       }
 
-      Object.entries(stocks).forEach(([productId, quantity]) => {
-        const stock = Number(quantity || 0);
+      Object.entries(stocks).forEach(([productId, entrada]) => {
+        const stock = Number(entrada?.quantity ?? entrada ?? 0);
+        const stockVersion = entrada?.version ? String(entrada.version) : null;
         const produto = this.produtos.find((reg) => reg.id === productId);
         if (produto) {
           produto.stock = stock;
+          produto.stockVersion = stockVersion;
         }
         const resultado = this.resultadosPesquisa.find((reg) => reg.id === productId);
         if (resultado) {
           resultado.stock = stock;
+          resultado.stockVersion = stockVersion;
         }
       });
     },

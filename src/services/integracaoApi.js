@@ -17,6 +17,7 @@ import {
   mapearVenda,
 } from "../api/mappers";
 import { obterClientes, obterProdutos, obterVendas } from "./dadosMockados";
+import { normalizarMapaDisponibilidade } from "./stockDisponibilidade";
 
 function normalizarLista(resposta) {
   if (Array.isArray(resposta)) return resposta;
@@ -40,9 +41,7 @@ export async function consultarStockRemotoIntegrado({ location_id, product_ids =
     return {};
   }
 
-  return Object.fromEntries(
-    Object.entries(dados).map(([productId, quantity]) => [productId, Number(quantity || 0)])
-  );
+  return normalizarMapaDisponibilidade(dados);
 }
 
 export async function carregarClientesIntegrado() {
@@ -57,10 +56,20 @@ export async function carregarHistoricoIntegrado(filtros = {}) {
     const vendas = await obterVendas();
     return { vendas };
   }
-  const vendasResp = await salesApi.listar(filtros);
-  return {
-    vendas: mapearLista(mapearVenda, normalizarLista(vendasResp)),
-  };
+
+  const porPagina = Math.min(50, Math.max(1, Number(filtros.per_page || 50)));
+  let pagina = 1;
+  let ultimaPagina = 1;
+  const vendas = [];
+
+  do {
+    const vendasResp = await salesApi.listar({ ...filtros, page: pagina, per_page: porPagina });
+    vendas.push(...mapearLista(mapearVenda, normalizarLista(vendasResp)));
+    ultimaPagina = Math.max(1, Number(vendasResp?.meta?.last_page || 1));
+    pagina += 1;
+  } while (pagina <= ultimaPagina);
+
+  return { vendas };
 }
 
 export async function criarVendaIntegrada(payload) {
