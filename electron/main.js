@@ -140,9 +140,13 @@ async function obterDadosImpressoras(alvo) {
 
 function obterIconeAplicacao() {
   const candidatos = [
+    process.resourcesPath ? path.join(process.resourcesPath, "icon.png") : null,
+    path.join(app.getAppPath(), "build/icon.png"),
     path.join(app.getAppPath(), "src/assets/rp.png"),
+    path.join(process.cwd(), "build/icon.png"),
     path.join(process.cwd(), "src/assets/rp.png"),
-  ];
+  ].filter(Boolean);
+
   return candidatos.find((caminho) => fs.existsSync(caminho));
 }
 

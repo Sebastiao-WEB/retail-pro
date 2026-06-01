@@ -46,12 +46,30 @@ async function imprimirRawDarwin(deviceName, buffer) {
   await executarComando("lp", ["-d", deviceName, "-o", "raw"], buffer);
 }
 
-function resolverScriptImpressaoRaw() {
+function estaDentroDoAsar(baseDir) {
+  return /[/\\]app\.asar([/\\]|$)/.test(baseDir);
+}
+
+function resolverScriptDesempacotado(baseDir) {
   const scriptName = "imprimirRawWindows.ps1";
-  const candidatos = [
-    path.join(__dirname, scriptName),
-    path.join(__dirname, "..", "app.asar.unpacked", "electron", scriptName),
-  ];
+  const correspondencia = baseDir.match(/^(.*)[/\\]app\.asar([/\\].*)?$/);
+
+  if (correspondencia) {
+    return path.join(correspondencia[1], "app.asar.unpacked", "electron", scriptName);
+  }
+
+  return path.normalize(path.join(baseDir, "..", "app.asar.unpacked", "electron", scriptName));
+}
+
+export function resolverScriptImpressaoRaw(baseDir = __dirname) {
+  const scriptName = "imprimirRawWindows.ps1";
+  const scriptDesempacotado = resolverScriptDesempacotado(baseDir);
+  const emAsar = estaDentroDoAsar(baseDir);
+
+  // Dentro do app.asar o Node ve o .ps1, mas o PowerShell nao consegue executar -File ai.
+  const candidatos = emAsar
+    ? [scriptDesempacotado]
+    : [path.join(baseDir, scriptName), scriptDesempacotado];
 
   for (const candidato of candidatos) {
     try {
@@ -61,7 +79,9 @@ function resolverScriptImpressaoRaw() {
     }
   }
 
-  return path.join(__dirname, scriptName);
+  throw new Error(
+    "Script de impressao RAW nao encontrado. Reinstale o RetailPro POS ou contacte o suporte."
+  );
 }
 
 async function imprimirRawWindows(deviceName, buffer) {

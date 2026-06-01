@@ -31,7 +31,14 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "build/icon.png",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
     ],
     "directories": {
       "output": "release"
@@ -44,7 +51,7 @@
         "AppImage",
         "deb"
       ],
-      "icon": "src/assets/rp.png",
+      "icon": "build/icon.png",
       "category": "Office"
     },
     "win": {
@@ -56,7 +63,7 @@
           ]
         }
       ],
-      "icon": "src/assets/rp.png",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
