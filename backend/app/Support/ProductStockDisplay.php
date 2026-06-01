@@ -15,13 +15,11 @@ final class ProductStockDisplay
 {
     /**
      * @param  Collection<string, float>|array<string, float>  $saldoLocalPorProduto  quantity por product_id no local pedido
-     * @param  Collection<string>|array<int, string>  $produtosComSaldoEmQualquerLocal
      */
     public static function quantidade(
         Product $product,
         ?string $locationId,
         Collection|array $saldoLocalPorProduto = [],
-        Collection|array $produtosComSaldoEmQualquerLocal = [],
     ): float {
         $global = (float) $product->stock;
 
@@ -37,27 +35,7 @@ final class ProductStockDisplay
             return (float) $mapaLocal[$product->id];
         }
 
-        $comSaldo = $produtosComSaldoEmQualquerLocal instanceof Collection
-            ? $produtosComSaldoEmQualquerLocal->contains($product->id)
-            : in_array($product->id, $produtosComSaldoEmQualquerLocal, true);
-
-        if ($comSaldo) {
-            return 0.0;
-        }
-
         return $global;
-    }
-
-    public static function produtosComSaldoEmQualquerLocal(Collection $productIds): Collection
-    {
-        if ($productIds->isEmpty()) {
-            return collect();
-        }
-
-        return StockBalance::query()
-            ->whereIn('product_id', $productIds)
-            ->distinct()
-            ->pluck('product_id');
     }
 
     /**

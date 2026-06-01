@@ -35,19 +35,16 @@ class ProductController extends Controller
 
         $produtos = $query->orderBy('nome')->get();
         $stocksPorProduto = [];
-        $produtosComSaldoEmQualquerLocal = collect();
 
         if ($locationId !== '') {
-            $productIds = $produtos->pluck('id');
             $stocksPorProduto = StockBalance::query()
                 ->where('location_id', $locationId)
-                ->whereIn('product_id', $productIds)
+                ->whereIn('product_id', $produtos->pluck('id'))
                 ->pluck('quantity', 'product_id')
                 ->all();
-            $produtosComSaldoEmQualquerLocal = ProductStockDisplay::produtosComSaldoEmQualquerLocal($productIds);
         }
 
-        $lista = $produtos->map(function (Product $produto) use ($locationId, $stocksPorProduto, $produtosComSaldoEmQualquerLocal) {
+        $lista = $produtos->map(function (Product $produto) use ($locationId, $stocksPorProduto) {
             return [
                 'id' => $produto->id,
                 'nome' => $produto->nome,
@@ -63,7 +60,6 @@ class ProductController extends Controller
                     $produto,
                     $locationId !== '' ? $locationId : null,
                     $stocksPorProduto,
-                    $produtosComSaldoEmQualquerLocal,
                 ),
             ];
         });

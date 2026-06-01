@@ -126,7 +126,6 @@ class StockController extends Controller
 
         $porProduto = $balances->keyBy('product_id');
         $produtos = Product::query()->whereIn('id', $productIds)->get();
-        $produtosComSaldoEmQualquerLocal = ProductStockDisplay::produtosComSaldoEmQualquerLocal(collect($productIds));
 
         $data = [];
         foreach ($productIds as $productId) {
@@ -134,12 +133,7 @@ class StockController extends Controller
             $produto = $produtos->firstWhere('id', $productId);
             $saldoLocal = $balance ? [$productId => (float) $balance->quantity] : [];
             $quantity = $produto
-                ? ProductStockDisplay::quantidade(
-                    $produto,
-                    $dados['location_id'],
-                    $saldoLocal,
-                    $produtosComSaldoEmQualquerLocal,
-                )
+                ? ProductStockDisplay::quantidade($produto, $dados['location_id'], $saldoLocal)
                 : 0.0;
 
             $data[$productId] = [

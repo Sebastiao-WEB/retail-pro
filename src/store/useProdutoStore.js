@@ -1,7 +1,11 @@
 import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import { carregarProdutosIntegrado, consultarStockRemotoIntegrado } from "../services/integracaoApi";
-import { carregarCatalogoOffline, salvarCatalogoOffline } from "../services/offline/catalogCache";
+import {
+  carregarCatalogoOffline,
+  limparCatalogosOffline,
+  salvarCatalogoOffline,
+} from "../services/offline/catalogCache";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/networkError";
 import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
 
@@ -102,6 +106,14 @@ export const useProdutoStore = defineStore("produtos", {
       this.reconstruirIndiceCodigosBarras();
       this.carregado = true;
       return this.produtos;
+    },
+    limparCatalogoPos() {
+      this.produtos = [];
+      this.resultadosPesquisa = [];
+      this.carregado = false;
+      this.catalogoPosChave = null;
+      this.indiceCodigosBarras = {};
+      limparCatalogosOffline();
     },
     carregarCatalogoDeCache(filtros = {}) {
       const cache = carregarCatalogoOffline(filtros);

@@ -34,3 +34,13 @@ export function temCatalogoOffline(filtros = {}) {
   const dados = carregarCatalogoOffline(filtros);
   return Array.isArray(dados?.produtos) && dados.produtos.length > 0;
 }
+
+export function limparCatalogosOffline() {
+  if (typeof localStorage === "undefined") return;
+  const chaves = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const chave = localStorage.key(i);
+    if (chave?.startsWith(PREFIXO)) chaves.push(chave);
+  }
+  chaves.forEach((chave) => localStorage.removeItem(chave));
+}
