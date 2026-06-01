@@ -9,6 +9,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Support\ProductStockDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -144,6 +145,10 @@ class SaleController extends Controller
                         ->where('product_id', $produtoId)
                         ->lockForUpdate()
                         ->first();
+
+                    if (! $balance) {
+                        $balance = ProductStockDisplay::garantirSaldoLocalParaVenda($locationId, $produtoId);
+                    }
 
                     $versaoCliente = trim((string) ($stockVersions[$produtoId] ?? ''));
                     if ($versaoCliente !== '' && $balance) {

@@ -36,6 +36,26 @@ class ProductApiTest extends TestCase
         $this->assertSame('UN', collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['unidadeVenda']);
     }
 
+    public function test_lista_stock_por_local_usa_stock_global_sem_saldo_local(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['stock' => 55]);
+
+        StockBalance::query()
+            ->where('product_id', $produto->id)
+            ->delete();
+
+        $resposta = $this->getJson(
+            '/api/v1/products?source_location_id='.$ambiente['location']->id,
+            $this->authHeaders($token)
+        );
+
+        $resposta->assertOk();
+        $this->assertSame(55.0, (float) collect($resposta->json('data'))->firstWhere('id', $produto->id)['stock']);
+    }
+
     public function test_lista_unidade_venda_kg(): void
     {
         $ambiente = $this->criarAmbienteApi();
