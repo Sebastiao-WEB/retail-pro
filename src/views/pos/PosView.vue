@@ -212,7 +212,7 @@ async function processarLeituraCodigoBarras() {
   }
 
   if (temApiConfigurada() && origemStockVenda.value.id) {
-    await produtoStore.atualizarStockRemoto([produto.id], filtros);
+    await produtoStore.atualizarStockRemoto([produto.id], filtros, { apenasVersao: true });
   }
 
   const produtoAtualizado = obterProdutoAtualizado(produto);
@@ -452,8 +452,7 @@ async function atualizarStockRemoto(productIds = null) {
   const ids = productIds?.length ? productIds : idsProdutosCarrinho();
   if (!ids.length) return;
 
-  await produtoStore.atualizarStockRemoto(ids, filtrosStockPos());
-  ajustarCarrinhoAoStock();
+  await produtoStore.atualizarStockRemoto(ids, filtrosStockPos(), { apenasVersao: true });
 }
 
 function obterProdutoAtualizado(produto) {
@@ -606,7 +605,7 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
     normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
 
   if (temApiConfigurada() && origemStockVenda.value.id) {
-    await produtoStore.atualizarStockRemoto([produto.id], filtrosStockPos());
+    await produtoStore.atualizarStockRemoto([produto.id], filtrosStockPos(), { apenasVersao: true });
   }
 
   const produtoAtualizado = obterProdutoAtualizado(produto);
@@ -658,7 +657,7 @@ async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}
   if (!quantidadeFinal) return;
 
   if (item && quantidadeFinal > item.quantidade && temApiConfigurada() && origemStockVenda.value.id) {
-    await produtoStore.atualizarStockRemoto([produtoId], filtrosStockPos());
+    await produtoStore.atualizarStockRemoto([produtoId], filtrosStockPos(), { apenasVersao: true });
   }
 
   const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
@@ -806,16 +805,12 @@ async function concluirVenda(opcoes = { imprimir: true }) {
         return;
       }
 
-      if (redeDisponivel()) {
+      if (redeDisponivel() && origemStockVenda.value.id) {
         try {
-          await atualizarStockRemoto(idsPendentes);
+          await produtoStore.atualizarStockRemoto(idsPendentes, filtrosStockPos(), { apenasVersao: true });
         } catch (erro) {
           if (!isErroRedeOuIndisponivel(erro)) {
             mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
-            return;
-          }
-          if (!temStockLocalParaVenda()) {
-            mostrarToastSwal(t("pos.toast.offlineCatalogRequired"), "error");
             return;
           }
         }

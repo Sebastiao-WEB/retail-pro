@@ -230,7 +230,8 @@ export const useProdutoStore = defineStore("produtos", {
         this.pesquisaEmCurso = false;
       }
     },
-    async atualizarStockRemoto(productIds, filtros = {}) {
+    async atualizarStockRemoto(productIds, filtros = {}, opcoes = {}) {
+      const apenasVersao = opcoes?.apenasVersao === true;
       const ids = [...new Set((productIds || []).filter(Boolean))];
       const locationId = filtros.source_location_id || filtros.location_id;
       if (!temApiConfigurada() || !locationId || !ids.length) {
@@ -253,12 +254,16 @@ export const useProdutoStore = defineStore("produtos", {
         const stockVersion = entrada?.version ? String(entrada.version) : null;
         const produto = this.produtos.find((reg) => reg.id === productId);
         if (produto) {
-          produto.stock = stock;
+          if (!apenasVersao) {
+            produto.stock = stock;
+          }
           produto.stockVersion = stockVersion;
         }
         const resultado = this.resultadosPesquisa.find((reg) => reg.id === productId);
         if (resultado) {
-          resultado.stock = stock;
+          if (!apenasVersao) {
+            resultado.stock = stock;
+          }
           resultado.stockVersion = stockVersion;
         }
       });

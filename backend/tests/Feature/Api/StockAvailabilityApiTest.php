@@ -52,4 +52,26 @@ class StockAvailabilityApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.'.$produto->id.'.quantity', 33);
     }
+
+    public function test_disponibilidade_usa_stock_global_quando_saldo_local_e_zero(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['stock' => 40]);
+
+        StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->update(['quantity' => 0]);
+
+        $resposta = $this->getJson(
+            '/api/v1/stock/availability?location_id='.$ambiente['location']->id.'&product_ids='.$produto->id,
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.'.$produto->id.'.quantity', 40);
+    }
 }
