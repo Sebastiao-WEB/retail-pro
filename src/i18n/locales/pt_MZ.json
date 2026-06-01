@@ -310,7 +310,18 @@
       "searching": "A pesquisar no backend...",
       "noProducts": "Nenhum produto encontrado.",
       "addToCart": "Adicionar ao carrinho",
-      "emptyHint": "Digite no campo de pesquisa para listar produtos."
+      "emptyHint": "Digite no campo de pesquisa para listar produtos.",
+      "pricePerKg": "/ kg"
+    },
+    "weightModal": {
+      "title": "Quantidade por peso",
+      "kgLabel": "Quantidade (kg)",
+      "kgPlaceholder": "Ex: 0,7",
+      "hint": "Ex.: 0,7 kg (700 g) ou 1,2 kg. O preço é por quilograma.",
+      "pricePerKg": "Preço: {price} / kg",
+      "stockAvailable": "Disponível: {stock}",
+      "confirm": "Adicionar ao carrinho",
+      "invalidKg": "Informe a quantidade em kg (número maior que zero)."
     },
     "preview": {
       "title": "Pré-visualização",

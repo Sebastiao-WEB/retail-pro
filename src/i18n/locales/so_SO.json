@@ -310,7 +310,18 @@
       "searching": "Waa la raadinayaa backend-ka...",
       "noProducts": "Alaab lama helin.",
       "addToCart": "Ku dar gaadhiga",
-      "emptyHint": "Ku qor goobta raadinta si aad u liis gareyso alaabta."
+      "emptyHint": "Ku qor goobta raadinta si aad u liis gareyso alaabta.",
+      "pricePerKg": "/ kg"
+    },
+    "weightModal": {
+      "title": "Tirada miisaanka",
+      "kgLabel": "Tirada (kg)",
+      "kgPlaceholder": "Tusaale: 0.7",
+      "hint": "Tusaale 0.7 kg ama 1.2 kg. Qiimuhu waa kg.",
+      "pricePerKg": "Qiimaha: {price} / kg",
+      "stockAvailable": "La heli karo: {stock}",
+      "confirm": "Ku dar gaadhiga",
+      "invalidKg": "Geli tirada kg (nambar ka weyn eber)."
     },
     "preview": {
       "title": "Hordhac",

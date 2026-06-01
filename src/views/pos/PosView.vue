@@ -27,6 +27,16 @@ import {
   processarTeclaLeitorCodigoBarras,
 } from "../../utils/leitorCodigoBarras";
 import {
+  formatarQuantidadeExibicao,
+  formatarStockExibicao,
+  normalizarQuantidadeVenda,
+  parseQuantidadeTexto,
+  passoQuantidade,
+  quantidadeMinima,
+  UNIDADE_VENDA_KG,
+  vendidoPorPeso,
+} from "../../utils/produtoQuantidade";
+import {
   Barcode,
   Check,
   DoorClosed,
@@ -73,6 +83,10 @@ function enfileirarProcessamentoLeitor(tarefa) {
   filaProcessamentoLeitor = corrida.catch(() => {});
   return corrida;
 }
+const modalPesoAberto = ref(false);
+const produtoPesoPendente = ref(null);
+const quantidadeKgInput = ref("");
+const inputKgPesoRef = ref(null);
 const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
@@ -91,7 +105,8 @@ const modalBloqueiaLeitor = computed(
     modalImpressaoAberto.value ||
     modalFechoCaixa.value ||
     modalSolicitarReversaoAberto.value ||
-    modalAberturaCaixa.value
+    modalAberturaCaixa.value ||
+    modalPesoAberto.value
 );
 const pesquisaDeveTerFoco = computed(() => menuPosAtivo.value === "venda" && !modalBloqueiaLeitor.value);
 
@@ -201,7 +216,6 @@ async function processarLeituraCodigoBarras() {
   }
 
   const produtoAtualizado = obterProdutoAtualizado(produto);
-  const quantidade = 1;
 
   if (!sessaoStore.turnoAberto) {
     mostrarToastSwal(t("pos.toast.openRegisterFirst"), "error");
@@ -210,25 +224,33 @@ async function processarLeituraCodigoBarras() {
     return;
   }
 
-  if (!podeAdicionarProduto(produtoAtualizado, quantidade)) {
+  if (!vendidoPorPeso(produtoAtualizado) && !podeAdicionarProduto(produtoAtualizado, 1)) {
     if (produtoAtualizado.stock <= 0) {
       mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
-    } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidade > produtoAtualizado.stock) {
+    } else {
+      const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id));
       mostrarErroStock(
         t("pos.toast.insufficientStock", {
           name: produtoAtualizado.nome,
-          available: Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id)),
+          available: formatarDisponivelStock(produtoAtualizado, disponivel),
         })
       );
-    } else {
-      mostrarErroStock(t("pos.toast.cannotExceedStock"));
     }
     limparCampoPesquisa();
     await focarCampoPesquisa();
     return;
   }
 
-  await adicionarAoCarrinho(produtoAtualizado, quantidade);
+  if (vendidoPorPeso(produtoAtualizado) && produtoAtualizado.stock <= 0) {
+    mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
+    limparCampoPesquisa();
+    await focarCampoPesquisa();
+    return;
+  }
+
+  await solicitarAdicaoProduto(produtoAtualizado);
+  limparCampoPesquisa();
+  await focarCampoPesquisa();
 }
 
 async function focarCampoPesquisa() {
@@ -427,7 +449,15 @@ async function atualizarStockRemoto(productIds = null) {
 }
 
 function obterProdutoAtualizado(produto) {
-  return produtoStore.produtos.find((reg) => reg.id === produto.id) || produto;
+  const doCatalogo = produtoStore.produtos.find((reg) => reg.id === produto.id);
+  if (!doCatalogo) return produto;
+  return {
+    ...doCatalogo,
+    unidadeVenda: produto.unidadeVenda ?? doCatalogo.unidadeVenda,
+    stock: produto.stock ?? doCatalogo.stock,
+    precoVenda: produto.precoVenda ?? doCatalogo.precoVenda,
+    precoVendaComIva: produto.precoVendaComIva ?? doCatalogo.precoVendaComIva,
+  };
 }
 
 function iniciarSincronizacaoStockPeriodica() {
@@ -456,7 +486,10 @@ function validarStockCarrinhoAtual() {
     if (item.quantidade > produto.stock) {
       return {
         ok: false,
-        erro: t("pos.toast.insufficientStock", { name: item.nome, available: produto.stock }),
+        erro: t("pos.toast.insufficientStock", {
+          name: item.nome,
+          available: formatarDisponivelStock(produto, produto.stock),
+        }),
       };
     }
   }
@@ -490,12 +523,65 @@ function quantidadeNoCarrinho(produtoId) {
 }
 
 function podeAdicionarProduto(produto, quantidade = 1) {
-  const quantidadeNormalizada = Math.max(1, Math.floor(Number(quantidade) || 1));
+  const quantidadeNormalizada =
+    normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
   return (
     sessaoStore.turnoAberto &&
     produto.stock > 0 &&
-    quantidadeNoCarrinho(produto.id) + quantidadeNormalizada <= produto.stock
+    quantidadeNoCarrinho(produto.id) + quantidadeNormalizada <= produto.stock + 0.0001
   );
+}
+
+function formatarDisponivelStock(produto, quantidadeDisponivel) {
+  return formatarStockExibicao(quantidadeDisponivel, produto?.unidadeVenda, intlLocale(locale.value));
+}
+
+async function abrirModalPeso(produto) {
+  produtoPesoPendente.value = produto;
+  quantidadeKgInput.value = "";
+  modalPesoAberto.value = true;
+  await nextTick();
+  inputKgPesoRef.value?.focus();
+}
+
+function fecharModalPeso() {
+  modalPesoAberto.value = false;
+  produtoPesoPendente.value = null;
+  quantidadeKgInput.value = "";
+}
+
+async function confirmarModalPeso() {
+  const produto = produtoPesoPendente.value;
+  if (!produto) return;
+
+  const quantidadeKg = parseQuantidadeTexto(quantidadeKgInput.value, UNIDADE_VENDA_KG);
+  if (!quantidadeKg) {
+    mostrarToastSwal(t("pos.weightModal.invalidKg"), "error");
+    return;
+  }
+
+  fecharModalPeso();
+  await adicionarAoCarrinho(produto, quantidadeKg);
+}
+
+async function solicitarAdicaoProduto(produto) {
+  if (!sessaoStore.turnoAberto) {
+    mostrarToastSwal(t("pos.toast.openRegisterFirst"), "error");
+    return;
+  }
+
+  const produtoAtualizado = obterProdutoAtualizado(produto);
+
+  if (vendidoPorPeso(produtoAtualizado)) {
+    if (produtoAtualizado.stock <= 0) {
+      mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
+      return;
+    }
+    await abrirModalPeso(produtoAtualizado);
+    return;
+  }
+
+  await adicionarAoCarrinho(produtoAtualizado, 1);
 }
 
 function mostrarErroStock(texto = t("pos.toast.insufficientStockDefault")) {
@@ -508,7 +594,8 @@ function mostrarToast(texto, tipo = "erro") {
 }
 
 async function adicionarAoCarrinho(produto, quantidade = 1) {
-  const quantidadeNormalizada = Math.max(1, Math.floor(Number(quantidade) || 1));
+  const quantidadeNormalizada =
+    normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
 
   if (temApiConfigurada() && origemStockVenda.value.id) {
     await produtoStore.atualizarStockRemoto([produto.id], filtrosStockPos());
@@ -520,10 +607,11 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
     if (produtoAtualizado.stock <= 0) {
       mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
     } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
+      const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id));
       mostrarErroStock(
         t("pos.toast.insufficientStock", {
           name: produtoAtualizado.nome,
-          available: Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id)),
+          available: formatarDisponivelStock(produtoAtualizado, disponivel),
         })
       );
     } else {
@@ -541,13 +629,25 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
   await focarCampoPesquisa();
 }
 
+function obterUnidadeVendaItem(produtoId) {
+  const item = carrinhoStore.itens.find((reg) => reg.produtoId === produtoId);
+  if (item?.unidadeVenda) return item.unidadeVenda;
+  const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
+  return produto?.unidadeVenda;
+}
+
 async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}) {
   const item = carrinhoStore.itens.find((reg) => reg.produtoId === produtoId);
+  const unidadeVenda = obterUnidadeVendaItem(produtoId);
   const texto = String(valor ?? "").trim();
   if (!normalizar && texto === "") return;
 
-  const quantidade = Number.parseInt(texto, 10);
-  const quantidadeFinal = Number.isNaN(quantidade) || quantidade < 1 ? 1 : quantidade;
+  const minimo = quantidadeMinima(unidadeVenda);
+  let quantidadeFinal = parseQuantidadeTexto(texto, unidadeVenda);
+  if (!quantidadeFinal && normalizar) {
+    quantidadeFinal = minimo;
+  }
+  if (!quantidadeFinal) return;
 
   if (item && quantidadeFinal > item.quantidade && temApiConfigurada() && origemStockVenda.value.id) {
     await produtoStore.atualizarStockRemoto([produtoId], filtrosStockPos());
@@ -555,8 +655,8 @@ async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}
 
   const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
   const limiteStock = produto?.stock ?? quantidadeFinal;
-  if (quantidadeFinal > limiteStock) {
-    carrinhoStore.definirQuantidade(produtoId, limiteStock);
+  if (quantidadeFinal > limiteStock + 0.0001) {
+    carrinhoStore.definirQuantidade(produtoId, normalizarQuantidadeVenda(limiteStock, unidadeVenda) ?? minimo);
     mostrarErroStock(t("pos.toast.quantityAdjusted"));
     return;
   }
@@ -725,7 +825,13 @@ async function concluirVenda(opcoes = { imprimir: true }) {
           return;
         }
         if (item.quantidade > produto.stock) {
-          mostrarToastSwal(t("pos.toast.insufficientStock", { name: item.nome, available: produto.stock }), "error");
+          mostrarToastSwal(
+            t("pos.toast.insufficientStock", {
+              name: item.nome,
+              available: formatarDisponivelStock(produto, produto.stock),
+            }),
+            "error"
+          );
           return;
         }
       }
@@ -747,6 +853,7 @@ async function concluirVenda(opcoes = { imprimir: true }) {
         venda,
         configuracao: configuracaoStore,
         opcoes: {
+          detalharIva: true,
           copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
           corteAutomatico: !!configuracaoStore.corteAutomatico,
           abrirGaveta: false,
@@ -842,6 +949,8 @@ async function reimprimirVenda(venda) {
     venda,
     configuracao: configuracaoStore,
     opcoes: {
+      detalharIva: true,
+      segundaVia: true,
       copies: 1,
       corteAutomatico: !!configuracaoStore.corteAutomatico,
       abrirGaveta: false,
@@ -1128,24 +1237,33 @@ async function confirmarFechoCaixa() {
                 <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">{{ t("pos.catalog.noProducts") }}</td>
               </tr>
               <tr v-for="produto in resultadosPesquisa" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
-                <td class="px-3 py-2 font-semibold text-slate-800">{{ produto.nome }}</td>
+                <td class="px-3 py-2 font-semibold text-slate-800">
+                  {{ produto.nome }}
+                  <span
+                    v-if="vendidoPorPeso(produto)"
+                    class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                  >kg</span>
+                </td>
                 <td class="px-3 py-2 text-slate-600">{{ produto.codigoBarras }}</td>
-                <td class="px-3 py-2 font-semibold text-slate-800">{{ formatarMT(produto.precoVendaComIva ?? produto.precoVenda) }}</td>
+                <td class="px-3 py-2 font-semibold text-slate-800">
+                  {{ formatarMT(produto.precoVendaComIva ?? produto.precoVenda) }}
+                  <span v-if="vendidoPorPeso(produto)" class="text-[10px] font-normal text-slate-500">/ kg</span>
+                </td>
                 <td class="px-3 py-2">
                   <span
                     class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                    :class="produto.stock <= 10 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'"
+                    :class="produto.stock <= (vendidoPorPeso(produto) ? 1 : 10) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'"
                   >
-                    {{ produto.stock }}
+                    {{ formatarStockExibicao(produto.stock, produto.unidadeVenda, intlLocale(locale)) }}
                   </span>
                 </td>
                 <td class="px-3 py-2 text-right">
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
                     :title="t('pos.catalog.addToCart')"
-                    :disabled="!podeAdicionarProduto(produto)"
-                    :class="!podeAdicionarProduto(produto) ? 'cursor-not-allowed opacity-40' : ''"
-                    @click="void adicionarAoCarrinho(produto)"
+                    :disabled="!sessaoStore.turnoAberto || produto.stock <= 0"
+                    :class="!sessaoStore.turnoAberto || produto.stock <= 0 ? 'cursor-not-allowed opacity-40' : ''"
+                    @click="void solicitarAdicaoProduto(produto)"
                   >
                     <span class="relative inline-flex h-4 w-4 items-center justify-center">
                       <ShoppingCartIcon :size="14" />
@@ -1209,16 +1327,22 @@ async function confirmarFechoCaixa() {
                 </div>
                 <div class="flex items-center justify-between gap-2 px-1">
                   <div class="flex items-center gap-1">
-                    <span class="text-[11px] text-slate-500">{{ t("common.qty") }}</span>
+                    <span class="text-[11px] text-slate-500">
+                      {{
+                        item.unidadeVenda === "KG"
+                          ? formatarQuantidadeExibicao(item.quantidade, "KG", intlLocale(locale))
+                          : t("common.qty")
+                      }}
+                    </span>
                     <input
                       :data-pos-quantidade="item.produtoId"
                       :value="item.quantidade"
                       type="number"
-                      min="1"
-                      step="1"
-                      inputmode="numeric"
-                      :max="produtoStore.produtos.find((p) => p.id === item.produtoId)?.stock || 1"
-                      class="w-16 rounded border border-slate-300 px-1.5 py-1 text-center text-xs font-semibold text-slate-900 focus:border-[var(--gold)] focus:outline-none"
+                      :min="quantidadeMinima(item.unidadeVenda)"
+                      :step="passoQuantidade(item.unidadeVenda)"
+                      :inputmode="item.unidadeVenda === 'KG' ? 'decimal' : 'numeric'"
+                      :max="produtoStore.produtos.find((p) => p.id === item.produtoId)?.stock || quantidadeMinima(item.unidadeVenda)"
+                      class="w-20 rounded border border-slate-300 px-1.5 py-1 text-center text-xs font-semibold text-slate-900 focus:border-[var(--gold)] focus:outline-none"
                       autocomplete="off"
                       @focus="$event.target.select()"
                       @input="atualizarQuantidade(item.produtoId, $event.target.value)"
@@ -1383,6 +1507,42 @@ async function confirmarFechoCaixa() {
 
     </div>
   </section>
+
+  <ModalBase
+    :aberto="modalPesoAberto"
+    :mostrar-fechar="true"
+    :titulo="t('pos.weightModal.title')"
+    @fechar="fecharModalPeso"
+  >
+    <div v-if="produtoPesoPendente" class="space-y-4 p-1">
+      <p class="text-sm font-semibold text-slate-800">{{ produtoPesoPendente.nome }}</p>
+      <p class="text-xs text-slate-500">
+        {{ t("pos.weightModal.pricePerKg", { price: formatarMT(produtoPesoPendente.precoVendaComIva ?? produtoPesoPendente.precoVenda) }) }}
+      </p>
+      <p class="text-xs text-slate-500">
+        {{ t("pos.weightModal.stockAvailable", { stock: formatarStockExibicao(produtoPesoPendente.stock, 'KG', intlLocale(locale)) }) }}
+      </p>
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.weightModal.kgLabel") }}</label>
+        <input
+          ref="inputKgPesoRef"
+          v-model="quantidadeKgInput"
+          type="number"
+          min="0.001"
+          step="0.001"
+          inputmode="decimal"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[var(--gold)] focus:outline-none"
+          :placeholder="t('pos.weightModal.kgPlaceholder')"
+          @keydown.enter.prevent="confirmarModalPeso"
+        />
+        <p class="mt-1 text-xs text-slate-500">{{ t("pos.weightModal.hint") }}</p>
+      </div>
+      <div class="flex justify-end gap-2">
+        <BotaoBase variante="secundario" @click="fecharModalPeso">{{ t("common.cancel") }}</BotaoBase>
+        <BotaoBase @click="confirmarModalPeso">{{ t("pos.weightModal.confirm") }}</BotaoBase>
+      </div>
+    </div>
+  </ModalBase>
 
   <ModalBase :aberto="modalAberturaCaixa" :mostrar-fechar="false" :titulo="t('pos.openingModal.title')">
     <div class="space-y-4">

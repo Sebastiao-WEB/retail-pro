@@ -2,7 +2,8 @@ import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import { carregarProdutosIntegrado, consultarStockRemotoIntegrado } from "../services/integracaoApi";
 import { carregarCatalogoOffline, salvarCatalogoOffline } from "../services/offline/catalogCache";
-import { isErroRedeOuIndisponivel } from "../services/offline/networkError";
+import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/networkError";
+import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
 
 function normalizarIva(valor) {
   const numero = Number(valor || 0);
@@ -11,8 +12,9 @@ function normalizarIva(valor) {
 }
 
 function normalizarIvaTipo(valor) {
-  if (valor === "monetario") return "monetario";
-  if (valor === "isento") return "isento";
+  const texto = String(valor || "").toLowerCase();
+  if (texto === "monetario" || texto === "monetário") return "monetario";
+  if (texto === "isento") return "isento";
   return "percentual";
 }
 
@@ -43,6 +45,7 @@ function normalizarProduto(produto) {
 
   return {
     ...produto,
+    unidadeVenda: normalizarUnidadeVenda(produto?.unidadeVenda ?? produto?.unidade_venda),
     precoCompra,
     precoVenda: Number.isFinite(precoVenda) ? precoVenda : 0,
     ivaTipo,
@@ -125,9 +128,9 @@ export const useProdutoStore = defineStore("produtos", {
     async carregarProdutos(filtros = {}) {
       return this.sincronizarProdutos(filtros);
     },
-    async garantirCatalogoPos(filtros = {}) {
+    async garantirCatalogoPos(filtros = {}, { forcar = false } = {}) {
       const chave = chaveCatalogoPos(filtros);
-      if (this.catalogoPosPronto && this.catalogoPosChave === chave) {
+      if (!forcar && this.catalogoPosPronto && this.catalogoPosChave === chave) {
         return this.produtos;
       }
       return this.sincronizarProdutos(filtros);
@@ -182,7 +185,12 @@ export const useProdutoStore = defineStore("produtos", {
 
       this.pesquisaEmCurso = true;
       try {
-        if (this.catalogoPosPronto && this.catalogoPosChave === chaveCatalogoPos(filtros)) {
+        const podeUsarCacheLocal =
+          this.catalogoPosPronto &&
+          this.catalogoPosChave === chaveCatalogoPos(filtros) &&
+          (!temApiConfigurada() || !redeDisponivel());
+
+        if (podeUsarCacheLocal) {
           this.resultadosPesquisa = this.pesquisarLocalmente(termo);
           return this.resultadosPesquisa;
         }
@@ -257,7 +265,13 @@ export const useProdutoStore = defineStore("produtos", {
       itensVenda.forEach((item) => {
         const produto = this.produtos.find((reg) => reg.id === item.produtoId);
         if (!produto) return;
-        produto.stock = Math.max(0, produto.stock - item.quantidade);
+        const quantidade = normalizarQuantidadeVenda(item.quantidade, produto.unidadeVenda) ?? 0;
+        if (quantidade <= 0) return;
+        const novoStock = Math.max(0, produto.stock - quantidade);
+        produto.stock =
+          normalizarUnidadeVenda(produto.unidadeVenda) === "KG"
+            ? Math.round(novoStock * 1000) / 1000
+            : novoStock;
       });
     },
     reporStock(produtoId, quantidade) {

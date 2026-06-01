@@ -23,6 +23,7 @@
                     <th class="px-3 py-2">{{ __('app.fields.name') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.code') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.category') }}</th>
+                    <th class="px-3 py-2">{{ __('app.fields.sale_unit') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.sale_price') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.iva') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.stock') }}</th>
@@ -38,7 +39,19 @@
                         <td class="px-3 py-2 font-medium">{{ $produto->nome }}</td>
                         <td class="px-3 py-2">{{ $produto->codigo_barras ?: '---' }}</td>
                         <td class="px-3 py-2">{{ $produto->categoria ?: '---' }}</td>
-                        <td class="px-3 py-2">{{ number_format((float) $produto->preco_venda, 2, ',', '.') }} {{ __('app.currency') }}</td>
+                        <td class="px-3 py-2">
+                            @if ($produto->unidade_venda === 'KG')
+                                {{ __('pages.products.sale_unit_kg') }}
+                            @else
+                                {{ __('pages.products.sale_unit_un') }}
+                            @endif
+                        </td>
+                        <td class="px-3 py-2">
+                            {{ number_format((float) $produto->preco_venda, 2, ',', '.') }} {{ __('app.currency') }}
+                            @if ($produto->unidade_venda === 'KG')
+                                <span class="text-xs text-slate-500">/ kg</span>
+                            @endif
+                        </td>
                         <td class="px-3 py-2">
                             @if ($produto->iva_tipo === 'PERCENTUAL')
                                 {{ number_format((float) $produto->iva_percentual, 2, ',', '.') }}%
@@ -62,7 +75,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ auth()->user()?->can('products.manage') ? 8 : 7 }}" class="px-3 py-6 text-center text-slate-500">{{ __('pages.products.no_products') }}</td>
+                        <td colspan="{{ auth()->user()?->can('products.manage') ? 9 : 8 }}" class="px-3 py-6 text-center text-slate-500">{{ __('pages.products.no_products') }}</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -101,11 +114,22 @@
                         <input wire:model.defer="categoria" type="text" class="rp-input">
                     </div>
                     <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.sale_unit') }}</label>
+                        <select wire:model.defer="unidade_venda" class="rp-input">
+                            <option value="UN">{{ __('pages.products.sale_unit_un') }}</option>
+                            <option value="KG">{{ __('pages.products.sale_unit_kg') }}</option>
+                        </select>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('pages.products.sale_unit_hint') }}</p>
+                        @error('unidade_venda') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
                         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.purchase_price') }}</label>
                         <input wire:model.defer="preco_compra" type="number" step="0.01" class="rp-input">
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.sale_price') }}</label>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">
+                            {{ $unidade_venda === 'KG' ? __('pages.products.sale_price_per_kg') : __('app.fields.sale_price') }}
+                        </label>
                         <input wire:model.defer="preco_venda" type="number" step="0.01" class="rp-input">
                         @error('preco_venda') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>

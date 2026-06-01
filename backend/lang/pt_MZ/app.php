@@ -71,6 +71,7 @@ return [
         'barcode' => 'Código de barras',
         'category' => 'Categoria',
         'sale_price' => 'Preço venda',
+        'sale_unit' => 'Unidade de venda',
         'purchase_price' => 'Preço compra',
         'iva' => 'IVA',
         'iva_type' => 'Tipo de IVA',

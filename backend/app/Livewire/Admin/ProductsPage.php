@@ -21,6 +21,7 @@ class ProductsPage extends Component
     public string $nome = '';
     public string $codigo_barras = '';
     public string $categoria = '';
+    public string $unidade_venda = 'UN';
     public string $preco_compra = '0';
     public string $preco_venda = '0';
     public string $iva_tipo = 'ISENTO';
@@ -49,6 +50,7 @@ class ProductsPage extends Component
         $this->nome = $produto->nome;
         $this->codigo_barras = (string) ($produto->codigo_barras ?? '');
         $this->categoria = (string) ($produto->categoria ?? '');
+        $this->unidade_venda = ProductValidation::normalizarUnidadeVenda($produto->unidade_venda);
         $this->preco_compra = (string) $produto->preco_compra;
         $this->preco_venda = (string) $produto->preco_venda;
         $this->iva_tipo = (string) ($produto->iva_tipo ?? 'ISENTO');
@@ -99,6 +101,7 @@ class ProductsPage extends Component
             'nome' => $dados['nome'],
             'codigo_barras' => ProductValidation::normalizarCodigoBarras($dados['codigo_barras'] ?? null),
             'categoria' => $dados['categoria'] ?: null,
+            'unidade_venda' => ProductValidation::normalizarUnidadeVenda($dados['unidade_venda'] ?? null),
             'preco_compra' => $dados['preco_compra'],
             'preco_venda' => $dados['preco_venda'],
             'iva_tipo' => $ivaTipo,
@@ -137,6 +140,7 @@ class ProductsPage extends Component
             'nome' => ['required', 'string', 'max:255'],
             'codigo_barras' => ProductValidation::regrasCodigoBarras($this->editingId),
             'categoria' => ['nullable', 'string', 'max:255'],
+            'unidade_venda' => ['required', 'in:UN,KG'],
             'preco_compra' => ['required', 'numeric'],
             'preco_venda' => ['required', 'numeric'],
             'iva_tipo' => ['required', 'in:ISENTO,PERCENTUAL,MONETARIO'],
@@ -155,6 +159,7 @@ class ProductsPage extends Component
             'nome' => __('app.fields.name'),
             'codigo_barras' => __('app.fields.barcode'),
             'categoria' => __('app.fields.category'),
+            'unidade_venda' => __('app.fields.sale_unit'),
             'preco_compra' => __('app.fields.purchase_price'),
             'preco_venda' => __('app.fields.sale_price'),
             'iva_percentual' => __('app.fields.iva_percent'),
@@ -168,6 +173,7 @@ class ProductsPage extends Component
         $this->nome = '';
         $this->codigo_barras = '';
         $this->categoria = '';
+        $this->unidade_venda = 'UN';
         $this->preco_compra = '0';
         $this->preco_venda = '0';
         $this->iva_tipo = 'ISENTO';

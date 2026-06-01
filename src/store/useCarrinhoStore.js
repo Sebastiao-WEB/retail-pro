@@ -1,4 +1,15 @@
 import { defineStore } from "pinia";
+import { resolverIvaPercentualExibicao } from "../utils/ivaItem.js";
+import {
+  normalizarQuantidadeVenda,
+  normalizarUnidadeVenda,
+  passoQuantidade,
+  quantidadeMinima,
+} from "../utils/produtoQuantidade";
+
+function calcularSubtotal(quantidade, precoVenda) {
+  return Number((quantidade * precoVenda).toFixed(2));
+}
 
 export const useCarrinhoStore = defineStore("carrinho", {
   state: () => ({
@@ -34,16 +45,29 @@ export const useCarrinhoStore = defineStore("carrinho", {
   },
   actions: {
     adicionarProduto(produto, quantidade = 1) {
-      const ivaPercentual = Number(produto.ivaPercentual || 0);
-      const precoUnitario = Number(produto.precoVendaComIva ?? produto.precoVenda ?? 0);
-      const valorIvaUnitario = Number((precoUnitario - Number(produto.precoVenda || 0)).toFixed(2));
-      const quantidadeNormalizada = Math.max(1, Math.floor(Number(quantidade) || 1));
+      const unidadeVenda = normalizarUnidadeVenda(produto?.unidadeVenda);
+      const precoSemIva = Number(produto.precoVenda || 0);
+      const precoUnitario = Number(produto.precoVendaComIva ?? precoSemIva);
+      const valorIvaUnitario = Number((precoUnitario - precoSemIva).toFixed(2));
+      const ivaPercentual = resolverIvaPercentualExibicao({
+        ivaPercentual: produto.ivaPercentual,
+        valorIvaUnitario,
+        precoSemIva,
+        precoVenda: precoUnitario,
+      });
+      const quantidadeNormalizada =
+        normalizarQuantidadeVenda(quantidade, unidadeVenda) ?? quantidadeMinima(unidadeVenda);
+
       const itemExistente = this.itens.find((item) => item.produtoId === produto.id);
       if (itemExistente) {
-        itemExistente.quantidade += quantidadeNormalizada;
-        itemExistente.subtotal = itemExistente.quantidade * itemExistente.precoVenda;
+        const novaQuantidade = normalizarQuantidadeVenda(
+          itemExistente.quantidade + quantidadeNormalizada,
+          unidadeVenda
+        );
+        if (!novaQuantidade) return;
+        itemExistente.quantidade = novaQuantidade;
+        itemExistente.subtotal = calcularSubtotal(novaQuantidade, itemExistente.precoVenda);
         itemExistente.ordemAdicao = ++this.sequenciaAdicao;
-        // Mantém o item mais recentemente adicionado no topo da pré-visualização.
         this.itens = [itemExistente, ...this.itens.filter((item) => item.produtoId !== produto.id)];
         return;
       }
@@ -51,13 +75,14 @@ export const useCarrinhoStore = defineStore("carrinho", {
       this.itens.unshift({
         produtoId: produto.id,
         nome: produto.nome,
+        unidadeVenda,
         precoVenda: precoUnitario,
-        precoSemIva: Number(produto.precoVenda || 0),
-        ivaPercentual: Number.isFinite(ivaPercentual) ? ivaPercentual : 0,
-        valorIvaUnitario: Number.isFinite(valorIvaUnitario) ? valorIvaUnitario : 0,
+        precoSemIva,
+        ivaPercentual,
+        valorIvaUnitario,
         ordemAdicao: ++this.sequenciaAdicao,
         quantidade: quantidadeNormalizada,
-        subtotal: quantidadeNormalizada * precoUnitario,
+        subtotal: calcularSubtotal(quantidadeNormalizada, precoUnitario),
       });
     },
     removerProduto(produtoId) {
@@ -66,29 +91,39 @@ export const useCarrinhoStore = defineStore("carrinho", {
     aumentarQuantidade(produtoId) {
       const item = this.itens.find((reg) => reg.produtoId === produtoId);
       if (!item) return;
-      item.quantidade += 1;
-      item.subtotal = item.quantidade * item.precoVenda;
+      const passo = passoQuantidade(item.unidadeVenda);
+      const nova = normalizarQuantidadeVenda(item.quantidade + passo, item.unidadeVenda);
+      if (!nova) return;
+      item.quantidade = nova;
+      item.subtotal = calcularSubtotal(nova, item.precoVenda);
     },
     diminuirQuantidade(produtoId) {
       const item = this.itens.find((reg) => reg.produtoId === produtoId);
       if (!item) return;
-      if (item.quantidade <= 1) {
+      const passo = passoQuantidade(item.unidadeVenda);
+      const minimo = quantidadeMinima(item.unidadeVenda);
+      if (item.quantidade - passo < minimo) {
         this.removerProduto(produtoId);
         return;
       }
-      item.quantidade -= 1;
-      item.subtotal = item.quantidade * item.precoVenda;
+      const nova = normalizarQuantidadeVenda(item.quantidade - passo, item.unidadeVenda);
+      if (!nova) {
+        this.removerProduto(produtoId);
+        return;
+      }
+      item.quantidade = nova;
+      item.subtotal = calcularSubtotal(nova, item.precoVenda);
     },
     definirQuantidade(produtoId, quantidade) {
       const item = this.itens.find((reg) => reg.produtoId === produtoId);
       if (!item) return;
-      const quantidadeNormalizada = Number.isFinite(quantidade) ? Math.floor(quantidade) : 1;
-      if (quantidadeNormalizada <= 0) {
+      const quantidadeNormalizada = normalizarQuantidadeVenda(quantidade, item.unidadeVenda);
+      if (!quantidadeNormalizada) {
         this.removerProduto(produtoId);
         return;
       }
       item.quantidade = quantidadeNormalizada;
-      item.subtotal = item.quantidade * item.precoVenda;
+      item.subtotal = calcularSubtotal(quantidadeNormalizada, item.precoVenda);
     },
     definirMetodoPagamento(valor) {
       this.metodoPagamento = valor;

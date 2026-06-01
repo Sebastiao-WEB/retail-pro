@@ -236,6 +236,10 @@ return [
         'active_pos' => 'Firfircoon POS',
         'active_pos_hint' => 'Ka saar calaamadda si aad u joojiso alaabta POS. Diiwaanka wuxuu ku sii jiraa taariikhda iibka iyo kaydka.',
         'units' => 'un.',
+        'sale_unit_un' => 'Cutub kasta',
+        'sale_unit_kg' => 'Miisaanka (kg)',
+        'sale_unit_hint' => 'Miisaan: qiimaha iyo kaydka waa kg; POS geli kg (tusaale 0.7 ama 1.2).',
+        'sale_price_per_kg' => 'Qiimaha iibka (kg)',
     ],
     'customers' => [
         'title' => 'Maamulka macaamiisha',

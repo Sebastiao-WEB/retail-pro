@@ -60,6 +60,29 @@ class ProductsPageTest extends TestCase
         $this->assertDatabaseHas('products', ['nome' => 'Pão', 'codigo_barras' => '1234567890123']);
     }
 
+    public function test_grava_produto_vendido_por_peso(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        Livewire::actingAs($admin)
+            ->test(ProductsPage::class)
+            ->call('openCreateModal')
+            ->set('nome', 'Peixe fresco')
+            ->set('unidade_venda', 'KG')
+            ->set('preco_compra', '200')
+            ->set('preco_venda', '450')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('products', [
+            'nome' => 'Peixe fresco',
+            'unidade_venda' => 'KG',
+        ]);
+    }
+
     public function test_permite_editar_produto_mantendo_o_mesmo_codigo_barras(): void
     {
         $ambiente = $this->criarAmbienteApi();

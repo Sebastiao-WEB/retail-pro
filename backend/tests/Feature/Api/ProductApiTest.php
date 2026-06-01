@@ -33,6 +33,19 @@ class ProductApiTest extends TestCase
         );
         $respostaLocal->assertOk();
         $this->assertSame(42.0, (float) collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['stock']);
+        $this->assertSame('UN', collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['unidadeVenda']);
+    }
+
+    public function test_lista_unidade_venda_kg(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $ambiente['product']->update(['unidade_venda' => 'KG']);
+
+        $resposta = $this->getJson('/api/v1/products', $this->authHeaders($token));
+
+        $resposta->assertOk();
+        $this->assertSame('KG', $resposta->json('data.0.unidadeVenda'));
     }
 
     public function test_filtra_produtos_por_pesquisa(): void

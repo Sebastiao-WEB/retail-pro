@@ -236,6 +236,10 @@ return [
         'active_pos' => 'Ativo no POS',
         'active_pos_hint' => 'Desmarque para desactivar o produto no POS. O registo mantém-se no histórico de vendas e stock.',
         'units' => 'un.',
+        'sale_unit_un' => 'Por unidade',
+        'sale_unit_kg' => 'Por peso (kg)',
+        'sale_unit_hint' => 'Peso: preço e stock em quilogramas; no POS introduz kg (ex.: 0,7 ou 1,2).',
+        'sale_price_per_kg' => 'Preço venda (por kg)',
     ],
     'customers' => [
         'title' => 'Gestão de clientes',

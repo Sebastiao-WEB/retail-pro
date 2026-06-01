@@ -10,6 +10,14 @@ describe("offline/salePayload", () => {
     ).toBe(17);
   });
 
+  it("soma quantidades decimais (venda por peso em kg)", () => {
+    expect(
+      somarUnidadesVenda({
+        itens: [{ quantidade: 0.7 }, { quantidade: 1.2 }],
+      })
+    ).toBeCloseTo(1.9, 3);
+  });
+
   it("extrai objeto data da resposta da API", () => {
     expect(extrairVendaApi({ data: { id: "v1", itens: [] } })).toEqual({ id: "v1", itens: [] });
   });

@@ -50,4 +50,22 @@ describe("useCarrinhoStore", () => {
     expect(carrinho.itens[0].quantidade).toBe(3);
     expect(carrinho.itens[0].subtotal).toBe(30);
   });
+
+  it("adiciona produto por peso com subtotal proporcional", () => {
+    const carrinho = useCarrinhoStore();
+    carrinho.adicionarProduto(
+      {
+        id: 20,
+        nome: "Frango",
+        unidadeVenda: "KG",
+        precoVenda: 100,
+        precoVendaComIva: 100,
+        ivaPercentual: 0,
+      },
+      0.7
+    );
+
+    expect(carrinho.itens[0].quantidade).toBe(0.7);
+    expect(carrinho.itens[0].subtotal).toBe(70);
+  });
 });
