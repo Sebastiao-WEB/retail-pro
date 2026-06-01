@@ -48,11 +48,21 @@
                         <td class="px-3 py-2">
                             @if (in_array($movement->reference_type, ['PURCHASE', 'STOCK_RELOAD'], true) && $movement->type === 'IN')
                                 {{ __('pages.common.movement_reload') }}
+                            @elseif ($movement->type === 'ADJUSTMENT')
+                                {{ __('pages.common.movement_type_adjustment') }}
                             @else
                                 {{ $movement->type }}
                             @endif
                         </td>
-                        <td class="px-3 py-2">{{ number_format((float) $movement->quantity, 2, ',', '.') }}</td>
+                        <td class="px-3 py-2">
+                            @if ($movement->type === 'ADJUSTMENT' && $movement->from_location_id)
+                                −{{ number_format((float) $movement->quantity, 2, ',', '.') }}
+                            @elseif ($movement->type === 'ADJUSTMENT')
+                                +{{ number_format((float) $movement->quantity, 2, ',', '.') }}
+                            @else
+                                {{ number_format((float) $movement->quantity, 2, ',', '.') }}
+                            @endif
+                        </td>
                         <td class="px-3 py-2">{{ $movement->fromLocation?->name ?? '---' }}</td>
                         <td class="px-3 py-2">{{ $movement->toLocation?->name ?? '---' }}</td>
                         <td class="px-3 py-2">{{ $movement->performedBy?->name ?? '---' }}</td>

@@ -7,8 +7,11 @@ use App\Models\Purchase;
 use App\Models\StockBalance;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
+use App\Services\StockAdjustmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -18,6 +21,7 @@ class StockReloadPage extends Component
 
     public string $search = '';
     public bool $reloadModalOpen = false;
+    public bool $adjustModalOpen = false;
     public ?string $productId = null;
     public string $productName = '';
     public string $quantity = '1';
@@ -25,6 +29,7 @@ class StockReloadPage extends Component
     public string $supplier = 'Reposição Manual';
     public string $note = '';
     public ?string $to_location_id = null;
+    public string $adjustmentDelta = '';
 
     public function updatedSearch(): void
     {
@@ -46,7 +51,73 @@ class StockReloadPage extends Component
             ->orderBy('is_saleable', 'desc')
             ->orderBy('name')
             ->value('id');
+        $this->adjustModalOpen = false;
         $this->reloadModalOpen = true;
+    }
+
+    public function openAdjustModal(string $id): void
+    {
+        abort_unless(auth()->user()?->can('stock.reload'), 403);
+        $product = Product::query()->findOrFail($id);
+        $this->productId = $product->id;
+        $this->productName = $product->nome;
+        $this->adjustmentDelta = '';
+        $this->unitCost = (string) $product->preco_compra;
+        $this->note = '';
+        $this->to_location_id = StockLocation::query()
+            ->where('is_active', true)
+            ->orderBy('is_saleable', 'desc')
+            ->orderBy('name')
+            ->value('id');
+        $this->reloadModalOpen = false;
+        $this->adjustModalOpen = true;
+    }
+
+    #[Computed]
+    public function saldoNaLocalizacao(): float
+    {
+        if (! $this->productId || ! $this->to_location_id) {
+            return 0.0;
+        }
+
+        return (float) (StockBalance::query()
+            ->where('location_id', $this->to_location_id)
+            ->where('product_id', $this->productId)
+            ->value('quantity') ?? 0);
+    }
+
+    public function applyAdjustment(): void
+    {
+        abort_unless(auth()->user()?->can('stock.reload'), 403);
+
+        try {
+            $dados = $this->validate([
+                'productId' => ['required', 'uuid', 'exists:products,id'],
+                'to_location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
+                'adjustmentDelta' => ['required', 'numeric', 'not_in:0'],
+                'note' => ['nullable', 'string', 'max:500'],
+            ]);
+
+            app(StockAdjustmentService::class)->aplicar(
+                $dados['productId'],
+                $dados['to_location_id'],
+                (float) $dados['adjustmentDelta'],
+                $dados['note'] ?: null,
+                auth()->id(),
+                (float) $this->unitCost,
+            );
+        } catch (ValidationException $exception) {
+            foreach ($exception->errors() as $campo => $mensagens) {
+                $alvo = $campo === 'delta' ? 'adjustmentDelta' : $campo;
+                $this->addError($alvo, $mensagens[0] ?? '');
+            }
+            $this->dispatch('rp-focus-field', field: 'adjustmentDelta');
+
+            return;
+        }
+
+        $this->adjustModalOpen = false;
+        session()->flash('toast', ['type' => 'success', 'message' => __('toasts.stock_adjusted')]);
     }
 
     public function applyReload(): void
