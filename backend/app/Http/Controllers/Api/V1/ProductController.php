@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\StockBalance;
+use App\Support\ProductStockDisplay;
 use App\Support\ProductValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -34,16 +35,19 @@ class ProductController extends Controller
 
         $produtos = $query->orderBy('nome')->get();
         $stocksPorProduto = [];
+        $produtosComSaldoEmQualquerLocal = collect();
 
         if ($locationId !== '') {
+            $productIds = $produtos->pluck('id');
             $stocksPorProduto = StockBalance::query()
                 ->where('location_id', $locationId)
-                ->whereIn('product_id', $produtos->pluck('id'))
+                ->whereIn('product_id', $productIds)
                 ->pluck('quantity', 'product_id')
                 ->all();
+            $produtosComSaldoEmQualquerLocal = ProductStockDisplay::produtosComSaldoEmQualquerLocal($productIds);
         }
 
-        $lista = $produtos->map(function (Product $produto) use ($locationId, $stocksPorProduto) {
+        $lista = $produtos->map(function (Product $produto) use ($locationId, $stocksPorProduto, $produtosComSaldoEmQualquerLocal) {
             return [
                 'id' => $produto->id,
                 'nome' => $produto->nome,
@@ -55,9 +59,12 @@ class ProductController extends Controller
                 'ivaTipo' => $produto->iva_tipo,
                 'ivaValor' => (float) $produto->iva_valor,
                 'ivaPercentual' => (float) $produto->iva_percentual,
-                'stock' => $locationId !== ''
-                    ? (float) ($stocksPorProduto[$produto->id] ?? 0)
-                    : (float) $produto->stock,
+                'stock' => ProductStockDisplay::quantidade(
+                    $produto,
+                    $locationId !== '' ? $locationId : null,
+                    $stocksPorProduto,
+                    $produtosComSaldoEmQualquerLocal,
+                ),
             ];
         });
 

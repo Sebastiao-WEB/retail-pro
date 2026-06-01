@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\Register;
+use App\Models\StockLocation;
 use App\Models\User;
 use App\Services\ApiTwoFactorChallengeService;
 use Illuminate\Http\Request;
@@ -96,7 +97,7 @@ class AuthController extends Controller
         $user = $request->user('api');
         abort_unless($user, 401);
 
-        $user->loadMissing(['registers.sourceLocation', 'register.sourceLocation']);
+        $user->loadMissing(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation']);
 
         $registers = $user->assignedRegisters();
         $selectedRegister = $user->register_id
@@ -139,7 +140,7 @@ class AuthController extends Controller
         }
 
         $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation'])
+            ->with(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation'])
             ->find($challenge['user_id']);
 
         if (! $user || ! $user->is_active) {
@@ -231,7 +232,7 @@ class AuthController extends Controller
     private function findUserByCredentials(string $username, string $password): User|\Illuminate\Http\JsonResponse
     {
         $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation'])
+            ->with(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation'])
             ->where(function ($q) use ($username) {
                 $q->where('username', $username)
                     ->orWhere('email', $username);
@@ -399,6 +400,9 @@ class AuthController extends Controller
     private function serializeUser(User $user, Register $selectedRegister, $allRegisters): array
     {
         $selectedRegister->loadMissing('sourceLocation');
+        $user->loadMissing('sourceLocation');
+
+        $sourceLocation = $this->resolveSourceLocationPayload($user, $selectedRegister);
 
         return [
             'id' => $user->id,
@@ -410,12 +414,29 @@ class AuthController extends Controller
                 'id' => $selectedRegister->id,
                 'code' => $selectedRegister->code,
                 'name' => $selectedRegister->name,
-                'source_location' => $selectedRegister->sourceLocation ? [
-                    'id' => $selectedRegister->sourceLocation->id,
-                    'code' => $selectedRegister->sourceLocation->code,
-                    'name' => $selectedRegister->sourceLocation->name,
-                ] : null,
+                'source_location' => $sourceLocation,
             ],
+            'source_location' => $sourceLocation,
+        ];
+    }
+
+    /**
+     * Local de stock para o POS: caixa (stock_locations.register_id) ou campo do utilizador.
+     *
+     * @return array{id: string, code: string, name: string}|null
+     */
+    private function resolveSourceLocationPayload(User $user, Register $register): ?array
+    {
+        $location = $register->sourceLocation ?? $user->sourceLocation;
+
+        if (! $location instanceof StockLocation) {
+            return null;
+        }
+
+        return [
+            'id' => $location->id,
+            'code' => $location->code,
+            'name' => $location->name,
         ];
     }
 }

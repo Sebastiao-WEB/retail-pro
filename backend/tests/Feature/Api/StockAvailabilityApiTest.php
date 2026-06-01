@@ -34,4 +34,23 @@ class StockAvailabilityApiTest extends TestCase
 
         $this->assertNotEmpty($resposta->json('data.'.$produto->id.'.version'));
     }
+
+    public function test_disponibilidade_usa_stock_global_sem_saldo_local(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['stock' => 33]);
+
+        StockBalance::query()->where('product_id', $produto->id)->delete();
+
+        $resposta = $this->getJson(
+            '/api/v1/stock/availability?location_id='.$ambiente['location']->id.'&product_ids='.$produto->id,
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.'.$produto->id.'.quantity', 33);
+    }
 }
