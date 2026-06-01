@@ -154,11 +154,15 @@ class SaleController extends Controller
                 }
 
                 if (! isset($saldosPorProduto[$produtoId])) {
-                    $balance = ProductStockDisplay::resolverSaldoParaVenda($locationId, $produtoId);
+                    $balanceLeitura = StockBalance::query()
+                        ->where('location_id', $locationId)
+                        ->where('product_id', $produtoId)
+                        ->lockForUpdate()
+                        ->first();
 
                     $versaoCliente = trim((string) ($stockVersions[$produtoId] ?? ''));
-                    if ($versaoCliente !== '' && $balance) {
-                        $versaoServidor = (string) optional($balance->updated_at)->toJSON();
+                    if ($versaoCliente !== '' && $balanceLeitura) {
+                        $versaoServidor = (string) optional($balanceLeitura->updated_at)->toJSON();
                         if ($versaoServidor !== '' && $versaoCliente !== $versaoServidor) {
                             throw ValidationException::withMessages([
                                 'itens' => ["O stock de \"{$item['nome']}\" foi actualizado noutro caixa. Actualize o ecrã e tente novamente."],
@@ -167,7 +171,7 @@ class SaleController extends Controller
                     }
 
                     $saldosPorProduto[$produtoId] = [
-                        'balance' => $balance,
+                        'balance' => null,
                         'reservado' => 0.0,
                         'nome' => $item['nome'],
                     ];

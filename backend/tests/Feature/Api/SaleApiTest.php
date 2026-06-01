@@ -121,6 +121,50 @@ class SaleApiTest extends TestCase
         $this->assertSame(24.0, (float) $saldo->quantity);
     }
 
+    public function test_aceita_venda_com_versao_actual_mesmo_quando_saldo_local_sera_sincronizado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['stock' => 20]);
+
+        $balance = StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->first();
+
+        $balance->update(['quantity' => 0]);
+        $balance->refresh();
+
+        $versaoActual = (string) optional($balance->updated_at)->toJSON();
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 50,
+            'total' => 50,
+            'stockVersions' => [
+                $produto->id => $versaoActual,
+            ],
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 50,
+                    'subtotal' => 50,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated();
+
+        $balance->refresh();
+        $this->assertSame(19.0, (float) $balance->quantity);
+    }
+
     public function test_rejeita_venda_quando_stock_insuficiente(): void
     {
         $ambiente = $this->criarAmbienteApi();

@@ -22,6 +22,18 @@ export function normalizarMapaDisponibilidade(dados) {
   );
 }
 
+/** Evita round-trip à API antes da venda quando o catálogo já tem versões recentes. */
+export function carrinhoTemVersoesStockCompletas(itens = [], produtos = []) {
+  if (!Array.isArray(itens) || itens.length === 0) return false;
+
+  const indice = new Map(produtos.map((produto) => [produto.id, produto]));
+  return itens.every((item) => {
+    const produtoId = item?.produtoId;
+    if (!produtoId) return true;
+    return Boolean(indice.get(produtoId)?.stockVersion);
+  });
+}
+
 export function construirStockVersionsParaVenda(itens = [], produtos = []) {
   const indice = new Map(produtos.map((produto) => [produto.id, produto]));
   const versoes = {};

@@ -4,7 +4,7 @@ import { obterToken } from "./authStorage";
 function construirUrlTeste() {
   const base = String(apiConfig.baseUrl || "").replace(/\/+$/, "");
   const prefixo = String(apiConfig.versionPrefix || "").replace(/\/+$/, "");
-  return `${base}${prefixo}/products`;
+  return `${base}${prefixo}/auth/me`;
 }
 
 export async function verificarConexaoBackend(timeoutMs = 4000) {

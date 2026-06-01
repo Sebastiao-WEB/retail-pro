@@ -12,10 +12,13 @@ import { enfileirarVendaPendente } from "../services/offline/pendingQueue";
 import { extrairVendaApi } from "../services/offline/salePayload";
 import { mapearVenda } from "../api/mappers";
 import { useSessaoStore } from "./useSessaoStore";
+import { useProdutoStore } from "./useProdutoStore";
 import { t } from "../services/i18nHelper.js";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
 const UUID_VENDA_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+let timerSincronizacaoPos = null;
 
 function mapearEstadoReversaoRemota(status) {
   const valor = String(status || "").toUpperCase();
@@ -275,12 +278,21 @@ export const useVendaStore = defineStore("vendas", {
     async carregarHistorico() {
       return this.sincronizarHistorico();
     },
-    async registarVenda(novaVenda) {
-      const sessaoStore = useSessaoStore();
-      sessaoStore.hidratar();
-
+    agendarSincronizacaoPos(delayMs = 2500) {
+      if (!temApiConfigurada()) return;
+      if (timerSincronizacaoPos) {
+        clearTimeout(timerSincronizacaoPos);
+      }
+      timerSincronizacaoPos = setTimeout(() => {
+        timerSincronizacaoPos = null;
+        void this.sincronizarHistorico().catch(() => {
+          // O turno actual já tem a venda em memória; reconcilia na próxima navegação.
+        });
+      }, delayMs);
+    },
+    normalizarVendaParaRegisto(novaVenda, sessaoStore) {
       const id = novaVenda?.id || gerarIdLocal();
-      const vendaNormalizada = {
+      return {
         ...novaVenda,
         id,
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
@@ -290,7 +302,77 @@ export const useVendaStore = defineStore("vendas", {
         registerId: novaVenda.registerId || novaVenda.register_id || sessaoStore.registerId,
         data: novaVenda.data || new Date().toISOString(),
         estado: "Concluida",
+        stockVersions: {},
       };
+    },
+    async sincronizarVendaPosRemota(vendaNormalizada) {
+      const produtoStore = useProdutoStore();
+      const id = vendaNormalizada.id;
+
+      try {
+        const resposta = await criarVendaIntegrada(vendaNormalizada);
+        const dadosApi = extrairVendaApi(resposta);
+        const vendaRemota = mapearVenda({ ...vendaNormalizada, ...dadosApi });
+        const sessaoStore = useSessaoStore();
+        this.inserirOuActualizarVenda({
+          ...vendaRemota,
+          id: vendaRemota.id || id,
+          referencia: vendaRemota.referencia || vendaNormalizada.referencia,
+          cashSessionId: vendaRemota.cashSessionId || vendaNormalizada.cashSessionId,
+          pendenteSync: false,
+        });
+        if (vendaRemota.cashSessionId && vendaRemota.cashSessionId !== sessaoStore.cashSessionId) {
+          sessaoStore.cashSessionId = vendaRemota.cashSessionId;
+          sessaoStore.salvar();
+        }
+      } catch (erro) {
+        if (isErroNegocioVenda(erro) || !isErroRedeOuIndisponivel(erro)) {
+          produtoStore.reporStockItensVenda(vendaNormalizada.itens || []);
+          const vendaLocal = this.vendas.find((item) => item.id === id);
+          if (vendaLocal) {
+            vendaLocal.estado = "Erro sync";
+            vendaLocal.erroSync = erro?.message || t("api.reversalFailed");
+          }
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("retailpro:venda-sync-falhou", {
+                detail: { mensagem: erro?.message || t("pos.toast.registerSaleFailed") },
+              })
+            );
+          }
+          return;
+        }
+
+        if (await vendaJaRegistadaNoServidor(id)) {
+          this.inserirOuActualizarVenda({ ...vendaNormalizada, pendenteSync: false });
+          return;
+        }
+
+        enfileirarVendaPendente(vendaNormalizada);
+        const vendaLocal = this.vendas.find((item) => item.id === id);
+        if (vendaLocal) vendaLocal.pendenteSync = true;
+      }
+    },
+    registarVendaPosRapida(novaVenda) {
+      const sessaoStore = useSessaoStore();
+      sessaoStore.hidratar();
+      const vendaNormalizada = this.normalizarVendaParaRegisto(novaVenda, sessaoStore);
+
+      this.inserirOuActualizarVenda({ ...vendaNormalizada, pendenteSync: false });
+
+      if (!temApiConfigurada()) {
+        return { modo: "local" };
+      }
+
+      void this.sincronizarVendaPosRemota(vendaNormalizada);
+      this.agendarSincronizacaoPos();
+      return { modo: "online-enviando" };
+    },
+    async registarVenda(novaVenda) {
+      const sessaoStore = useSessaoStore();
+      sessaoStore.hidratar();
+
+      const vendaNormalizada = this.normalizarVendaParaRegisto(novaVenda, sessaoStore);
 
       if (temApiConfigurada()) {
         try {
@@ -299,7 +381,7 @@ export const useVendaStore = defineStore("vendas", {
           const vendaRemota = mapearVenda({ ...vendaNormalizada, ...dadosApi });
           this.inserirOuActualizarVenda({
             ...vendaRemota,
-            id: vendaRemota.id || id,
+            id: vendaRemota.id || vendaNormalizada.id,
             referencia: vendaRemota.referencia || vendaNormalizada.referencia,
             cashSessionId: vendaRemota.cashSessionId || vendaNormalizada.cashSessionId,
             pendenteSync: false,
@@ -308,15 +390,16 @@ export const useVendaStore = defineStore("vendas", {
             sessaoStore.cashSessionId = vendaRemota.cashSessionId;
             sessaoStore.salvar();
           }
-          await this.sincronizarHistorico();
+          this.agendarSincronizacaoPos();
           return { modo: "online" };
         } catch (erro) {
           if (isErroNegocioVenda(erro) || !isErroRedeOuIndisponivel(erro)) {
             throw erro;
           }
 
-          if (await vendaJaRegistadaNoServidor(id)) {
-            await this.sincronizarHistorico();
+          if (await vendaJaRegistadaNoServidor(vendaNormalizada.id)) {
+            this.inserirOuActualizarVenda({ ...vendaNormalizada, pendenteSync: false });
+            this.agendarSincronizacaoPos();
             return { modo: "online-recuperado" };
           }
 

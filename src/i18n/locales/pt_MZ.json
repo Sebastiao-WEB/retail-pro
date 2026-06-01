@@ -81,8 +81,11 @@
       "authFailed": "Falha ao autenticar com o backend.",
       "twoFactorRequired": "Confirme o acesso com autenticação em dois factores.",
       "twoFactorExpired": "Sessão de verificação expirada. Faça login novamente.",
-      "twoFactorInvalid": "Código de autenticação inválido."
-    }
+      "twoFactorInvalid": "Código de autenticação inválido.",
+      "inventoryFromCache": "Sem ligação ao servidor; inventário carregado da última sessão.",
+      "inventoryLoadFailed": "Não foi possível carregar o inventário. Tente novamente."
+    },
+    "loadingInventory": "A carregar inventário..."
   },
   "sidebar": {
     "logoAlt": "RetailPro POS",
@@ -473,6 +476,8 @@
       "registerSaleFailed": "Falha ao registar venda na API.",
       "salePrinted": "Venda realizada e enviada para impressão em {printer}.",
       "saleSuccess": "Venda realizada com sucesso.",
+      "saleQueuedSync": "Venda registada. A sincronizar com o servidor em segundo plano.",
+      "saleSyncFailed": "A venda foi anulada localmente: não foi possível sincronizar com o servidor.",
       "saleOfflineQueued": "Venda guardada localmente. Será sincronizada quando a internet voltar.",
       "saleOfflinePrinted": "Venda guardada offline e talão enviado para {printer}.",
       "openRegisterOffline": "Caixa aberto em modo offline. Vendas serão sincronizadas depois.",

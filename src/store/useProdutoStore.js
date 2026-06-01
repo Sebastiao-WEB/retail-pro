@@ -72,12 +72,14 @@ export const useProdutoStore = defineStore("produtos", {
     emProcessamento: false,
     pesquisaEmCurso: false,
     catalogoPosChave: null,
+    inventarioPosPronto: false,
     indiceCodigosBarras: {},
   }),
   getters: {
     produtosComStockBaixo: (state) => state.produtos.filter((produto) => produto.stock <= 10),
     totalStock: (state) => state.produtos.reduce((acc, produto) => acc + produto.stock, 0),
     catalogoPosPronto: (state) => state.carregado && state.produtos.length > 0,
+    usarStockLocalPos: (state) => state.inventarioPosPronto && state.produtos.length > 0,
   },
   actions: {
     reconstruirIndiceCodigosBarras() {
@@ -107,10 +109,16 @@ export const useProdutoStore = defineStore("produtos", {
       this.carregado = true;
       return this.produtos;
     },
+    marcarInventarioPosPronto(filtros = {}) {
+      this.inventarioPosPronto = true;
+      this.catalogoPosChave = chaveCatalogoPos(filtros);
+      this.carregado = this.produtos.length > 0;
+    },
     limparCatalogoPos() {
       this.produtos = [];
       this.resultadosPesquisa = [];
       this.carregado = false;
+      this.inventarioPosPronto = false;
       this.catalogoPosChave = null;
       this.indiceCodigosBarras = {};
       limparCatalogosOffline();
@@ -137,8 +145,56 @@ export const useProdutoStore = defineStore("produtos", {
         this.emProcessamento = false;
       }
     },
+    async sincronizarInventarioBackground(filtros = {}) {
+      if (!temApiConfigurada()) return this.produtos;
+
+      const stocksLocais = new Map(this.produtos.map((produto) => [produto.id, Number(produto.stock ?? 0)]));
+      const produtos = await carregarProdutosIntegrado(filtros);
+      const mesclados = produtos.map((produto) => {
+        if (!stocksLocais.has(produto.id)) return produto;
+        const stockLocal = stocksLocais.get(produto.id);
+        const stockServidor = Number(produto.stock ?? 0);
+        return {
+          ...produto,
+          stock: Math.min(stockLocal, stockServidor),
+        };
+      });
+
+      this.aplicarCatalogoLocal(mesclados, filtros);
+      this.marcarInventarioPosPronto(filtros);
+      salvarCatalogoOffline(filtros, this.produtos);
+      return this.produtos;
+    },
     async carregarProdutos(filtros = {}) {
       return this.sincronizarProdutos(filtros);
+    },
+    async carregarInventarioPosLogin(filtros = {}) {
+      if (!temApiConfigurada()) {
+        const cache = this.carregarCatalogoDeCache(filtros);
+        if (cache) {
+          this.marcarInventarioPosPronto(filtros);
+          return cache;
+        }
+        const produtos = await this.sincronizarProdutos(filtros);
+        this.marcarInventarioPosPronto(filtros);
+        return produtos;
+      }
+
+      const produtos = await this.sincronizarProdutos(filtros);
+      salvarCatalogoOffline(filtros, this.produtos);
+      this.marcarInventarioPosPronto(filtros);
+      return produtos;
+    },
+    garantirCatalogoPosLocal(filtros = {}) {
+      if (this.usarStockLocalPos && this.catalogoPosChave === chaveCatalogoPos(filtros)) {
+        return this.produtos;
+      }
+      const cache = this.carregarCatalogoDeCache(filtros);
+      if (cache) {
+        this.marcarInventarioPosPronto(filtros);
+        return cache;
+      }
+      return this.produtos;
     },
     async garantirCatalogoPos(filtros = {}, { forcar = false } = {}) {
       const chave = chaveCatalogoPos(filtros);
@@ -172,6 +228,8 @@ export const useProdutoStore = defineStore("produtos", {
       const local = this.resolverPorCodigoBarras(normalizado);
       if (local) return local;
 
+      if (this.usarStockLocalPos) return null;
+
       if (!temApiConfigurada()) return null;
 
       try {
@@ -197,9 +255,20 @@ export const useProdutoStore = defineStore("produtos", {
 
       this.pesquisaEmCurso = true;
       try {
+        if (this.inventarioPosPronto || this.usarStockLocalPos) {
+          this.resultadosPesquisa = this.pesquisarLocalmente(termo);
+          return this.resultadosPesquisa;
+        }
+
+        const chave = chaveCatalogoPos(filtros);
+        if (this.catalogoPosPronto && this.catalogoPosChave === chave) {
+          this.resultadosPesquisa = this.pesquisarLocalmente(termo);
+          return this.resultadosPesquisa;
+        }
+
         const podeUsarCacheLocal =
           this.catalogoPosPronto &&
-          this.catalogoPosChave === chaveCatalogoPos(filtros) &&
+          this.catalogoPosChave === chave &&
           (!temApiConfigurada() || !redeDisponivel());
 
         if (podeUsarCacheLocal) {
@@ -289,7 +358,23 @@ export const useProdutoStore = defineStore("produtos", {
           normalizarUnidadeVenda(produto.unidadeVenda) === "KG"
             ? Math.round(novoStock * 1000) / 1000
             : novoStock;
+        produto.stockVersion = null;
       });
+      for (const item of itensVenda) {
+        const resultado = this.resultadosPesquisa.find((reg) => reg.id === item.produtoId);
+        if (resultado) resultado.stockVersion = null;
+      }
+      if (this.produtos.length) {
+        salvarCatalogoOffline(filtros, this.produtos);
+      }
+    },
+    reporStockItensVenda(itensVenda = [], filtros = {}) {
+      for (const item of itensVenda) {
+        const quantidade = Number(item?.quantidade || 0);
+        if (item?.produtoId && quantidade > 0) {
+          this.reporStock(item.produtoId, quantidade);
+        }
+      }
       if (this.produtos.length) {
         salvarCatalogoOffline(filtros, this.produtos);
       }
