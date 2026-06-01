@@ -39,9 +39,9 @@ final class ProductStockDisplay
     }
 
     /**
-     * Garante linha em stock_balances para baixar inventário quando só existe stock global.
+     * Saldo em stock_balances para baixar na venda, alinhado com products.stock quando necessário.
      */
-    public static function garantirSaldoLocalParaVenda(string $locationId, string $productId): ?StockBalance
+    public static function resolverSaldoParaVenda(string $locationId, string $productId): ?StockBalance
     {
         $balance = StockBalance::query()
             ->where('location_id', $locationId)
@@ -49,24 +49,35 @@ final class ProductStockDisplay
             ->lockForUpdate()
             ->first();
 
-        if ($balance) {
+        $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
+        if (! $produto) {
             return $balance;
         }
 
-        $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
-        if (! $produto || (float) $produto->stock <= 0) {
-            return null;
+        $global = (float) $produto->stock;
+        if ($global <= 0) {
+            return $balance;
         }
 
-        if (StockBalance::query()->where('product_id', $productId)->exists()) {
-            return null;
+        if (! $balance) {
+            if (StockBalance::query()->where('product_id', $productId)->exists()) {
+                return null;
+            }
+
+            return StockBalance::query()->create([
+                'id' => (string) Str::uuid(),
+                'location_id' => $locationId,
+                'product_id' => $productId,
+                'quantity' => $global,
+            ]);
         }
 
-        return StockBalance::query()->create([
-            'id' => (string) Str::uuid(),
-            'location_id' => $locationId,
-            'product_id' => $productId,
-            'quantity' => (float) $produto->stock,
-        ]);
+        return $balance;
+    }
+
+    /** @deprecated Use resolverSaldoParaVenda() */
+    public static function garantirSaldoLocalParaVenda(string $locationId, string $productId): ?StockBalance
+    {
+        return self::resolverSaldoParaVenda($locationId, $productId);
     }
 }

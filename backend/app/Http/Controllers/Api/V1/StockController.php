@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
-use App\Support\ProductStockDisplay;
 use App\Services\StockAdjustmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -125,19 +124,15 @@ class StockController extends Controller
             ->get(['product_id', 'quantity', 'updated_at']);
 
         $porProduto = $balances->keyBy('product_id');
-        $produtos = Product::query()->whereIn('id', $productIds)->get();
+        $produtos = Product::query()->whereIn('id', $productIds)->get(['id', 'stock']);
 
         $data = [];
         foreach ($productIds as $productId) {
             $balance = $porProduto->get($productId);
             $produto = $produtos->firstWhere('id', $productId);
-            $saldoLocal = $balance ? [$productId => (float) $balance->quantity] : [];
-            $quantity = $produto
-                ? ProductStockDisplay::quantidade($produto, $dados['location_id'], $saldoLocal)
-                : 0.0;
 
             $data[$productId] = [
-                'quantity' => $quantity,
+                'quantity' => (float) ($produto?->stock ?? 0),
                 'version' => optional($balance?->updated_at)->toJSON(),
             ];
         }

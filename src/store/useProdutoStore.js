@@ -253,7 +253,7 @@ export const useProdutoStore = defineStore("produtos", {
         const stockVersion = entrada?.version ? String(entrada.version) : null;
         const produto = this.produtos.find((reg) => reg.id === productId);
         if (produto) {
-          produto.stock = stock;
+          produto.stock = Math.max(Number(produto.stock ?? 0), stock);
           produto.stockVersion = stockVersion;
         }
         const resultado = this.resultadosPesquisa.find((reg) => reg.id === productId);

@@ -140,15 +140,7 @@ class SaleController extends Controller
                 }
 
                 if (! isset($saldosPorProduto[$produtoId])) {
-                    $balance = StockBalance::query()
-                        ->where('location_id', $locationId)
-                        ->where('product_id', $produtoId)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if (! $balance) {
-                        $balance = ProductStockDisplay::garantirSaldoLocalParaVenda($locationId, $produtoId);
-                    }
+                    $balance = ProductStockDisplay::resolverSaldoParaVenda($locationId, $produtoId);
 
                     $versaoCliente = trim((string) ($stockVersions[$produtoId] ?? ''));
                     if ($versaoCliente !== '' && $balance) {

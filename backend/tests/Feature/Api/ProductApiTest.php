@@ -32,7 +32,7 @@ class ProductApiTest extends TestCase
             $this->authHeaders($token)
         );
         $respostaLocal->assertOk();
-        $this->assertSame(42.0, (float) collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['stock']);
+        $this->assertSame(100.0, (float) collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['stock']);
         $this->assertSame('UN', collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['unidadeVenda']);
     }
 

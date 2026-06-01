@@ -128,7 +128,7 @@ async function executarPesquisaProdutos(termoInformado) {
   try {
     await produtoStore.buscarProdutos({
       search: termo,
-      ...filtrosStockPos(),
+      ...filtrosCatalogoProdutos(),
     });
   } catch (erro) {
     if (sequencia !== sequenciaPesquisa) return;
@@ -199,7 +199,7 @@ async function processarLeituraCodigoBarras() {
   clearTimeout(debouncePesquisaTimer);
   sequenciaPesquisa += 1;
 
-  const filtros = filtrosStockPos();
+  const filtros = filtrosCatalogoProdutos();
   await produtoStore.garantirCatalogoPos(filtros);
 
   const produto = await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros);
@@ -399,13 +399,19 @@ const origemStockVenda = computed(() => ({
   nome: sessaoStore.sourceLocationNome || "",
 }));
 
+/** Catálogo/POS: stock igual ao admin (products.stock na API, sem filtro por local). */
+function filtrosCatalogoProdutos() {
+  return {};
+}
+
+/** Vendas e versões de stock: local do caixa. */
 function filtrosStockPos() {
   if (!temApiConfigurada() || !origemStockVenda.value.id) return {};
   return { source_location_id: origemStockVenda.value.id };
 }
 
 function temStockLocalParaVenda() {
-  return temCatalogoOffline(filtrosStockPos()) || produtoStore.catalogoPosPronto;
+  return temCatalogoOffline(filtrosCatalogoProdutos()) || produtoStore.catalogoPosPronto;
 }
 
 function ajustarCarrinhoAoStock() {
@@ -424,9 +430,9 @@ function ajustarCarrinhoAoStock() {
 async function sincronizarStockPos() {
   if (!temApiConfigurada()) return;
   try {
-    await produtoStore.garantirCatalogoPos(filtrosStockPos());
+    await produtoStore.garantirCatalogoPos(filtrosCatalogoProdutos());
   } catch (erro) {
-    const cache = produtoStore.carregarCatalogoDeCache(filtrosStockPos());
+    const cache = produtoStore.carregarCatalogoDeCache(filtrosCatalogoProdutos());
     if (!cache || !isErroRedeOuIndisponivel(erro)) {
       throw erro;
     }
@@ -454,7 +460,7 @@ function obterProdutoAtualizado(produto) {
   return {
     ...doCatalogo,
     unidadeVenda: produto.unidadeVenda ?? doCatalogo.unidadeVenda,
-    stock: produto.stock ?? doCatalogo.stock,
+    stock: Math.max(Number(produto.stock ?? 0), Number(doCatalogo.stock ?? 0)),
     precoVenda: produto.precoVenda ?? doCatalogo.precoVenda,
     precoVendaComIva: produto.precoVendaComIva ?? doCatalogo.precoVendaComIva,
   };

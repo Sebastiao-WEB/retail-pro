@@ -30,7 +30,7 @@ class StockAvailabilityApiTest extends TestCase
 
         $resposta
             ->assertOk()
-            ->assertJsonPath('data.'.$produto->id.'.quantity', 17);
+            ->assertJsonPath('data.'.$produto->id.'.quantity', 100);
 
         $this->assertNotEmpty($resposta->json('data.'.$produto->id.'.version'));
     }
@@ -41,8 +41,9 @@ class StockAvailabilityApiTest extends TestCase
         $token = $this->loginApi($ambiente['user']);
         $produto = $ambiente['product'];
         $produto->update(['stock' => 33]);
-
-        StockBalance::query()->where('product_id', $produto->id)->delete();
+        StockBalance::query()
+            ->where('product_id', $produto->id)
+            ->update(['quantity' => 5]);
 
         $resposta = $this->getJson(
             '/api/v1/stock/availability?location_id='.$ambiente['location']->id.'&product_ids='.$produto->id,
