@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  carrinhoTemVersoesStockCompletas,
   construirStockVersionsParaVenda,
   normalizarMapaDisponibilidade,
 } from "../src/services/stockDisponibilidade";
@@ -23,5 +24,16 @@ describe("stockDisponibilidade", () => {
       [{ id: "p1", stockVersion: "v1" }]
     );
     expect(versoes).toEqual({ p1: "v1" });
+  });
+
+  it("detecta carrinho com versões de stock completas", () => {
+    const produtos = [
+      { id: "p1", stockVersion: "v1" },
+      { id: "p2", stockVersion: "v2" },
+    ];
+    expect(carrinhoTemVersoesStockCompletas([{ produtoId: "p1" }, { produtoId: "p2" }], produtos)).toBe(true);
+    expect(carrinhoTemVersoesStockCompletas([{ produtoId: "p1" }, { produtoId: "p2" }], [{ id: "p1", stockVersion: "v1" }])).toBe(
+      false
+    );
   });
 });

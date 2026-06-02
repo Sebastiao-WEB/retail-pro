@@ -202,6 +202,7 @@ return [
         'detail_status' => 'Estado',
         'detail_date' => 'Data',
         'detail_subtotal' => 'Subtotal',
+        'detail_total_iva' => 'Total IVA',
         'detail_discount' => 'Desconto',
         'detail_total' => 'Total',
         'detail_amount_paid' => 'Valor pago',

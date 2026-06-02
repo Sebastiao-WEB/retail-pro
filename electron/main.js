@@ -150,20 +150,69 @@ function obterIconeAplicacao() {
   return candidatos.find((caminho) => fs.existsSync(caminho));
 }
 
+function opcoesJanelaProducao() {
+  return {
+    frame: false,
+    fullscreen: true,
+    alwaysOnTop: true,
+    minimizable: false,
+    closable: true,
+    maximizable: false,
+    resizable: false,
+    fullscreenable: true,
+    skipTaskbar: false,
+  };
+}
+
+function aplicarFullscreenPos(window) {
+  window.setAlwaysOnTop(true, "screen-saver");
+  window.setFullScreen(true);
+  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  window.setMaximizable(false);
+  window.focus();
+}
+
+function configurarPersistenciaFullscreen(window, modoJanela) {
+  if (modoJanela) return;
+
+  window.on("blur", () => {
+    if (window.isDestroyed() || window.isMinimized()) return;
+    window.setAlwaysOnTop(true, "screen-saver");
+    window.focus();
+  });
+
+  window.on("leave-full-screen", () => {
+    if (window.isDestroyed() || window.isMinimized()) return;
+    aplicarFullscreenPos(window);
+  });
+
+  window.on("restore", () => {
+    if (window.isDestroyed()) return;
+    aplicarFullscreenPos(window);
+  });
+}
+
 function createWindow() {
   const iconeAplicacao = obterIconeAplicacao();
+  const modoJanela = process.env.POS_DESKTOP_WINDOWED === "1";
   const window = new BrowserWindow({
-    width: 1280,
-    height: 735,
-    minWidth: 1280,
-    minHeight: 735,
-    maxWidth: 1280,
-    maxHeight: 735,
-    resizable: false,
-    maximizable: false,
-    fullscreenable: false,
+    show: false,
     backgroundColor: "#0f172a",
     icon: iconeAplicacao,
+    autoHideMenuBar: true,
+    ...(modoJanela
+      ? {
+          width: 1280,
+          height: 735,
+          minWidth: 1280,
+          minHeight: 735,
+          maxWidth: 1280,
+          maxHeight: 735,
+          resizable: false,
+          maximizable: false,
+          fullscreenable: false,
+        }
+      : opcoesJanelaProducao()),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -172,6 +221,15 @@ function createWindow() {
     },
   });
   mainWindow = window;
+  window.setMaximizable(false);
+  configurarPersistenciaFullscreen(window, modoJanela);
+
+  window.once("ready-to-show", () => {
+    if (!modoJanela) {
+      aplicarFullscreenPos(window);
+    }
+    window.show();
+  });
 
   // Fallback para ambientes onde preload não injeta window.api.
   window.webContents.on("did-finish-load", async () => {
@@ -222,6 +280,12 @@ function createWindow() {
 
   window.loadFile(indexLocal);
 }
+
+ipcMain.handle("pos:fechar-janela", () => {
+  const alvo = mainWindow || BrowserWindow.getFocusedWindow();
+  alvo?.close();
+  return { ok: true };
+});
 
 ipcMain.handle("pos:listar-impressoras", async () => {
   console.log("[POS][print] iniciar listagem de impressoras");

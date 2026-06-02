@@ -29,12 +29,14 @@ class CashSessionController extends Controller
 
         $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
 
+        $userId = optional($request->user())->id;
+
         $query = CashSession::query()
             ->with(['register'])
             ->where('register_id', $registerId)
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->when($dados['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->latest('closed_at')
-            ->latest('opened_at');
+            ->latest('created_at');
 
         $paginado = $query->paginate($perPage);
 
@@ -62,6 +64,8 @@ class CashSessionController extends Controller
             'differenceAmount' => $sessao->difference_amount !== null ? (float) $sessao->difference_amount : null,
             'openedAt' => optional($sessao->opened_at)->toISOString(),
             'closedAt' => optional($sessao->closed_at)->toISOString(),
+            'createdAt' => optional($sessao->created_at)->toISOString(),
+            'userId' => $sessao->user_id,
             'note' => $sessao->note,
             'reportSnapshot' => $sessao->report_snapshot,
         ];

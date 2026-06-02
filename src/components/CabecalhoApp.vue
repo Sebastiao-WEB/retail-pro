@@ -56,6 +56,8 @@ const backendConectado = ref(false);
 const verificandoBackend = ref(false);
 const ultimoStatusBackend = ref(null);
 const ultimaVerificacaoEm = ref("");
+/** Verificação de ligação ao backend — não usar /products (catálogo completo). */
+const INTERVALO_VERIFICACAO_BACKEND_MS = 60_000;
 let timerVerificacao = null;
 
 const mostrarStatusBackend = computed(() => modoApiAtivo());
@@ -112,7 +114,7 @@ async function sincronizarManualmente() {
 
 onMounted(async () => {
   await atualizarStatusBackend();
-  timerVerificacao = window.setInterval(atualizarStatusBackend, 15000);
+  timerVerificacao = window.setInterval(atualizarStatusBackend, INTERVALO_VERIFICACAO_BACKEND_MS);
 });
 
 onUnmounted(() => {

@@ -6,6 +6,7 @@ const api = {
   imprimirTalao: (payload) => ipcRenderer.invoke("pos:imprimir-talao", payload),
   imprimirRelatorioFecho: (payload) => ipcRenderer.invoke("pos:imprimir-relatorio-fecho", payload),
   abrirGaveta: (payload) => ipcRenderer.invoke("pos:abrir-gaveta", payload),
+  fecharJanela: () => ipcRenderer.invoke("pos:fechar-janela"),
 };
 
 contextBridge.exposeInMainWorld("api", api);

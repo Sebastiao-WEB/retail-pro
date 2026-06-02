@@ -77,6 +77,28 @@ describe("api mappers", () => {
     expect(venda.itens[0].quantidade).toBe(2);
   });
 
+  it("deriva ivaPercentual e valorIvaUnitario no item de venda", () => {
+    const venda = mapearVenda({
+      id: "uuid-venda",
+      items: [
+        {
+          product_id: "uuid-prod",
+          name: "Leite",
+          quantity: 1,
+          unit_price: 116,
+          preco_sem_iva: 100,
+          iva_percentual: 16,
+          valor_iva_unitario: 16,
+          line_total: 116,
+        },
+      ],
+    });
+
+    expect(venda.itens[0].ivaPercentual).toBe(16);
+    expect(venda.itens[0].valorIvaUnitario).toBe(16);
+    expect(venda.itens[0].precoSemIva).toBe(100);
+  });
+
   it("mapeia compra em snake_case", () => {
     const compra = mapearCompra({
       id: "uuid-compra",

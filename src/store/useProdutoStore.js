@@ -8,6 +8,11 @@ import {
 } from "../services/offline/catalogCache";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/networkError";
 import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
+import {
+  normalizarCodigoBarras,
+  pesquisarProdutosNoCatalogo,
+  resolverProdutoPorCodigoBarras,
+} from "../utils/produtoPesquisa";
 
 function normalizarIva(valor) {
   const numero = Number(valor || 0);
@@ -28,35 +33,58 @@ function normalizarMonetario(valor) {
   return Math.max(0, Number(numero.toFixed(2)));
 }
 
-function calcularValorIvaUnitario(precoSemIva, ivaTipo, ivaValor) {
-  const preco = Number(precoSemIva || 0);
-  if (!Number.isFinite(preco) || preco < 0) return 0;
-  if (ivaTipo === "isento") return 0;
-  if (ivaTipo === "monetario") return normalizarMonetario(ivaValor);
-  const percentual = normalizarIva(ivaValor);
-  return Number((preco * (percentual / 100)).toFixed(2));
+function extrairPrecosVendaComIvaIncluso(precoEtiqueta, ivaTipo, ivaValor) {
+  const precoVendaComIva = Math.max(0, Number(precoEtiqueta || 0));
+
+  if (ivaTipo === "isento" || precoVendaComIva <= 0) {
+    return {
+      precoSemIva: precoVendaComIva,
+      valorIvaUnitario: 0,
+      precoVendaComIva,
+      ivaPercentual: 0,
+    };
+  }
+
+  if (ivaTipo === "monetario") {
+    const valorIvaUnitario = normalizarMonetario(ivaValor);
+    const precoSemIva = Math.max(0, Number((precoVendaComIva - valorIvaUnitario).toFixed(2)));
+    const ivaPercentual =
+      precoSemIva > 0 ? Number(((valorIvaUnitario / precoSemIva) * 100).toFixed(2)) : 0;
+
+    return { precoSemIva, valorIvaUnitario, precoVendaComIva, ivaPercentual };
+  }
+
+  const taxa = normalizarIva(ivaValor);
+  const precoSemIva =
+    taxa > 0 ? Number((precoVendaComIva / (1 + taxa / 100)).toFixed(2)) : precoVendaComIva;
+  const valorIvaUnitario = Number((precoVendaComIva - precoSemIva).toFixed(2));
+
+  return {
+    precoSemIva,
+    valorIvaUnitario,
+    precoVendaComIva,
+    ivaPercentual: taxa,
+  };
 }
 
 function normalizarProduto(produto) {
   const precoCompra = normalizarMonetario(produto?.precoCompra);
-  const precoVenda = Number(produto?.precoVenda || 0);
+  const precoEtiqueta = Number(produto?.precoVenda || 0);
   const ivaTipo = normalizarIvaTipo(produto?.ivaTipo);
   const ivaValorEntrada = produto?.ivaValor ?? produto?.ivaPercentual ?? 0;
   const ivaValor = ivaTipo === "percentual" ? normalizarIva(ivaValorEntrada) : normalizarMonetario(ivaValorEntrada);
-  const valorIvaUnitario = calcularValorIvaUnitario(precoVenda, ivaTipo, ivaValor);
-  const precoVendaComIva = Number((Math.max(0, Number(precoVenda || 0)) + valorIvaUnitario).toFixed(2));
-  const ivaPercentual = ivaTipo === "percentual" ? ivaValor : 0;
+  const precos = extrairPrecosVendaComIvaIncluso(precoEtiqueta, ivaTipo, ivaValor);
 
   return {
     ...produto,
     unidadeVenda: normalizarUnidadeVenda(produto?.unidadeVenda ?? produto?.unidade_venda),
     precoCompra,
-    precoVenda: Number.isFinite(precoVenda) ? precoVenda : 0,
+    precoVenda: precos.precoSemIva,
     ivaTipo,
     ivaValor,
-    ivaPercentual,
-    valorIvaUnitario,
-    precoVendaComIva,
+    ivaPercentual: ivaTipo === "percentual" ? ivaValor : precos.ivaPercentual,
+    valorIvaUnitario: precos.valorIvaUnitario,
+    precoVendaComIva: precos.precoVendaComIva,
   };
 }
 
@@ -72,18 +100,20 @@ export const useProdutoStore = defineStore("produtos", {
     emProcessamento: false,
     pesquisaEmCurso: false,
     catalogoPosChave: null,
+    inventarioPosPronto: false,
     indiceCodigosBarras: {},
   }),
   getters: {
     produtosComStockBaixo: (state) => state.produtos.filter((produto) => produto.stock <= 10),
     totalStock: (state) => state.produtos.reduce((acc, produto) => acc + produto.stock, 0),
     catalogoPosPronto: (state) => state.carregado && state.produtos.length > 0,
+    usarStockLocalPos: (state) => state.inventarioPosPronto && state.produtos.length > 0,
   },
   actions: {
     reconstruirIndiceCodigosBarras() {
       const indice = {};
       for (const produto of this.produtos) {
-        const codigo = String(produto.codigoBarras || "").trim();
+        const codigo = normalizarCodigoBarras(produto.codigoBarras);
         if (codigo) indice[codigo] = produto;
       }
       this.indiceCodigosBarras = indice;
@@ -107,10 +137,16 @@ export const useProdutoStore = defineStore("produtos", {
       this.carregado = true;
       return this.produtos;
     },
+    marcarInventarioPosPronto(filtros = {}) {
+      this.inventarioPosPronto = true;
+      this.catalogoPosChave = chaveCatalogoPos(filtros);
+      this.carregado = this.produtos.length > 0;
+    },
     limparCatalogoPos() {
       this.produtos = [];
       this.resultadosPesquisa = [];
       this.carregado = false;
+      this.inventarioPosPronto = false;
       this.catalogoPosChave = null;
       this.indiceCodigosBarras = {};
       limparCatalogosOffline();
@@ -137,8 +173,56 @@ export const useProdutoStore = defineStore("produtos", {
         this.emProcessamento = false;
       }
     },
+    async sincronizarInventarioBackground(filtros = {}) {
+      if (!temApiConfigurada()) return this.produtos;
+
+      const stocksLocais = new Map(this.produtos.map((produto) => [produto.id, Number(produto.stock ?? 0)]));
+      const produtos = await carregarProdutosIntegrado(filtros);
+      const mesclados = produtos.map((produto) => {
+        if (!stocksLocais.has(produto.id)) return produto;
+        const stockLocal = stocksLocais.get(produto.id);
+        const stockServidor = Number(produto.stock ?? 0);
+        return {
+          ...produto,
+          stock: Math.min(stockLocal, stockServidor),
+        };
+      });
+
+      this.aplicarCatalogoLocal(mesclados, filtros);
+      this.marcarInventarioPosPronto(filtros);
+      salvarCatalogoOffline(filtros, this.produtos);
+      return this.produtos;
+    },
     async carregarProdutos(filtros = {}) {
       return this.sincronizarProdutos(filtros);
+    },
+    async carregarInventarioPosLogin(filtros = {}) {
+      if (!temApiConfigurada()) {
+        const cache = this.carregarCatalogoDeCache(filtros);
+        if (cache) {
+          this.marcarInventarioPosPronto(filtros);
+          return cache;
+        }
+        const produtos = await this.sincronizarProdutos(filtros);
+        this.marcarInventarioPosPronto(filtros);
+        return produtos;
+      }
+
+      const produtos = await this.sincronizarProdutos(filtros);
+      salvarCatalogoOffline(filtros, this.produtos);
+      this.marcarInventarioPosPronto(filtros);
+      return produtos;
+    },
+    garantirCatalogoPosLocal(filtros = {}) {
+      if (this.usarStockLocalPos && this.catalogoPosChave === chaveCatalogoPos(filtros)) {
+        return this.produtos;
+      }
+      const cache = this.carregarCatalogoDeCache(filtros);
+      if (cache) {
+        this.marcarInventarioPosPronto(filtros);
+        return cache;
+      }
+      return this.produtos;
     },
     async garantirCatalogoPos(filtros = {}, { forcar = false } = {}) {
       const chave = chaveCatalogoPos(filtros);
@@ -152,25 +236,26 @@ export const useProdutoStore = defineStore("produtos", {
       this.pesquisaEmCurso = false;
     },
     resolverPorCodigoBarras(codigo) {
-      const normalizado = String(codigo || "").trim();
-      if (!normalizado) return null;
-      return this.indiceCodigosBarras[normalizado] || null;
+      return resolverProdutoPorCodigoBarras(
+        this.produtos,
+        this.indiceCodigosBarras,
+        codigo,
+        (produto) => normalizarProduto(produto)
+      );
     },
-    pesquisarLocalmente(termo, limite = 5) {
-      const consulta = String(termo || "").trim().toLowerCase();
-      if (!consulta) return [];
-
-      return this.produtos
-        .filter((produto) => `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta))
-        .slice(0, limite)
-        .map((produto) => normalizarProduto(produto));
+    pesquisarLocalmente(termo) {
+      return pesquisarProdutosNoCatalogo(this.produtos, termo, (produto) => normalizarProduto(produto));
     },
     async resolverPorCodigoBarrasComFallback(codigo, filtros = {}) {
-      const normalizado = String(codigo || "").trim();
+      const normalizado = normalizarCodigoBarras(codigo);
       if (!normalizado) return null;
 
       const local = this.resolverPorCodigoBarras(normalizado);
       if (local) return local;
+
+      if (this.inventarioPosPronto || this.usarStockLocalPos || this.produtos.length > 0) {
+        return null;
+      }
 
       if (!temApiConfigurada()) return null;
 
@@ -197,9 +282,20 @@ export const useProdutoStore = defineStore("produtos", {
 
       this.pesquisaEmCurso = true;
       try {
+        if (this.inventarioPosPronto || this.usarStockLocalPos) {
+          this.resultadosPesquisa = this.pesquisarLocalmente(termo);
+          return this.resultadosPesquisa;
+        }
+
+        const chave = chaveCatalogoPos(filtros);
+        if (this.catalogoPosPronto && this.catalogoPosChave === chave) {
+          this.resultadosPesquisa = this.pesquisarLocalmente(termo);
+          return this.resultadosPesquisa;
+        }
+
         const podeUsarCacheLocal =
           this.catalogoPosPronto &&
-          this.catalogoPosChave === chaveCatalogoPos(filtros) &&
+          this.catalogoPosChave === chave &&
           (!temApiConfigurada() || !redeDisponivel());
 
         if (podeUsarCacheLocal) {
@@ -209,15 +305,9 @@ export const useProdutoStore = defineStore("produtos", {
 
         try {
           let produtos = await carregarProdutosIntegrado(filtros);
-          if (!temApiConfigurada()) {
-            const consulta = termo.toLowerCase();
-            produtos = produtos.filter((produto) =>
-              `${produto.nome || ""} ${produto.codigoBarras || ""}`.toLowerCase().includes(consulta)
-            );
-          }
           const normalizados = produtos.map((produto) => normalizarProduto(produto));
-          this.resultadosPesquisa = normalizados.slice(0, 5);
           this.mesclarProdutosConsultados(normalizados);
+          this.resultadosPesquisa = this.pesquisarLocalmente(termo);
           return this.resultadosPesquisa;
         } catch (erro) {
           if (this.catalogoPosPronto && isErroRedeOuIndisponivel(erro)) {
@@ -289,7 +379,23 @@ export const useProdutoStore = defineStore("produtos", {
           normalizarUnidadeVenda(produto.unidadeVenda) === "KG"
             ? Math.round(novoStock * 1000) / 1000
             : novoStock;
+        produto.stockVersion = null;
       });
+      for (const item of itensVenda) {
+        const resultado = this.resultadosPesquisa.find((reg) => reg.id === item.produtoId);
+        if (resultado) resultado.stockVersion = null;
+      }
+      if (this.produtos.length) {
+        salvarCatalogoOffline(filtros, this.produtos);
+      }
+    },
+    reporStockItensVenda(itensVenda = [], filtros = {}) {
+      for (const item of itensVenda) {
+        const quantidade = Number(item?.quantidade || 0);
+        if (item?.produtoId && quantidade > 0) {
+          this.reporStock(item.produtoId, quantidade);
+        }
+      }
       if (this.produtos.length) {
         salvarCatalogoOffline(filtros, this.produtos);
       }

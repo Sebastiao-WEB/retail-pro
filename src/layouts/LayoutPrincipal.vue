@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import CabecalhoApp from "../components/CabecalhoApp.vue";
@@ -10,6 +10,11 @@ import { useSessaoStore } from "../store/useSessaoStore";
 import { temApiConfigurada } from "../api";
 import { isErroRedeOuIndisponivel } from "../services/offline/networkError";
 import { mostrarToastSwal } from "../services/toast";
+import {
+  executarSincronizacaoPosBackground,
+  iniciarSincronizacaoPeriodicaPos,
+  pararSincronizacaoPeriodicaPos,
+} from "../services/posBackgroundSync";
 
 const router = useRouter();
 const { t } = useI18n();
@@ -27,12 +32,22 @@ onMounted(async () => {
     if (temApiConfigurada() && sessaoStore.registerId) {
       await sessaoStore.sincronizarTurnoRemoto();
     }
-    await Promise.all([clienteStore.carregarClientes(), vendaStore.sincronizarHistorico()]);
   } catch (erro) {
     if (!isErroRedeOuIndisponivel(erro)) {
       mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
     }
   }
+  void Promise.all([clienteStore.carregarClientes(), vendaStore.sincronizarHistorico()]).catch((erro) => {
+    if (!isErroRedeOuIndisponivel(erro)) {
+      mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
+    }
+  });
+
+  iniciarSincronizacaoPeriodicaPos();
+});
+
+onUnmounted(() => {
+  pararSincronizacaoPeriodicaPos();
 });
 </script>
 

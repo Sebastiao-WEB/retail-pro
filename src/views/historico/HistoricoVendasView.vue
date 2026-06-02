@@ -4,11 +4,21 @@ import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
 import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
-import { useVendaStore } from "../../store/useVendaStore";
+import {
+  useVendaStore,
+  vendaPertenceTurnoAtual,
+  vendaPertenceUtilizadorAtual,
+  timestampInsercaoVenda,
+  podeSolicitarReversao,
+  motivoBloqueioReversao,
+} from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
+import { isErroRedeOuIndisponivel } from "../../services/offline/networkError";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
+import { useProdutoStore } from "../../store/useProdutoStore";
 import { mostrarToastSwal } from "../../services/toast";
-import { enviarTalaoParaImpressao, formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda } from "../../services/talaoImpressao";
+import { enviarTalaoParaImpressao, formatarMT, formatarIva } from "../../services/talaoImpressao";
+import { aplicarIvaItensVenda } from "../../utils/ivaItem.js";
 import { temApiConfigurada } from "../../api";
 import { intlLocale } from "../../services/localeStorage.js";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
@@ -19,6 +29,7 @@ const { t, locale } = useI18n();
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
+const produtoStore = useProdutoStore();
 const imprimindoAgora = ref(false);
 const paginaAtual = ref(1);
 
@@ -27,30 +38,50 @@ const modalDetalhesAberto = ref(false);
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
+const processandoReversao = ref(false);
 
 onMounted(async () => {
+  sessaoStore.hidratar();
   configuracaoStore.hidratar();
+  const filtrosCatalogo = sessaoStore.sourceLocationId
+    ? { source_location_id: sessaoStore.sourceLocationId }
+    : {};
+  produtoStore.garantirCatalogoPosLocal(filtrosCatalogo);
+  if (temApiConfigurada()) {
+    try {
+      await produtoStore.garantirCatalogoPos(filtrosCatalogo);
+    } catch {
+      // Mantém catálogo em cache quando a API falhar.
+    }
+  }
   if (temApiConfigurada()) {
     try {
       await configuracaoStore.hidratarDadosEmpresaRemotos();
     } catch {
       // Mantem dados locais quando a API falhar.
     }
+    try {
+      if (sessaoStore.registerId) {
+        await sessaoStore.sincronizarTurnoRemoto();
+      }
+      await vendaStore.sincronizarHistorico();
+    } catch (erro) {
+      if (!isErroRedeOuIndisponivel(erro)) {
+        mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
+      }
+    }
   }
 });
 
-const vendasDoTurnoCaixa = computed(() => {
-  const caixaAtual = sessaoStore.caixaAtribuido;
-  const abertura = sessaoStore.aberturaEm ? new Date(sessaoStore.aberturaEm).getTime() : null;
-  if (!caixaAtual || !abertura) return [];
-  return vendaStore.vendas
-    .filter((venda) => {
-      const dataVenda = new Date(venda.data).getTime();
-      const mesmaCaixa = venda.caixa ? venda.caixa === caixaAtual : true;
-      return mesmaCaixa && dataVenda >= abertura;
-    })
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-});
+const vendasDoTurnoCaixa = computed(() =>
+  vendaStore.vendas
+    .filter(
+      (venda) =>
+        vendaPertenceTurnoAtual(venda, sessaoStore) &&
+        vendaPertenceUtilizadorAtual(venda, sessaoStore)
+    )
+    .sort((a, b) => timestampInsercaoVenda(b) - timestampInsercaoVenda(a))
+);
 
 const totalVendas = computed(() => vendasDoTurnoCaixa.value.length);
 const totalPaginas = computed(() => Math.max(1, Math.ceil(totalVendas.value / ITENS_POR_PAGINA)));
@@ -91,7 +122,24 @@ function traduzirMetodoPagamento(metodo) {
   return metodo;
 }
 
-function abrirDetalhes(venda) {
+const itensDetalheSelecionada = computed(() => {
+  if (!vendaSelecionada.value) return [];
+  return aplicarIvaItensVenda(vendaSelecionada.value, produtoStore.produtos).itens || [];
+});
+
+const totalIvaDetalheSelecionada = computed(() =>
+  itensDetalheSelecionada.value.reduce((acc, item) => acc + Number(item.ivaTotal || 0), 0)
+);
+
+async function abrirDetalhes(venda) {
+  const filtrosCatalogo = sessaoStore.sourceLocationId
+    ? { source_location_id: sessaoStore.sourceLocationId }
+    : {};
+  try {
+    await produtoStore.garantirCatalogoPos(filtrosCatalogo);
+  } catch {
+    produtoStore.garantirCatalogoPosLocal(filtrosCatalogo);
+  }
   vendaSelecionada.value = venda;
   modalDetalhesAberto.value = true;
 }
@@ -124,12 +172,9 @@ async function reimprimirVenda(venda) {
 }
 
 function abrirSolicitacaoReversao(venda) {
-  if (venda.estado === "Revertida") {
-    mostrarToastSwal(t("history.sales.toast.alreadyReverted"), "error");
-    return;
-  }
-  if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    mostrarToastSwal(t("history.sales.toast.reversalPending"), "error");
+  const bloqueio = motivoBloqueioReversao(venda, vendaStore.solicitacoesReversao);
+  if (bloqueio) {
+    mostrarToastSwal(bloqueio, "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -138,10 +183,13 @@ function abrirSolicitacaoReversao(venda) {
 }
 
 async function solicitarReversao() {
-  if (!vendaParaReversao.value) return;
+  if (!vendaParaReversao.value || processandoReversao.value) return;
+  processandoReversao.value = true;
   const venda = vendaParaReversao.value;
+  try {
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
+    venda,
     referencia: venda.referencia || String(venda.id),
     solicitadoPor: sessaoStore.utilizador || t("common.operator"),
     motivo: motivoReversao.value.trim(),
@@ -153,6 +201,9 @@ async function solicitarReversao() {
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
   mostrarToastSwal(t("history.sales.toast.reversalSent"), "success");
+  } finally {
+    processandoReversao.value = false;
+  }
 }
 </script>
 
@@ -223,7 +274,7 @@ async function solicitarReversao() {
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                     :title="t('history.sales.requestReversal')"
                     :aria-label="t('history.sales.requestReversal')"
-                    :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                    :disabled="!podeSolicitarReversao(venda, vendaStore.solicitacoesReversao)"
                     @click="abrirSolicitacaoReversao(venda)"
                   >
                     <RotateCcw :size="15" />
@@ -274,11 +325,11 @@ async function solicitarReversao() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, idx) in vendaSelecionada.itens || []" :key="idx" class="border-t border-slate-100">
+            <tr v-for="(item, idx) in itensDetalheSelecionada" :key="idx" class="border-t border-slate-100">
               <td class="px-3 py-2">{{ item.nome }}</td>
               <td class="px-3 py-2">{{ item.quantidade }}</td>
               <td class="px-3 py-2">{{ formatarIva(item.ivaPercentual) }}</td>
-              <td class="px-3 py-2">{{ formatarMT(obterIvaItem(item)) }}</td>
+              <td class="px-3 py-2">{{ formatarMT(item.ivaTotal) }}</td>
               <td class="px-3 py-2">{{ formatarMT(item.subtotal) }}</td>
             </tr>
           </tbody>
@@ -287,7 +338,7 @@ async function solicitarReversao() {
 
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
         <p><strong>{{ t("common.subtotal") }}:</strong> {{ formatarMT(vendaSelecionada.subtotal || vendaSelecionada.total) }}</p>
-        <p><strong>{{ t("history.sales.detailsModal.totalIva") }}</strong> {{ formatarMT(obterTotalIvaVenda(vendaSelecionada)) }}</p>
+        <p><strong>{{ t("history.sales.detailsModal.totalIva") }}</strong> {{ formatarMT(totalIvaDetalheSelecionada) }}</p>
         <p><strong>{{ t("common.discount") }}:</strong> - {{ formatarMT(vendaSelecionada.descontoAplicado || 0) }}</p>
         <p><strong>{{ t("common.total") }}:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
       </div>
@@ -328,7 +379,7 @@ async function solicitarReversao() {
             <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="sucesso" @click="solicitarReversao">
+        <BotaoBase variante="sucesso" :disabled="processandoReversao" @click="solicitarReversao">
           <span class="inline-flex items-center gap-1.5">
             <Check :size="14" />
             <span>{{ t("history.sales.reversalModal.confirm") }}</span>

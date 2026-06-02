@@ -82,11 +82,36 @@ export async function solicitarReversaoIntegrada(payload) {
   garantirBackendDisponivel();
   if (!temApiConfigurada()) return { ok: !modoApiAtivo() };
   try {
-    await salesApi.solicitarReversao(payload);
-    return { ok: true };
+    const resposta = await salesApi.solicitarReversao(payload);
+    const dados = resposta?.data;
+    return {
+      ok: true,
+      reutilizada: !!dados?.reutilizada,
+      id: dados?.id || null,
+    };
   } catch (erro) {
-    return { ok: false, erro: erro?.message || t("api.reversalFailed") };
+    return { ok: false, erro: erro?.message || t("api.reversalFailed"), status: erro?.status };
   }
+}
+
+export async function carregarSolicitacoesReversaoIntegrado() {
+  garantirBackendDisponivel();
+  if (!temApiConfigurada()) return [];
+  const resposta = await salesApi.listarSolicitacoesReversao();
+  return mapearLista(mapearSolicitacaoReversao, normalizarLista(resposta));
+}
+
+function mapearSolicitacaoReversao(item) {
+  if (!item || typeof item !== "object") return item;
+  const status = String(item.status || item.estado || "").toUpperCase();
+  return {
+    id: item.id,
+    saleId: item.saleId || item.sale_id || item.vendaId || item.venda_id,
+    status,
+    reason: item.reason || item.motivo || "",
+    requestedAt: item.requestedAt || item.requested_at || "",
+    decidedAt: item.decidedAt || item.decided_at || "",
+  };
 }
 
 function normalizarObjeto(resposta) {
@@ -143,6 +168,8 @@ function mapearHistoricoFechoSessao(item) {
     utilizador: snapshot.utilizador || snapshot.operador || "",
     fechadoEm: snapshot.fechadoEm || item.closedAt || item.closed_at || "",
     aberturaEm: snapshot.aberturaEm || item.openedAt || item.opened_at || "",
+    createdAt: item.createdAt || item.created_at || "",
+    userId: item.userId || item.user_id || null,
     fundoInicial: Number(snapshot.fundoInicial ?? item.openingBalance ?? 0),
     totalVendido: Number(snapshot.totalVendido ?? 0),
     totalTransacoes: Number(snapshot.totalTransacoes ?? 0),

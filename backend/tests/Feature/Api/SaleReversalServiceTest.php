@@ -79,4 +79,36 @@ class SaleReversalServiceTest extends TestCase
                 ->exists()
         );
     }
+
+    public function test_aprovar_reversao_idempotente_quando_venda_ja_revertida(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+
+        $sale = Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-TEST-002',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Teste',
+            'metodo_pagamento' => 'Dinheiro',
+            'estado' => 'Revertida',
+            'subtotal' => 50,
+            'total' => 50,
+            'data' => now(),
+        ]);
+
+        $pedido = SaleReversalRequest::query()->create([
+            'id' => (string) Str::uuid(),
+            'sale_id' => $sale->id,
+            'requested_by' => $ambiente['user']->id,
+            'status' => 'PENDING',
+            'requested_at' => now(),
+        ]);
+
+        $resultado = app(SaleReversalService::class)->approve($pedido, 'Já revertida', $ambiente['user']->id);
+
+        $this->assertEquals('APPROVED', $resultado->status);
+        $this->assertEquals('Revertida', $sale->fresh()->estado);
+    }
 }

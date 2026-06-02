@@ -76,3 +76,8 @@ button:disabled {
 .retailpro-toast-top {
   z-index: 20001 !important;
 }
+
+html.pos-desktop-frameless header,
+html.pos-desktop-frameless .pos-login-top {
+  padding-right: 2.75rem;
+}

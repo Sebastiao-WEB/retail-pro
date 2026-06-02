@@ -77,6 +77,7 @@ return [
         'iva_type' => 'Nooca IVA',
         'iva_percent' => 'IVA boqolkiiba (%)',
         'iva_amount' => 'IVA lacag (MZN)',
+        'iva_line_total' => 'IVA (MT)',
         'stock' => 'Kaydka',
         'email' => 'Email',
         'username' => 'Username',

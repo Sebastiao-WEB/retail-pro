@@ -27,7 +27,14 @@ class SaleReversalService
             }
 
             if (strcasecmp((string) $venda->estado, 'Revertida') === 0) {
-                throw new InvalidArgumentException('A venda já está revertida.');
+                $pedido->update([
+                    'status' => 'APPROVED',
+                    'approved_by' => $approvedBy,
+                    'reason' => $reason !== null && $reason !== '' ? $reason : $pedido->reason,
+                    'decided_at' => $pedido->decided_at ?? now(),
+                ]);
+
+                return $pedido->fresh();
             }
 
             $this->estornarStockDaVenda($venda, $approvedBy);

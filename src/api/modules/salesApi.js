@@ -21,5 +21,8 @@ export const salesApi = {
   async solicitarReversao(payload) {
     return httpRequest("/sale-reversal-requests", { method: "POST", body: payload });
   },
+  async listarSolicitacoesReversao() {
+    return httpRequest("/sale-reversal-requests");
+  },
 };
 

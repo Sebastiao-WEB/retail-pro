@@ -164,6 +164,61 @@ class CashSessionApiTest extends TestCase
             ->assertJsonPath('data.0.reportSnapshot.caixa', 'Caixa Teste');
     }
 
+    public function test_lista_apenas_fechos_do_utilizador_autenticado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $outroUser = \App\Models\User::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Outro Operador',
+            'username' => 'outro_operador',
+            'email' => 'outro@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'CASHIER',
+            'caixa_atribuido' => 'Caixa Teste',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'is_active' => true,
+        ]);
+
+        CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $outroUser->id,
+            'status' => 'CLOSED',
+            'opening_balance' => 500,
+            'closing_balance' => 600,
+            'difference_amount' => 100,
+            'opened_at' => now()->subHours(4),
+            'closed_at' => now()->subHours(3),
+            'report_snapshot' => ['caixa' => 'Caixa Teste', 'utilizador' => 'Outro Operador'],
+        ]);
+
+        CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'CLOSED',
+            'opening_balance' => 1000,
+            'closing_balance' => 1100,
+            'difference_amount' => 100,
+            'opened_at' => now()->subHours(2),
+            'closed_at' => now()->subHour(),
+            'report_snapshot' => ['caixa' => 'Caixa Teste', 'utilizador' => 'Operador Teste'],
+        ]);
+
+        $resposta = $this->getJson(
+            '/api/v1/cash-sessions?status=CLOSED',
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.reportSnapshot.utilizador', 'Operador Teste');
+    }
+
     public function test_rejeita_consulta_de_caixa_diferente_do_atribuido(): void
     {
         $ambiente = $this->criarAmbienteApi();

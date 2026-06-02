@@ -46,6 +46,7 @@ function normalizarItem(item) {
   return {
     nome: String(enriquecido?.nome || ""),
     quantidade: Number(enriquecido?.quantidade || 0),
+    ivaTipo: String(enriquecido?.ivaTipo || enriquecido?.iva_tipo || ""),
     ivaPercentual: resolverIvaPercentualExibicao(enriquecido),
     subtotal: Number(enriquecido?.subtotal || 0),
     ivaTotal: Number(enriquecido?.ivaTotal ?? calcularIvaTotalLinha(enriquecido)),

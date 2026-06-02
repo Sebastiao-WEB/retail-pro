@@ -81,8 +81,11 @@
       "authFailed": "Xaqiijinta backend-ka waa fashilantay.",
       "twoFactorRequired": "Xaqiiji gelitaanka adigoo isticmaalaya xaqiijinta laba-factor.",
       "twoFactorExpired": "Fadhiga xaqiijinta wuu dhacay. Mar kale gal nidaamka.",
-      "twoFactorInvalid": "Koodhka xaqiijinta waa khalad."
-    }
+      "twoFactorInvalid": "Koodhka xaqiijinta waa khalad.",
+      "inventoryFromCache": "Lama xiriirin serverka; alaabta waxaa laga soo dejiyay fadhigii ugu dambeeyay.",
+      "inventoryLoadFailed": "Lama soo dejin karin alaabta. Isku day mar kale."
+    },
+    "loadingInventory": "Alaabta waa la soo dejinayaa..."
   },
   "sidebar": {
     "logoAlt": "RetailPro POS",
@@ -307,8 +310,9 @@
       "price": "Qiimaha (MT)",
       "stock": "Kayd",
       "action": "Ficil",
-      "searching": "Waa la raadinayaa backend-ka...",
+      "searching": "Waa la raadinayaa alaabta...",
       "noProducts": "Alaab lama helin.",
+      "resultsCount": "{count} alaab(o) ayaa la helay",
       "addToCart": "Ku dar gaadhiga",
       "emptyHint": "Ku qor goobta raadinta si aad u liis gareyso alaabta.",
       "pricePerKg": "/ kg"
@@ -473,6 +477,8 @@
       "registerSaleFailed": "Waa fashilantay diiwaangelinta iibka API-ga.",
       "salePrinted": "Iibka waa la sameeyay oo waxaa loo diray daabacaadda {printer}.",
       "saleSuccess": "Iibka si guul leh ayaa loo sameeyay.",
+      "saleQueuedSync": "Iibka waa la diiwaangeliyay. Serverka ayaa la isku dubaridayaa asalka dambe.",
+      "saleSyncFailed": "Iibka waa la tirtiray maxalliga: lama isku dubarin karin serverka.",
       "saleOfflineQueued": "Iibka waa lagu kaydiyay maxalliga. Shabakadda soo noqoto ayaa la isku dubaridayaa.",
       "saleOfflinePrinted": "Iibka offline waa la kaydiyay, rasiidkana waxaa loo diray {printer}.",
       "openRegisterOffline": "Sanduuqa waa la furay habka offline. Iibabka waa la isku dubaridayaa marka dambe.",
@@ -518,6 +524,13 @@
     "noRegisterIdQuery": "Hawlgale ma laha register_id si uu u hubiyo sanduuqa.",
     "activeSessionFailedShort": "Waa guuldareystay hubinta fadhiga firfircoon.",
     "reversalAlreadyPending": "Codsi sugaya ayaa hore u jiray iibkan.",
+    "reversalSaleNotSynced": "Iibkan weli lama xidhin serverka. Sug xiriirka ama isku-dubarid iibaha sugaya.",
+    "reversalInvalidSaleId": "Iibkan ma laha aqoonsi sax ah serverka. Isku-dubarid ka hor intaadan codsan celinta.",
+    "reversalInProgress": "Codsiga celinta ayaa socda. Fadlan sug.",
     "httpError": "Khalad HTTP {status}"
+  },
+  "desktopWindow": {
+    "minimize": "Yaree daaqada",
+    "close": "Xir barnaamijka"
   }
 }

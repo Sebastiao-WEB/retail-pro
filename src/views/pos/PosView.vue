@@ -5,16 +5,21 @@ import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import ModalBase from "../../components/ModalBase.vue";
+import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
 import { useProdutoStore } from "../../store/useProdutoStore";
 import { useCarrinhoStore } from "../../store/useCarrinhoStore";
 import { useClienteStore } from "../../store/useClienteStore";
-import { useVendaStore, vendaPertenceTurnoAtual } from "../../store/useVendaStore";
+import {
+  useVendaStore,
+  vendaPertenceTurnoAtual,
+  podeSolicitarReversao,
+  motivoBloqueioReversao,
+} from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
-import { temApiConfigurada, ApiError } from "../../api";
+import { temApiConfigurada } from "../../api";
 import { temCatalogoOffline } from "../../services/offline/catalogCache";
-import { construirStockVersionsParaVenda } from "../../services/stockDisponibilidade";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../../services/offline/networkError";
 import { useOfflineStore } from "../../store/useOfflineStore";
 import { mostrarToastSwal } from "../../services/toast";
@@ -26,6 +31,7 @@ import {
   criarEstadoLeitorCodigoBarras,
   processarTeclaLeitorCodigoBarras,
 } from "../../utils/leitorCodigoBarras";
+import { pareceCodigoBarras } from "../../utils/produtoPesquisa";
 import {
   formatarQuantidadeExibicao,
   formatarStockExibicao,
@@ -95,6 +101,7 @@ const justificativaDiferenca = ref("");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
 const motivoReversao = ref("");
+const processandoReversao = ref(false);
 const listaPreVisualizacaoRef = ref(null);
 const ignorarBlurQuantidadePreview = ref(false);
 const processandoAberturaCaixa = ref(false);
@@ -112,14 +119,33 @@ const pesquisaDeveTerFoco = computed(() => menuPosAtivo.value === "venda" && !mo
 
 const pesquisaAtiva = computed(() => pesquisa.value.trim().length > 0);
 
+const PRODUTOS_POR_PAGINA = 15;
+const paginaPesquisaProdutos = ref(1);
+const totalResultadosPesquisa = computed(() => resultadosPesquisa.value.length);
+const totalPaginasPesquisa = computed(() =>
+  Math.max(1, Math.ceil(totalResultadosPesquisa.value / PRODUTOS_POR_PAGINA))
+);
+const resultadosPesquisaPaginados = computed(() => {
+  const inicio = (paginaPesquisaProdutos.value - 1) * PRODUTOS_POR_PAGINA;
+  return resultadosPesquisa.value.slice(inicio, inicio + PRODUTOS_POR_PAGINA);
+});
+
+function reiniciarPaginaPesquisa() {
+  paginaPesquisaProdutos.value = 1;
+}
+
+function aoMudarPaginaPesquisa(pagina) {
+  const destino = Math.max(1, Math.min(Number(pagina) || 1, totalPaginasPesquisa.value));
+  paginaPesquisaProdutos.value = destino;
+}
+
 let debouncePesquisaTimer = null;
 let sequenciaPesquisa = 0;
-let intervaloStockRemoto = null;
-const INTERVALO_SYNC_STOCK_MS = 30_000;
 
 async function executarPesquisaProdutos(termoInformado) {
   const termo = String(termoInformado ?? pesquisa.value).trim();
   if (!termo) {
+    reiniciarPaginaPesquisa();
     produtoStore.limparPesquisa();
     return;
   }
@@ -130,6 +156,9 @@ async function executarPesquisaProdutos(termoInformado) {
       search: termo,
       ...filtrosCatalogoProdutos(),
     });
+    if (sequencia === sequenciaPesquisa) {
+      reiniciarPaginaPesquisa();
+    }
   } catch (erro) {
     if (sequencia !== sequenciaPesquisa) return;
     mostrarToastSwal(erro?.message || t("pos.toast.searchFailed"), "error");
@@ -140,6 +169,7 @@ function limparCampoPesquisa({ manterEstadoLeitor = false } = {}) {
   clearTimeout(debouncePesquisaTimer);
   sequenciaPesquisa += 1;
   pesquisa.value = "";
+  reiniciarPaginaPesquisa();
   produtoStore.limparPesquisa();
   if (!manterEstadoLeitor) {
     Object.assign(estadoLeitorCodigo, criarEstadoLeitorCodigoBarras());
@@ -158,7 +188,13 @@ function aoTeclaCampoPesquisa(event, { capturaGlobal = false } = {}) {
 
   if (acao === "confirmar-manual") {
     event.preventDefault();
-    pesquisarProdutosAgora();
+    const termo = pesquisa.value.trim();
+    if (pareceCodigoBarras(termo)) {
+      void enfileirarProcessamentoLeitor(() => processarLeituraCodigoBarras());
+    } else {
+      reiniciarPaginaPesquisa();
+      pesquisarProdutosAgora();
+    }
     return acao;
   }
 
@@ -200,19 +236,17 @@ async function processarLeituraCodigoBarras() {
   sequenciaPesquisa += 1;
 
   const filtros = filtrosCatalogoProdutos();
-  await produtoStore.garantirCatalogoPos(filtros);
+  produtoStore.garantirCatalogoPosLocal(filtros);
 
-  const produto = await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros);
+  const produto =
+    produtoStore.resolverPorCodigoBarras(codigo) ||
+    (await produtoStore.resolverPorCodigoBarrasComFallback(codigo, filtros));
 
   if (!produto) {
     mostrarToastSwal(t("pos.toast.productNotFound", { code: codigo }), "error");
     limparCampoPesquisa();
     await focarCampoPesquisa();
     return;
-  }
-
-  if (temApiConfigurada() && origemStockVenda.value.id) {
-    await produtoStore.atualizarStockRemoto([produto.id], filtros, { apenasVersao: true });
   }
 
   const produtoAtualizado = obterProdutoAtualizado(produto);
@@ -294,6 +328,7 @@ function aoBlurQuantidadePreview(produtoId, valor) {
 
 function pesquisarProdutosAgora() {
   clearTimeout(debouncePesquisaTimer);
+  reiniciarPaginaPesquisa();
   executarPesquisaProdutos(pesquisa.value);
 }
 
@@ -304,22 +339,22 @@ watch(pesquisa, (valor) => {
   const termo = String(valor || "").trim();
   if (!termo) {
     sequenciaPesquisa += 1;
+    reiniciarPaginaPesquisa();
     produtoStore.limparPesquisa();
     return;
   }
   debouncePesquisaTimer = setTimeout(() => {
+    reiniciarPaginaPesquisa();
     executarPesquisaProdutos(termo);
   }, 300);
 });
 
 watch(menuPosAtivo, (secao) => {
   if (secao === "venda") {
-    void sincronizarStockPos();
+    void garantirInventarioPosLocal();
     void focarCampoPesquisa();
-    iniciarSincronizacaoStockPeriodica();
     return;
   }
-  pararSincronizacaoStockPeriodica();
 });
 
 watch(modalAberturaCaixa, (aberto) => {
@@ -409,7 +444,12 @@ function filtrosStockPos() {
 }
 
 function temStockLocalParaVenda() {
-  return temCatalogoOffline(filtrosCatalogoProdutos()) || produtoStore.catalogoPosPronto;
+  return produtoStore.usarStockLocalPos || temCatalogoOffline(filtrosCatalogoProdutos()) || produtoStore.catalogoPosPronto;
+}
+
+async function garantirInventarioPosLocal() {
+  if (produtoStore.usarStockLocalPos) return;
+  produtoStore.garantirCatalogoPosLocal(filtrosCatalogoProdutos());
 }
 
 function ajustarCarrinhoAoStock() {
@@ -426,15 +466,7 @@ function ajustarCarrinhoAoStock() {
 }
 
 async function sincronizarStockPos() {
-  if (!temApiConfigurada()) return;
-  try {
-    await produtoStore.garantirCatalogoPos(filtrosCatalogoProdutos());
-  } catch (erro) {
-    const cache = produtoStore.carregarCatalogoDeCache(filtrosCatalogoProdutos());
-    if (!cache || !isErroRedeOuIndisponivel(erro)) {
-      throw erro;
-    }
-  }
+  await garantirInventarioPosLocal();
   if (carrinhoStore.itens.length > 0) {
     ajustarCarrinhoAoStock();
   }
@@ -442,15 +474,6 @@ async function sincronizarStockPos() {
 
 function idsProdutosCarrinho() {
   return [...new Set(carrinhoStore.itens.map((item) => item.produtoId).filter(Boolean))];
-}
-
-async function atualizarStockRemoto(productIds = null) {
-  if (!temApiConfigurada() || !origemStockVenda.value.id) return;
-
-  const ids = productIds?.length ? productIds : idsProdutosCarrinho();
-  if (!ids.length) return;
-
-  await produtoStore.atualizarStockRemoto(ids, filtrosStockPos(), { apenasVersao: true });
 }
 
 function obterProdutoAtualizado(produto) {
@@ -463,23 +486,6 @@ function obterProdutoAtualizado(produto) {
     precoVenda: produto.precoVenda ?? doCatalogo.precoVenda,
     precoVendaComIva: produto.precoVendaComIva ?? doCatalogo.precoVendaComIva,
   };
-}
-
-function iniciarSincronizacaoStockPeriodica() {
-  pararSincronizacaoStockPeriodica();
-  if (!temApiConfigurada() || menuPosAtivo.value !== "venda") return;
-
-  intervaloStockRemoto = window.setInterval(() => {
-    if (!sessaoStore.turnoAberto || modalBloqueiaLeitor.value) return;
-    void atualizarStockRemoto();
-  }, INTERVALO_SYNC_STOCK_MS);
-}
-
-function pararSincronizacaoStockPeriodica() {
-  if (intervaloStockRemoto) {
-    window.clearInterval(intervaloStockRemoto);
-    intervaloStockRemoto = null;
-  }
 }
 
 function validarStockCarrinhoAtual() {
@@ -602,10 +608,6 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
   const quantidadeNormalizada =
     normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
 
-  if (temApiConfigurada() && origemStockVenda.value.id) {
-    await produtoStore.atualizarStockRemoto([produto.id], filtrosStockPos(), { apenasVersao: true });
-  }
-
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
   if (!podeAdicionarProduto(produtoAtualizado, quantidadeNormalizada)) {
@@ -653,10 +655,6 @@ async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}
     quantidadeFinal = minimo;
   }
   if (!quantidadeFinal) return;
-
-  if (item && quantidadeFinal > item.quantidade && temApiConfigurada() && origemStockVenda.value.id) {
-    await produtoStore.atualizarStockRemoto([produtoId], filtrosStockPos(), { apenasVersao: true });
-  }
 
   const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
   const limiteStock = produto?.stock ?? quantidadeFinal;
@@ -728,12 +726,10 @@ function finalizarVenda() {
 
 function montarVendaConfirmada(idVenda) {
   const itens = carrinhoStore.itens.map((item) => ({ ...item }));
-  const stockVersions = construirStockVersionsParaVenda(itens, produtoStore.produtos);
   return {
     id: idVenda,
     cliente: cliente.value,
     itens,
-    stockVersions,
     caixa: sessaoStore.caixaAtribuido,
     registerId: sessaoStore.registerId,
     registerCodigo: sessaoStore.registerCodigo,
@@ -763,6 +759,43 @@ function limparCarrinhoAtual() {
   valorPagoInteiro.value = "0";
   valorPagoDecimal.value = "00";
   descontoAtivo.value = false;
+}
+
+async function executarTarefasPosVendaAposRegisto(venda, opcoes, modoRegisto) {
+  try {
+    if (opcoes.imprimir) {
+      if (!window.api?.imprimirTalao) {
+        mostrarToastSwal(t("pos.toast.printApiUnavailable"), "error");
+        return;
+      }
+      if (!configuracaoStore.impressoraPadrao) {
+        mostrarToastSwal(t("pos.toast.setPrinterToPrint"), "error");
+        return;
+      }
+      imprimindoAgora.value = true;
+      const resultado = await enviarTalaoParaImpressao({
+        venda,
+        configuracao: configuracaoStore,
+        opcoes: {
+          detalharIva: true,
+          copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
+          corteAutomatico: !!configuracaoStore.corteAutomatico,
+          abrirGaveta: false,
+        },
+      });
+      imprimindoAgora.value = false;
+      if (!resultado?.ok) {
+        mostrarToastSwal(resultado?.error || t("pos.toast.printFailed"), "error");
+      }
+    }
+
+    const resultadoGaveta = await abrirGavetaPosVenda({ venda, configuracao: configuracaoStore });
+    if (!resultadoGaveta?.ok && !resultadoGaveta?.skipped) {
+      mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
+    }
+  } finally {
+    imprimindoAgora.value = false;
+  }
 }
 
 async function concluirVenda(opcoes = { imprimir: true }) {
@@ -795,126 +828,39 @@ async function concluirVenda(opcoes = { imprimir: true }) {
       return;
     }
 
-    const idsPendentes = [...new Set(itensPendentes.map((item) => item.produtoId).filter(Boolean))];
-
-    if (temApiConfigurada()) {
-      if (!temStockLocalParaVenda() && !redeDisponivel()) {
-        mostrarToastSwal(t("pos.toast.offlineCatalogRequired"), "error");
-        return;
-      }
-
-      if (redeDisponivel() && origemStockVenda.value.id) {
-        try {
-          await produtoStore.atualizarStockRemoto(idsPendentes, filtrosStockPos(), { apenasVersao: true });
-        } catch (erro) {
-          if (!isErroRedeOuIndisponivel(erro)) {
-            mostrarToastSwal(erro?.message || t("pos.toast.syncStockFailed"), "error");
-            return;
-          }
-        }
-      }
-
-      for (const item of itensPendentes) {
-        const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
-        if (!produto) {
-          if (!redeDisponivel()) continue;
-          mostrarToastSwal(t("pos.toast.stockUnavailable", { name: item.nome }), "error");
-          return;
-        }
-        if (produto.stock <= 0) {
-          mostrarToastSwal(t("pos.toast.stockUnavailable", { name: item.nome }), "error");
-          return;
-        }
-        if (item.quantidade > produto.stock) {
-          mostrarToastSwal(
-            t("pos.toast.insufficientStock", {
-              name: item.nome,
-              available: formatarDisponivelStock(produto, produto.stock),
-            }),
-            "error"
-          );
-          return;
-        }
-      }
-    }
-
-    const venda = vendaBase;
-
-    let resultadoRegisto = null;
-    try {
-      resultadoRegisto = await vendaStore.registarVenda(venda);
-    } catch (erro) {
-      const stockDesatualizado =
-        erro instanceof ApiError &&
-        erro.status === 422 &&
-        String(erro.message || "").toLowerCase().includes("noutro caixa");
-
-      const mensagemStock =
-        erro instanceof ApiError && erro.status === 422
-          ? erro.message || t("pos.toast.insufficientStockToComplete")
-          : erro?.message || t("pos.toast.registerSaleFailed");
-
-      if (temApiConfigurada() && redeDisponivel()) {
-        try {
-          await sincronizarStockPos();
-          if (stockDesatualizado) {
-            validarStockCarrinhoAtual();
-          } else {
-            await atualizarStockRemoto(idsPendentes);
-          }
-        } catch {
-          // Mantém mensagem principal da venda rejeitada.
-        }
-      }
-
-      mostrarToastSwal(mensagemStock, "error");
+    if (temApiConfigurada() && !temStockLocalParaVenda() && !redeDisponivel()) {
+      mostrarToastSwal(t("pos.toast.offlineCatalogRequired"), "error");
       return;
     }
 
+    const validacaoStock = validarStockCarrinhoAtual();
+    if (!validacaoStock.ok) {
+      mostrarToastSwal(validacaoStock.erro, "error");
+      return;
+    }
+
+    const venda = {
+      ...vendaBase,
+      stockVersions: {},
+    };
+
     produtoStore.aplicarVenda(venda.itens, filtrosCatalogoProdutos());
+
+    let resultadoRegisto = null;
+    try {
+      if (produtoStore.usarStockLocalPos || temStockLocalParaVenda()) {
+        resultadoRegisto = vendaStore.registarVendaPosRapida(venda);
+      } else {
+        resultadoRegisto = await vendaStore.registarVenda(venda);
+      }
+    } catch (erro) {
+      produtoStore.reporStockItensVenda(venda.itens);
+      mostrarToastSwal(erro?.message || t("pos.toast.registerSaleFailed"), "error");
+      return;
+    }
+
     carrinhoStore.limparCarrinho();
     limparCampoPesquisa();
-
-    if (opcoes.imprimir) {
-      if (!window.api?.imprimirTalao) {
-        mostrarToastSwal(t("pos.toast.printApiUnavailable"), "error");
-        return;
-      }
-      if (!configuracaoStore.impressoraPadrao) {
-        mostrarToastSwal(t("pos.toast.setPrinterToPrint"), "error");
-        return;
-      }
-      imprimindoAgora.value = true;
-      const resultado = await enviarTalaoParaImpressao({
-        venda,
-        configuracao: configuracaoStore,
-        opcoes: {
-          detalharIva: true,
-          copies: Math.max(1, Number(configuracaoStore.copiasImpressao || 1)),
-          corteAutomatico: !!configuracaoStore.corteAutomatico,
-          abrirGaveta: false,
-        },
-      });
-      imprimindoAgora.value = false;
-      if (!resultado?.ok) {
-        mostrarToastSwal(resultado?.error || t("pos.toast.printFailed"), "error");
-        return;
-      }
-    }
-
-    const resultadoGaveta = await abrirGavetaPosVenda({ venda, configuracao: configuracaoStore });
-    if (!resultadoGaveta?.ok && !resultadoGaveta?.skipped) {
-      mostrarToastSwal(resultadoGaveta?.error || t("pos.toast.openDrawerFailed"), "warning");
-    }
-
-    if (temApiConfigurada() && resultadoRegisto?.modo !== "offline") {
-      try {
-        await sincronizarStockPos();
-      } catch {
-        // A venda já foi registada; o stock local foi ajustado e o servidor será reconciliado depois.
-      }
-    }
-
     valorPagoInteiro.value = "0";
     valorPagoDecimal.value = "00";
     modalImpressaoAberto.value = false;
@@ -925,11 +871,20 @@ async function concluirVenda(opcoes = { imprimir: true }) {
         ? opcoes.imprimir
           ? t("pos.toast.saleOfflinePrinted", { printer: configuracaoStore.impressoraPadrao })
           : t("pos.toast.saleOfflineQueued")
-        : opcoes.imprimir
-          ? t("pos.toast.salePrinted", { printer: configuracaoStore.impressoraPadrao })
-          : t("pos.toast.saleSuccess");
+        : resultadoRegisto?.modo === "online-enviando"
+          ? opcoes.imprimir
+            ? t("pos.toast.saleQueuedSync")
+            : t("pos.toast.saleQueuedSync")
+          : opcoes.imprimir
+            ? t("pos.toast.salePrinted", { printer: configuracaoStore.impressoraPadrao })
+            : t("pos.toast.saleSuccess");
 
-    mostrarToastSwal(mensagemSucesso, resultadoRegisto?.modo === "offline" ? "warning" : "success");
+    mostrarToastSwal(
+      mensagemSucesso,
+      resultadoRegisto?.modo === "offline" ? "warning" : "success"
+    );
+
+    void executarTarefasPosVendaAposRegisto(venda, opcoes, resultadoRegisto?.modo);
   } finally {
     vendasEmRegisto.delete(vendaId);
     processandoConclusaoVenda.value = false;
@@ -968,12 +923,9 @@ async function reimprimirVenda(venda) {
 }
 
 function abrirSolicitacaoReversao(venda) {
-  if (venda.estado === "Revertida") {
-    mostrarToastSwal(t("pos.toast.alreadyReverted"), "error");
-    return;
-  }
-  if (solicitacoesPendentesPorVenda.value.has(venda.id)) {
-    mostrarToastSwal(t("pos.toast.reversalPending"), "error");
+  const bloqueio = motivoBloqueioReversao(venda, vendaStore.solicitacoesReversao);
+  if (bloqueio) {
+    mostrarToastSwal(bloqueio, "error");
     return;
   }
   vendaParaReversao.value = venda;
@@ -982,10 +934,13 @@ function abrirSolicitacaoReversao(venda) {
 }
 
 async function confirmarSolicitacaoReversao() {
-  if (!vendaParaReversao.value) return;
+  if (!vendaParaReversao.value || processandoReversao.value) return;
+  processandoReversao.value = true;
   const venda = vendaParaReversao.value;
+  try {
   const resultado = await vendaStore.solicitarReversao({
     vendaId: venda.id,
+    venda,
     referencia: venda.referencia || String(venda.id),
     solicitadoPor: sessaoStore.utilizador || "Operador",
     motivo: motivoReversao.value.trim(),
@@ -997,6 +952,9 @@ async function confirmarSolicitacaoReversao() {
   modalSolicitarReversaoAberto.value = false;
   vendaParaReversao.value = null;
   mostrarToastSwal(t("pos.toast.reversalSent"), "success");
+  } finally {
+    processandoReversao.value = false;
+  }
 }
 
 async function refrescarPosAposSyncOffline(detail = {}) {
@@ -1019,6 +977,16 @@ async function refrescarPosAposSyncOffline(detail = {}) {
   }
 }
 
+function aoSyncBackgroundConcluido() {
+  if (menuPosAtivo.value !== "venda") return;
+  ajustarCarrinhoAoStock();
+}
+
+function aoVendaSyncFalhou(evento) {
+  const mensagem = evento?.detail?.mensagem || t("pos.toast.saleSyncFailed");
+  mostrarToastSwal(mensagem, "error");
+}
+
 function aoVoltarOnline() {
   void offlineStore.atualizarConectividade();
 }
@@ -1032,6 +1000,8 @@ onMounted(async () => {
   window.addEventListener("online", aoVoltarOnline);
   window.addEventListener("retailpro:offline-sync", aoSyncOfflineConcluido);
   window.addEventListener("retailpro:offline-sync-complete", aoSyncOfflineConcluido);
+  window.addEventListener("retailpro:pos-sync-background", aoSyncBackgroundConcluido);
+  window.addEventListener("retailpro:venda-sync-falhou", aoVendaSyncFalhou);
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
   await offlineStore.atualizarConectividade();
@@ -1053,9 +1023,8 @@ onMounted(async () => {
     modalAberturaCaixa.value = true;
   }
   if (menuPosAtivo.value === "venda") {
-    await sincronizarStockPos();
+    await garantirInventarioPosLocal();
     await focarCampoPesquisa();
-    iniciarSincronizacaoStockPeriodica();
   }
 });
 
@@ -1070,7 +1039,8 @@ onUnmounted(() => {
   window.removeEventListener("online", aoVoltarOnline);
   window.removeEventListener("retailpro:offline-sync", aoSyncOfflineConcluido);
   window.removeEventListener("retailpro:offline-sync-complete", aoSyncOfflineConcluido);
-  pararSincronizacaoStockPeriodica();
+  window.removeEventListener("retailpro:pos-sync-background", aoSyncBackgroundConcluido);
+  window.removeEventListener("retailpro:venda-sync-falhou", aoVendaSyncFalhou);
 });
 
 async function abrirTurnoCaixa() {
@@ -1190,7 +1160,7 @@ async function confirmarFechoCaixa() {
 <template>
   <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr] xl:items-center">
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
-      <div class="rp-card p-4 h-[420px]">
+      <div class="rp-card flex h-[595px] flex-col p-4">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="mb-1 text-xl font-bold text-slate-800">{{ t("pos.catalog.title") }}</p>
@@ -1216,7 +1186,8 @@ async function confirmarFechoCaixa() {
             </div>
           </div>
         </div>
-        <div v-if="pesquisaAtiva" class="overflow-hidden rounded-lg border border-slate-200">
+        <div v-if="pesquisaAtiva" class="flex min-h-[332px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <div class="min-h-0 flex-1 overflow-y-auto bg-slate-50">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
@@ -1239,7 +1210,7 @@ async function confirmarFechoCaixa() {
               <tr v-else-if="!resultadosPesquisa.length">
                 <td colspan="5" class="px-3 py-8 text-center text-xs text-slate-500">{{ t("pos.catalog.noProducts") }}</td>
               </tr>
-              <tr v-for="produto in resultadosPesquisa" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
+              <tr v-for="produto in resultadosPesquisaPaginados" :key="produto.id" class="border-t border-slate-100 text-[12px] hover:bg-slate-50">
                 <td class="px-3 py-2 font-semibold text-slate-800">
                   {{ produto.nome }}
                   <span
@@ -1277,10 +1248,25 @@ async function confirmarFechoCaixa() {
               </tr>
             </tbody>
           </table>
+          </div>
+          <div
+            v-if="!pesquisaEmCurso && resultadosPesquisa.length"
+            class="border-t border-slate-200 bg-slate-50 px-3 py-2"
+          >
+            <p class="text-[11px] text-slate-500">
+              {{ t("pos.catalog.resultsCount", { count: totalResultadosPesquisa }) }}
+            </p>
+            <PaginacaoTabela
+              v-if="totalPaginasPesquisa > 1"
+              :pagina-atual="paginaPesquisaProdutos"
+              :total-paginas="totalPaginasPesquisa"
+              @mudar-pagina="aoMudarPaginaPesquisa"
+            />
+          </div>
         </div>
         <div
           v-else
-          class="flex h-[290px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
+          class="flex h-[332px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
         >
           <Search :size="58" :stroke-width="1.8" />
           <p class="text-sm font-medium text-slate-500">{{ t("pos.catalog.emptyHint") }}</p>
@@ -1494,7 +1480,7 @@ async function confirmarFechoCaixa() {
                         class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                         :title="t('history.sales.requestReversal')"
                         :aria-label="t('history.sales.requestReversal')"
-                        :disabled="venda.estado === 'Revertida' || solicitacoesPendentesPorVenda.has(venda.id)"
+                        :disabled="!podeSolicitarReversao(venda, vendaStore.solicitacoesReversao)"
                         @click="abrirSolicitacaoReversao(venda)"
                       >
                         <RotateCcw :size="13" :stroke-width="2.1" />
@@ -1785,7 +1771,7 @@ async function confirmarFechoCaixa() {
             <span>{{ t("common.cancel") }}</span>
           </span>
         </BotaoBase>
-        <BotaoBase variante="sucesso" @click="confirmarSolicitacaoReversao">
+        <BotaoBase variante="sucesso" :disabled="processandoReversao" @click="confirmarSolicitacaoReversao">
           <span class="inline-flex items-center gap-1.5">
             <Check :size="14" />
             <span>{{ t("pos.reversalModal.confirm") }}</span>

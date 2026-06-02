@@ -24,6 +24,7 @@ export const useSessaoStore = defineStore("sessao", {
   state: () => ({
     carregado: false,
     utilizador: null,
+    userId: null,
     perfil: "CASHIER",
     caixaAtribuido: "",
     registerId: null,
@@ -61,6 +62,7 @@ export const useSessaoStore = defineStore("sessao", {
     salvar() {
       const payload = {
         utilizador: this.utilizador,
+        userId: this.userId,
         perfil: this.perfil,
         caixaAtribuido: this.caixaAtribuido,
         registerId: this.registerId,
@@ -77,6 +79,7 @@ export const useSessaoStore = defineStore("sessao", {
     },
     login({
       username,
+      userId,
       caixa,
       perfil,
       token,
@@ -88,6 +91,7 @@ export const useSessaoStore = defineStore("sessao", {
       sourceLocationNome,
     }) {
       this.utilizador = username;
+      this.userId = this.normalizarUuid(userId);
       this.caixaAtribuido = caixa;
       this.perfil = perfil || "CASHIER";
       this.registerId = this.normalizarUuid(registerId);
@@ -107,6 +111,7 @@ export const useSessaoStore = defineStore("sessao", {
     },
     logout() {
       this.utilizador = null;
+      this.userId = null;
       this.perfil = "CASHIER";
       this.caixaAtribuido = "";
       this.registerId = null;

@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
 import SeletorIdioma from "../../components/SeletorIdioma.vue";
 import { useSessaoStore } from "../../store/useSessaoStore";
+import { useProdutoStore } from "../../store/useProdutoStore";
 import { authApi, modoApiAtivo, temApiConfigurada } from "../../api";
 import { ApiError } from "../../api/httpClient";
 import { mostrarToastSwal } from "../../services/toast";
@@ -14,6 +15,7 @@ import logoRetailPro from "../../assets/rp.png";
 const { t } = useI18n();
 const router = useRouter();
 const sessaoStore = useSessaoStore();
+const produtoStore = useProdutoStore();
 const carregando = ref(false);
 const caixasDisponiveis = ref([]);
 const aguardandoSelecaoCaixa = ref(false);
@@ -48,13 +50,14 @@ function extrairSourceLocation(user) {
   };
 }
 
-function concluirLogin(resposta) {
+async function concluirLogin(resposta) {
   const user = resposta?.user || {};
   const token = resposta?.access_token || "";
   if (!token) throw new Error("Token JWT não recebido da API.");
   const sourceLocation = extrairSourceLocation(user);
   sessaoStore.login({
     username: user.name || form.username.trim(),
+    userId: user.id ?? null,
     caixa: user.register?.name || user.caixa_atribuido || form.caixa,
     perfil: user.role || "CASHIER",
     token,
@@ -65,6 +68,19 @@ function concluirLogin(resposta) {
     sourceLocationCodigo: sourceLocation.codigo,
     sourceLocationNome: sourceLocation.nome,
   });
+
+  if (temApiConfigurada()) {
+    try {
+      await produtoStore.carregarInventarioPosLogin({});
+    } catch (erro) {
+      const cache = produtoStore.carregarCatalogoDeCache({});
+      if (!cache) {
+        throw erro;
+      }
+      mostrarToastSwal(t("login.toast.inventoryFromCache"), "warning");
+    }
+  }
+
   reiniciarEstadoLogin();
   router.push("/pos");
 }
@@ -105,7 +121,7 @@ async function confirmarDoisFactores() {
       code: modoDoisFactores.value === "code" ? form.codigoDoisFactores.trim() : null,
       recoveryCode: modoDoisFactores.value === "recovery" ? form.codigoRecuperacao.trim() : null,
     });
-    concluirLogin(resposta);
+    await concluirLogin(resposta);
   } catch (erro) {
     if (erro instanceof ApiError && erro.payload?.two_factor_expired) {
       voltarAoLogin();
@@ -156,7 +172,7 @@ async function entrar() {
       password: form.senha,
       registerCode: form.codigo.trim() || null,
     });
-    concluirLogin(resposta);
+    await concluirLogin(resposta);
   } catch (erro) {
     if (erro instanceof ApiError && erro.payload?.requires_two_factor) {
       activarDesafioDoisFactores(erro.payload);
@@ -193,7 +209,7 @@ async function entrar() {
 
 <template>
   <section class="relative flex min-h-screen items-center justify-center bg-[var(--bg-app)] p-6">
-    <div class="absolute right-6 top-6">
+    <div class="pos-login-top absolute right-6 top-6">
       <SeletorIdioma />
     </div>
 
@@ -305,7 +321,9 @@ async function entrar() {
               carregando
                 ? aguardandoDoisFactores
                   ? t("login.twoFactor.verifying")
-                  : t("login.authenticating")
+                  : temApiConfigurada()
+                    ? t("login.loadingInventory")
+                    : t("login.authenticating")
                 : aguardandoDoisFactores
                   ? t("login.twoFactor.submit")
                   : aguardandoSelecaoCaixa

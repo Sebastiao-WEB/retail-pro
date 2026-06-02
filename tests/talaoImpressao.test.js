@@ -99,6 +99,31 @@ describe("talaoImpressao", () => {
     expect(talao.detalharIva).toBe(true);
   });
 
+  it("mostra IVA monetario no talao com percentual derivado e montante em MT", () => {
+    const talao = montarPayloadTalao(
+      {
+        ...vendaBase,
+        itens: [
+          {
+            nome: "Parafuso",
+            quantidade: 1,
+            ivaTipo: "monetario",
+            precoSemIva: 84,
+            precoVenda: 100,
+            valorIvaUnitario: 16,
+            subtotal: 100,
+          },
+        ],
+      },
+      { nomeEmpresa: "Empresa Demo" },
+      { detalharIva: true }
+    );
+
+    expect(talao.venda.itens[0].ivaPercentual).toBeCloseTo(19.05, 2);
+    expect(talao.venda.itens[0].ivaTotal).toBe(16);
+    expect(talao.venda.totalIva).toBe(16);
+  });
+
   it("nao trata valorIvaUnitario zero como bloqueio do percentual", () => {
     const talao = montarPayloadTalao({
       ...vendaBase,

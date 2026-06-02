@@ -118,6 +118,7 @@
                         <p><strong>{{ __('pages.sales.detail_status') }}:</strong> {{ \App\Support\Translations::saleStatus($detalhe->estado) }}</p>
                         <p><strong>{{ __('pages.sales.detail_date') }}:</strong> {{ optional($detalhe->data)->format('d/m/Y H:i') ?? '—' }}</p>
                         <p><strong>{{ __('pages.sales.detail_subtotal') }}:</strong> {{ number_format((float) $detalhe->subtotal, 2, ',', '.') }} MT</p>
+                        <p><strong>{{ __('pages.sales.detail_total_iva') }}:</strong> {{ number_format((float) $detalhe->itens->sum(fn ($item) => $item->ivaTotalLinha()), 2, ',', '.') }} MT</p>
                         <p><strong>{{ __('pages.sales.detail_discount') }}:</strong> {{ number_format((float) $detalhe->desconto_aplicado, 2, ',', '.') }} MT</p>
                         <p><strong>{{ __('pages.sales.detail_total') }}:</strong> {{ number_format((float) $detalhe->total, 2, ',', '.') }} MT</p>
                         @if (strcasecmp($detalhe->metodo_pagamento, 'Dinheiro') === 0)
@@ -134,20 +135,23 @@
                                     <th class="px-2 py-2 text-right">{{ __('pages.common.qty_short') }}</th>
                                     <th class="px-2 py-2 text-right">{{ __('pages.common.price') }}</th>
                                     <th class="px-2 py-2 text-right">{{ __('app.fields.iva') }} %</th>
+                                    <th class="px-2 py-2 text-right">{{ __('app.fields.iva_line_total') }}</th>
                                     <th class="px-2 py-2 text-right">{{ __('pages.common.subtotal') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse ($detalhe->itens as $item)
+                                    @php($tax = $item->resolvedTax())
                                     <tr class="border-t border-slate-100">
                                         <td class="px-2 py-2">{{ $item->nome }}</td>
                                         <td class="px-2 py-2 text-right">{{ number_format((float) $item->quantidade, 2, ',', '.') }}</td>
                                         <td class="px-2 py-2 text-right">{{ number_format((float) $item->preco_venda, 2, ',', '.') }}</td>
-                                        <td class="px-2 py-2 text-right">{{ number_format((float) $item->iva_percentual, 0) }}%</td>
+                                        <td class="px-2 py-2 text-right">{{ number_format((float) $tax['ivaPercentual'], 2, ',', '.') }}%</td>
+                                        <td class="px-2 py-2 text-right">{{ number_format($item->ivaTotalLinha(), 2, ',', '.') }} MT</td>
                                         <td class="px-2 py-2 text-right">{{ number_format((float) $item->subtotal, 2, ',', '.') }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5" class="px-2 py-4 text-center text-slate-500">{{ __('pages.common.no_items') }}</td></tr>
+                                    <tr><td colspan="6" class="px-2 py-4 text-center text-slate-500">{{ __('pages.common.no_items') }}</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

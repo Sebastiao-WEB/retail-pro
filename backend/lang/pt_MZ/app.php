@@ -77,6 +77,7 @@ return [
         'iva_type' => 'Tipo de IVA',
         'iva_percent' => 'IVA percentual (%)',
         'iva_amount' => 'IVA monetário (MZN)',
+        'iva_line_total' => 'IVA (MT)',
         'stock' => 'Stock',
         'email' => 'Email',
         'username' => 'Username',

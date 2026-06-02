@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { temApiConfigurada } from "../api";
 import {
   carregarHistoricoIntegrado,
+  carregarSolicitacoesReversaoIntegrado,
   criarVendaIntegrada,
   solicitarReversaoIntegrada,
 } from "../services/integracaoApi";
@@ -11,9 +12,39 @@ import { enfileirarVendaPendente } from "../services/offline/pendingQueue";
 import { extrairVendaApi } from "../services/offline/salePayload";
 import { mapearVenda } from "../api/mappers";
 import { useSessaoStore } from "./useSessaoStore";
+import { useProdutoStore } from "./useProdutoStore";
+import { aplicarIvaItensVenda, snapshotPossuiIvaValido } from "../utils/ivaItem.js";
 import { t } from "../services/i18nHelper.js";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
+const UUID_VENDA_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+let timerSincronizacaoPos = null;
+
+function mapearEstadoReversaoRemota(status) {
+  const valor = String(status || "").toUpperCase();
+  if (valor === "APPROVED") return "Aprovada";
+  if (valor === "REJECTED") return "Cancelada";
+  return "Pendente";
+}
+
+export function vendaTemIdValidoParaReversao(venda) {
+  return UUID_VENDA_REGEX.test(String(venda?.id || "").trim());
+}
+
+export function motivoBloqueioReversao(venda, solicitacoesReversao = []) {
+  if (!venda) return t("api.reversalFailed");
+  if (venda.pendenteSync) return t("api.reversalSaleNotSynced");
+  if (!vendaTemIdValidoParaReversao(venda)) return t("api.reversalInvalidSaleId");
+  if (String(venda.estado || "") === "Revertida") return t("history.sales.toast.alreadyReverted");
+  const pendente = solicitacoesReversao.some((item) => item.vendaId === venda.id && item.estado === "Pendente");
+  if (pendente) return t("api.reversalAlreadyPending");
+  return "";
+}
+
+export function podeSolicitarReversao(venda, solicitacoesReversao = []) {
+  return !motivoBloqueioReversao(venda, solicitacoesReversao);
+}
 
 function gerarIdLocal() {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -41,6 +72,65 @@ function gerarReferenciaVenda(venda, indice = 0) {
   const dia = String(data.getDate()).padStart(2, "0");
   const sequencia = gerarSequenciaId(venda?.id, indice);
   return `VD-${ano}${mes}${dia}-${sequencia}`;
+}
+
+function mesclarItensVenda(itensLocais = [], itensRemotos = []) {
+  const remotos = Array.isArray(itensRemotos) ? itensRemotos : [];
+  if (!remotos.length) return Array.isArray(itensLocais) ? itensLocais : [];
+  const locais = Array.isArray(itensLocais) ? itensLocais : [];
+
+  return remotos.map((remoto, indice) => {
+    const local = locais[indice];
+    if (!local) return remoto;
+    if (snapshotPossuiIvaValido(remoto)) return remoto;
+    if (snapshotPossuiIvaValido(local)) {
+      return {
+        ...remoto,
+        precoSemIva: local.precoSemIva,
+        ivaTipo: local.ivaTipo,
+        ivaPercentual: local.ivaPercentual,
+        valorIvaUnitario: local.valorIvaUnitario,
+      };
+    }
+    return remoto;
+  });
+}
+
+function filtrosCatalogoSessao(sessaoStore) {
+  return sessaoStore.sourceLocationId ? { source_location_id: sessaoStore.sourceLocationId } : {};
+}
+
+function enriquecerVendaComCatalogo(venda, produtos = null) {
+  const produtoStore = useProdutoStore();
+  const filtros = filtrosCatalogoSessao(useSessaoStore());
+  produtoStore.garantirCatalogoPosLocal(filtros);
+  const catalogo = Array.isArray(produtos) ? produtos : produtoStore.produtos;
+  return aplicarIvaItensVenda(venda, catalogo);
+}
+
+export function timestampInsercaoVenda(venda) {
+  const ts = venda?.createdAt || venda?.created_at || venda?.data;
+  const ms = new Date(ts || 0).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+export function vendaPertenceUtilizadorAtual(venda, sessao) {
+  if (!venda || !sessao) return false;
+
+  const userId = sessao.userId;
+  const vendaUserId = venda.userId || venda.user_id;
+  if (userId && vendaUserId) {
+    return String(vendaUserId) === String(userId);
+  }
+
+  if (sessao.utilizador && venda.operador) {
+    return (
+      String(venda.operador).trim().toLowerCase() ===
+      String(sessao.utilizador).trim().toLowerCase()
+    );
+  }
+
+  return !userId;
 }
 
 export function vendaPertenceTurnoAtual(venda, sessao) {
@@ -74,6 +164,7 @@ export const useVendaStore = defineStore("vendas", {
   state: () => ({
     vendas: [],
     solicitacoesReversao: [],
+    reversoesEmCurso: {},
     carregado: false,
   }),
   getters: {
@@ -99,32 +190,63 @@ export const useVendaStore = defineStore("vendas", {
     salvarSolicitacoes() {
       localStorage.setItem(CHAVE_REVERSOES, JSON.stringify(this.solicitacoesReversao));
     },
+    deduplicarSolicitacoesReversao() {
+      const porVenda = new Map();
+      for (const item of this.solicitacoesReversao) {
+        const vendaId = item?.vendaId;
+        if (!vendaId) continue;
+        const actual = porVenda.get(vendaId);
+        const dataItem = String(item.dataSolicitacao || "");
+        const dataActual = String(actual?.dataSolicitacao || "");
+        if (!actual || dataItem >= dataActual) {
+          porVenda.set(vendaId, item);
+        }
+      }
+      this.solicitacoesReversao = [...porVenda.values()];
+    },
     inserirOuActualizarVenda(venda) {
       if (!venda?.id) return;
-      const indice = this.vendas.findIndex((item) => item.id === venda.id);
+      const vendaNormalizada = enriquecerVendaComCatalogo(venda);
+      const indice = this.vendas.findIndex((item) => item.id === vendaNormalizada.id);
       if (indice >= 0) {
-        this.vendas[indice] = { ...this.vendas[indice], ...venda };
+        const actual = this.vendas[indice];
+        this.vendas[indice] = enriquecerVendaComCatalogo({
+          ...actual,
+          ...vendaNormalizada,
+          itens: mesclarItensVenda(actual.itens, vendaNormalizada.itens),
+        });
         return;
       }
-      this.vendas.unshift(venda);
+      this.vendas.unshift(vendaNormalizada);
     },
     mesclarVendasPendentesLocais(vendasRemotas = []) {
+      const sessaoStore = useSessaoStore();
       const idsRemotos = new Set(vendasRemotas.map((v) => v.id));
-      const pendentesLocais = this.vendas.filter((v) => v.pendenteSync && !idsRemotos.has(v.id));
+      const pendentesLocais = this.vendas.filter(
+        (v) =>
+          v.pendenteSync &&
+          !idsRemotos.has(v.id) &&
+          vendaPertenceUtilizadorAtual(v, sessaoStore)
+      );
       return [...pendentesLocais, ...vendasRemotas];
     },
     mesclarVendasTurnoAtual(vendasRemotas = [], sessaoStore) {
       const remotas = Array.isArray(vendasRemotas) ? vendasRemotas : [];
       const idsRemotos = new Set(remotas.map((v) => v.id));
       const locaisTurno = this.vendas.filter(
-        (v) => !idsRemotos.has(v.id) && vendaPertenceTurnoAtual(v, sessaoStore)
+        (v) =>
+          !idsRemotos.has(v.id) &&
+          vendaPertenceTurnoAtual(v, sessaoStore) &&
+          vendaPertenceUtilizadorAtual(v, sessaoStore)
       );
       const porId = new Map();
       for (const venda of [...locaisTurno, ...remotas]) {
-        if (venda?.id) porId.set(venda.id, venda);
+        if (venda?.id && vendaPertenceUtilizadorAtual(venda, sessaoStore)) {
+          porId.set(venda.id, venda);
+        }
       }
       return [...porId.values()].sort(
-        (a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime()
+        (a, b) => timestampInsercaoVenda(b) - timestampInsercaoVenda(a)
       );
     },
     async carregarHistoricoRemoto(sessaoStore) {
@@ -140,51 +262,206 @@ export const useVendaStore = defineStore("vendas", {
       if (sessaoStore.cashSessionId && vendas.length === 0 && sessaoStore.registerId) {
         const fallback = await carregarHistoricoIntegrado({ register_id: sessaoStore.registerId });
         const inicio = sessaoStore.aberturaEm ? new Date(sessaoStore.aberturaEm).getTime() : NaN;
-        vendas = fallback.vendas.filter((venda) => {
-          if (venda.cashSessionId === sessaoStore.cashSessionId) return true;
-          if (!Number.isFinite(inicio)) return true;
-          const dataVenda = venda.data ? new Date(venda.data).getTime() : NaN;
-          return Number.isFinite(dataVenda) && dataVenda >= inicio;
-        });
+        vendas = fallback.vendas.filter(
+          (venda) =>
+            vendaPertenceUtilizadorAtual(venda, sessaoStore) &&
+            (venda.cashSessionId === sessaoStore.cashSessionId ||
+              (Number.isFinite(inicio) &&
+                Number.isFinite(new Date(venda.data).getTime()) &&
+                new Date(venda.data).getTime() >= inicio))
+        );
       }
 
-      return vendas;
+      return vendas.filter((venda) => vendaPertenceUtilizadorAtual(venda, sessaoStore));
     },
     async sincronizarHistorico() {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
+      const produtoStore = useProdutoStore();
+      const filtrosCatalogo = filtrosCatalogoSessao(sessaoStore);
       try {
         if (temApiConfigurada()) {
+          await produtoStore.garantirCatalogoPos(filtrosCatalogo);
           const vendasRemotas = await this.carregarHistoricoRemoto(sessaoStore);
-          const normalizadas = vendasRemotas.map((venda, indice) => normalizarVendaHistorico(venda, indice));
+          const normalizadas = vendasRemotas.map((venda, indice) =>
+            enriquecerVendaComCatalogo(
+              normalizarVendaHistorico(venda, indice),
+              produtoStore.produtos
+            )
+          );
           const mescladas = this.mesclarVendasTurnoAtual(normalizadas, sessaoStore);
           this.vendas = this.mesclarVendasPendentesLocais(mescladas);
         }
+        await this.sincronizarSolicitacoesReversao();
       } catch (erro) {
         if (!isErroRedeOuIndisponivel(erro)) throw erro;
       }
       this.hidratarSolicitacoes();
       this.carregado = true;
     },
+    async sincronizarSolicitacoesReversao() {
+      if (!temApiConfigurada()) return;
+      this.hidratarSolicitacoes();
+      try {
+        const remotas = await carregarSolicitacoesReversaoIntegrado();
+        const maisRecentePorVenda = new Map();
+
+        for (const item of remotas) {
+          if (!item?.saleId) continue;
+          const actual = maisRecentePorVenda.get(item.saleId);
+          const dataItem = String(item.requestedAt || item.decidedAt || "");
+          const dataActual = String(actual?.requestedAt || actual?.decidedAt || "");
+          if (!actual || dataItem >= dataActual) {
+            maisRecentePorVenda.set(item.saleId, item);
+          }
+        }
+
+        for (const [saleId, item] of maisRecentePorVenda) {
+          const estadoLocal = mapearEstadoReversaoRemota(item.status);
+          let local = this.solicitacoesReversao.find((s) => s.vendaId === saleId);
+
+          if (!local) {
+            local = {
+              id: item.id || Date.now(),
+              idRemoto: item.id,
+              vendaId: saleId,
+              referencia: "",
+              solicitadoPor: "",
+              motivo: item.reason || "",
+              estado: estadoLocal,
+              dataSolicitacao: item.requestedAt || new Date().toISOString(),
+            };
+            this.solicitacoesReversao.unshift(local);
+          } else {
+            local.estado = estadoLocal;
+            local.idRemoto = item.id || local.idRemoto;
+            if (item.reason) local.motivo = item.reason;
+          }
+
+          if (item.status === "APPROVED") {
+            const venda = this.vendas.find((v) => v.id === saleId);
+            if (venda) venda.estado = "Revertida";
+          }
+        }
+
+        for (const local of this.solicitacoesReversao) {
+          if (local.estado !== "Pendente") continue;
+          const remota = maisRecentePorVenda.get(local.vendaId);
+          if (remota && remota.status !== "PENDING") {
+            local.estado = mapearEstadoReversaoRemota(remota.status);
+            if (remota.status === "APPROVED") {
+              const venda = this.vendas.find((v) => v.id === local.vendaId);
+              if (venda) venda.estado = "Revertida";
+            }
+          }
+        }
+
+        this.deduplicarSolicitacoesReversao();
+        this.salvarSolicitacoes();
+      } catch (erro) {
+        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+      }
+    },
     async carregarHistorico() {
       return this.sincronizarHistorico();
+    },
+    agendarSincronizacaoPos(delayMs = 2500) {
+      if (!temApiConfigurada()) return;
+      if (timerSincronizacaoPos) {
+        clearTimeout(timerSincronizacaoPos);
+      }
+      timerSincronizacaoPos = setTimeout(() => {
+        timerSincronizacaoPos = null;
+        void this.sincronizarHistorico().catch(() => {
+          // O turno actual já tem a venda em memória; reconcilia na próxima navegação.
+        });
+      }, delayMs);
+    },
+    normalizarVendaParaRegisto(novaVenda, sessaoStore) {
+      const id = novaVenda?.id || gerarIdLocal();
+      return {
+        ...novaVenda,
+        id,
+        referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
+        operador: novaVenda.operador || sessaoStore.utilizador || "",
+        userId: novaVenda.userId || sessaoStore.userId || null,
+        caixa: novaVenda.caixa || sessaoStore.caixaAtribuido || "",
+        cashSessionId: novaVenda.cashSessionId || novaVenda.cash_session_id || sessaoStore.cashSessionId,
+        registerId: novaVenda.registerId || novaVenda.register_id || sessaoStore.registerId,
+        data: novaVenda.data || new Date().toISOString(),
+        createdAt: novaVenda.createdAt || novaVenda.data || new Date().toISOString(),
+        estado: "Concluida",
+        stockVersions: {},
+      };
+    },
+    async sincronizarVendaPosRemota(vendaNormalizada) {
+      const produtoStore = useProdutoStore();
+      const id = vendaNormalizada.id;
+
+      try {
+        const resposta = await criarVendaIntegrada(vendaNormalizada);
+        const dadosApi = extrairVendaApi(resposta);
+        const vendaRemota = mapearVenda({ ...vendaNormalizada, ...dadosApi });
+        const sessaoStore = useSessaoStore();
+        this.inserirOuActualizarVenda({
+          ...vendaRemota,
+          id: vendaRemota.id || id,
+          referencia: vendaRemota.referencia || vendaNormalizada.referencia,
+          cashSessionId: vendaRemota.cashSessionId || vendaNormalizada.cashSessionId,
+          pendenteSync: false,
+        });
+        if (vendaRemota.cashSessionId && vendaRemota.cashSessionId !== sessaoStore.cashSessionId) {
+          sessaoStore.cashSessionId = vendaRemota.cashSessionId;
+          sessaoStore.salvar();
+        }
+      } catch (erro) {
+        if (isErroNegocioVenda(erro) || !isErroRedeOuIndisponivel(erro)) {
+          produtoStore.reporStockItensVenda(vendaNormalizada.itens || []);
+          const vendaLocal = this.vendas.find((item) => item.id === id);
+          if (vendaLocal) {
+            vendaLocal.estado = "Erro sync";
+            vendaLocal.erroSync = erro?.message || t("api.reversalFailed");
+          }
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("retailpro:venda-sync-falhou", {
+                detail: { mensagem: erro?.message || t("pos.toast.registerSaleFailed") },
+              })
+            );
+          }
+          return;
+        }
+
+        if (await vendaJaRegistadaNoServidor(id)) {
+          this.inserirOuActualizarVenda({ ...vendaNormalizada, pendenteSync: false });
+          return;
+        }
+
+        enfileirarVendaPendente(vendaNormalizada);
+        const vendaLocal = this.vendas.find((item) => item.id === id);
+        if (vendaLocal) vendaLocal.pendenteSync = true;
+      }
+    },
+    registarVendaPosRapida(novaVenda) {
+      const sessaoStore = useSessaoStore();
+      sessaoStore.hidratar();
+      const vendaNormalizada = this.normalizarVendaParaRegisto(novaVenda, sessaoStore);
+
+      this.inserirOuActualizarVenda({ ...vendaNormalizada, pendenteSync: false });
+
+      if (!temApiConfigurada()) {
+        return { modo: "local" };
+      }
+
+      void this.sincronizarVendaPosRemota(vendaNormalizada);
+      this.agendarSincronizacaoPos();
+      return { modo: "online-enviando" };
     },
     async registarVenda(novaVenda) {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
 
-      const id = novaVenda?.id || gerarIdLocal();
-      const vendaNormalizada = {
-        ...novaVenda,
-        id,
-        referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
-        operador: novaVenda.operador || sessaoStore.utilizador || "",
-        caixa: novaVenda.caixa || sessaoStore.caixaAtribuido || "",
-        cashSessionId: novaVenda.cashSessionId || novaVenda.cash_session_id || sessaoStore.cashSessionId,
-        registerId: novaVenda.registerId || novaVenda.register_id || sessaoStore.registerId,
-        data: novaVenda.data || new Date().toISOString(),
-        estado: "Concluida",
-      };
+      const vendaNormalizada = this.normalizarVendaParaRegisto(novaVenda, sessaoStore);
 
       if (temApiConfigurada()) {
         try {
@@ -193,7 +470,7 @@ export const useVendaStore = defineStore("vendas", {
           const vendaRemota = mapearVenda({ ...vendaNormalizada, ...dadosApi });
           this.inserirOuActualizarVenda({
             ...vendaRemota,
-            id: vendaRemota.id || id,
+            id: vendaRemota.id || vendaNormalizada.id,
             referencia: vendaRemota.referencia || vendaNormalizada.referencia,
             cashSessionId: vendaRemota.cashSessionId || vendaNormalizada.cashSessionId,
             pendenteSync: false,
@@ -202,15 +479,16 @@ export const useVendaStore = defineStore("vendas", {
             sessaoStore.cashSessionId = vendaRemota.cashSessionId;
             sessaoStore.salvar();
           }
-          await this.sincronizarHistorico();
+          this.agendarSincronizacaoPos();
           return { modo: "online" };
         } catch (erro) {
           if (isErroNegocioVenda(erro) || !isErroRedeOuIndisponivel(erro)) {
             throw erro;
           }
 
-          if (await vendaJaRegistadaNoServidor(id)) {
-            await this.sincronizarHistorico();
+          if (await vendaJaRegistadaNoServidor(vendaNormalizada.id)) {
+            this.inserirOuActualizarVenda({ ...vendaNormalizada, pendenteSync: false });
+            this.agendarSincronizacaoPos();
             return { modo: "online-recuperado" };
           }
 
@@ -223,26 +501,46 @@ export const useVendaStore = defineStore("vendas", {
       this.vendas.unshift(vendaNormalizada);
       return { modo: "local" };
     },
-    async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo }) {
-      const existePendente = this.solicitacoesReversao.some((item) => item.vendaId === vendaId && item.estado === "Pendente");
-      if (existePendente) {
-        return { ok: false, erro: t("api.reversalAlreadyPending") };
+    async solicitarReversao({ vendaId, referencia, solicitadoPor, motivo, venda }) {
+      const vendaRef = venda || this.vendas.find((item) => item.id === vendaId) || { id: vendaId };
+      const bloqueio = motivoBloqueioReversao(vendaRef, this.solicitacoesReversao);
+      if (bloqueio) {
+        return { ok: false, erro: bloqueio };
       }
-      const remoto = await solicitarReversaoIntegrada({ venda_id: vendaId, reason: motivo || "" });
-      if (remoto?.ok === false && remoto?.erro) {
-        return { ok: false, erro: remoto.erro };
+
+      if (this.reversoesEmCurso[vendaId]) {
+        return { ok: false, erro: t("api.reversalInProgress") };
       }
-      this.solicitacoesReversao.unshift({
-        id: Date.now(),
-        vendaId,
-        referencia,
-        solicitadoPor,
-        motivo: motivo || "",
-        estado: "Pendente",
-        dataSolicitacao: new Date().toISOString(),
-      });
-      this.salvarSolicitacoes();
-      return { ok: true };
+
+      this.reversoesEmCurso[vendaId] = true;
+      try {
+        if (temApiConfigurada()) {
+          const remoto = await solicitarReversaoIntegrada({ venda_id: vendaId, reason: motivo || "" });
+          if (remoto?.ok === false && remoto?.erro) {
+            if (remoto.status === 409 || remoto.status === 404) {
+              await this.sincronizarSolicitacoesReversao();
+            }
+            return { ok: false, erro: remoto.erro };
+          }
+          await this.sincronizarSolicitacoesReversao();
+          return { ok: true };
+        }
+
+        this.solicitacoesReversao.unshift({
+          id: Date.now(),
+          vendaId,
+          referencia,
+          solicitadoPor,
+          motivo: motivo || "",
+          estado: "Pendente",
+          dataSolicitacao: new Date().toISOString(),
+        });
+        this.deduplicarSolicitacoesReversao();
+        this.salvarSolicitacoes();
+        return { ok: true };
+      } finally {
+        delete this.reversoesEmCurso[vendaId];
+      }
     },
     aprovarReversao(idSolicitacao, gerente) {
       const solicitacao = this.solicitacoesReversao.find((item) => item.id === idSolicitacao);

@@ -48,8 +48,11 @@ export const useCarrinhoStore = defineStore("carrinho", {
       const unidadeVenda = normalizarUnidadeVenda(produto?.unidadeVenda);
       const precoSemIva = Number(produto.precoVenda || 0);
       const precoUnitario = Number(produto.precoVendaComIva ?? precoSemIva);
-      const valorIvaUnitario = Number((precoUnitario - precoSemIva).toFixed(2));
+      const valorIvaUnitario = Number(
+        produto.valorIvaUnitario ?? Number((precoUnitario - precoSemIva).toFixed(2))
+      );
       const ivaPercentual = resolverIvaPercentualExibicao({
+        ivaTipo: produto.ivaTipo,
         ivaPercentual: produto.ivaPercentual,
         valorIvaUnitario,
         precoSemIva,
@@ -78,6 +81,7 @@ export const useCarrinhoStore = defineStore("carrinho", {
         unidadeVenda,
         precoVenda: precoUnitario,
         precoSemIva,
+        ivaTipo: produto.ivaTipo || "isento",
         ivaPercentual,
         valorIvaUnitario,
         ordemAdicao: ++this.sequenciaAdicao,
