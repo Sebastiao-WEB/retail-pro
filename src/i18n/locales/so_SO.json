@@ -528,5 +528,9 @@
     "reversalInvalidSaleId": "Iibkan ma laha aqoonsi sax ah serverka. Isku-dubarid ka hor intaadan codsan celinta.",
     "reversalInProgress": "Codsiga celinta ayaa socda. Fadlan sug.",
     "httpError": "Khalad HTTP {status}"
+  },
+  "desktopWindow": {
+    "minimize": "Yaree daaqada",
+    "close": "Xir barnaamijka"
   }
 }

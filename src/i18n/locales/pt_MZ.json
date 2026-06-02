@@ -528,5 +528,9 @@
     "reversalInvalidSaleId": "Esta venda ainda não tem identificador válido no servidor. Sincronize-a antes de solicitar reversão.",
     "reversalInProgress": "Pedido de reversão em curso. Aguarde um momento.",
     "httpError": "Erro HTTP {status}"
+  },
+  "desktopWindow": {
+    "minimize": "Minimizar janela",
+    "close": "Fechar aplicação"
   }
 }

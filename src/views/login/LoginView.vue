@@ -208,7 +208,7 @@ async function entrar() {
 
 <template>
   <section class="relative flex min-h-screen items-center justify-center bg-[var(--bg-app)] p-6">
-    <div class="absolute right-6 top-6">
+    <div class="pos-login-top absolute right-6 top-6">
       <SeletorIdioma />
     </div>
 

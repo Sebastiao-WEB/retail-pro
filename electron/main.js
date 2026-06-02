@@ -150,6 +150,48 @@ function obterIconeAplicacao() {
   return candidatos.find((caminho) => fs.existsSync(caminho));
 }
 
+function opcoesJanelaProducao() {
+  return {
+    frame: false,
+    fullscreen: true,
+    alwaysOnTop: true,
+    minimizable: true,
+    closable: true,
+    maximizable: false,
+    resizable: false,
+    fullscreenable: true,
+    skipTaskbar: false,
+  };
+}
+
+function aplicarFullscreenPos(window) {
+  window.setAlwaysOnTop(true, "screen-saver");
+  window.setFullScreen(true);
+  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  window.setMaximizable(false);
+  window.focus();
+}
+
+function configurarPersistenciaFullscreen(window, modoJanela) {
+  if (modoJanela) return;
+
+  window.on("blur", () => {
+    if (window.isDestroyed() || window.isMinimized()) return;
+    window.setAlwaysOnTop(true, "screen-saver");
+    window.focus();
+  });
+
+  window.on("leave-full-screen", () => {
+    if (window.isDestroyed() || window.isMinimized()) return;
+    aplicarFullscreenPos(window);
+  });
+
+  window.on("restore", () => {
+    if (window.isDestroyed()) return;
+    aplicarFullscreenPos(window);
+  });
+}
+
 function createWindow() {
   const iconeAplicacao = obterIconeAplicacao();
   const modoJanela = process.env.POS_DESKTOP_WINDOWED === "1";
@@ -170,16 +212,7 @@ function createWindow() {
           maximizable: false,
           fullscreenable: false,
         }
-      : {
-          frame: false,
-          fullscreen: true,
-          alwaysOnTop: true,
-          resizable: false,
-          maximizable: false,
-          minimizable: false,
-          fullscreenable: true,
-          skipTaskbar: false,
-        }),
+      : opcoesJanelaProducao()),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -188,22 +221,14 @@ function createWindow() {
     },
   });
   mainWindow = window;
+  window.setMaximizable(false);
+  configurarPersistenciaFullscreen(window, modoJanela);
 
   window.once("ready-to-show", () => {
     if (!modoJanela) {
-      window.setAlwaysOnTop(true, "screen-saver");
-      window.setFullScreen(true);
-      window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-      window.focus();
+      aplicarFullscreenPos(window);
     }
     window.show();
-  });
-
-  window.on("blur", () => {
-    if (!modoJanela && !window.isDestroyed()) {
-      window.setAlwaysOnTop(true, "screen-saver");
-      window.focus();
-    }
   });
 
   // Fallback para ambientes onde preload não injeta window.api.
@@ -255,6 +280,18 @@ function createWindow() {
 
   window.loadFile(indexLocal);
 }
+
+ipcMain.handle("pos:minimizar-janela", () => {
+  const alvo = mainWindow || BrowserWindow.getFocusedWindow();
+  alvo?.minimize();
+  return { ok: true };
+});
+
+ipcMain.handle("pos:fechar-janela", () => {
+  const alvo = mainWindow || BrowserWindow.getFocusedWindow();
+  alvo?.close();
+  return { ok: true };
+});
 
 ipcMain.handle("pos:listar-impressoras", async () => {
   console.log("[POS][print] iniciar listagem de impressoras");

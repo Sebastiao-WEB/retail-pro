@@ -1160,7 +1160,7 @@ async function confirmarFechoCaixa() {
 <template>
   <section class="grid h-full grid-cols-1 gap-4 xl:grid-cols-[2.2fr_1fr] xl:items-center">
     <div v-if="menuPosAtivo === 'venda'" class="space-y-4 xl:flex xl:h-full xl:flex-col xl:justify-center">
-      <div class="rp-card flex h-[520px] flex-col p-4">
+      <div class="rp-card flex h-[595px] flex-col p-4">
         <div class="mb-3 flex items-end justify-between gap-3">
           <div class="min-w-0 flex-1">
             <p class="mb-1 text-xl font-bold text-slate-800">{{ t("pos.catalog.title") }}</p>
@@ -1186,8 +1186,8 @@ async function confirmarFechoCaixa() {
             </div>
           </div>
         </div>
-        <div v-if="pesquisaAtiva" class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200">
-          <div class="min-h-0 flex-1 overflow-y-auto">
+        <div v-if="pesquisaAtiva" class="flex min-h-[332px] flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <div class="min-h-0 flex-1 overflow-y-auto bg-slate-50">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-50 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
@@ -1266,7 +1266,7 @@ async function confirmarFechoCaixa() {
         </div>
         <div
           v-else
-          class="flex h-[290px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
+          class="flex h-[332px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-400"
         >
           <Search :size="58" :stroke-width="1.8" />
           <p class="text-sm font-medium text-slate-500">{{ t("pos.catalog.emptyHint") }}</p>
