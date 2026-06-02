@@ -168,6 +168,8 @@ function mapearHistoricoFechoSessao(item) {
     utilizador: snapshot.utilizador || snapshot.operador || "",
     fechadoEm: snapshot.fechadoEm || item.closedAt || item.closed_at || "",
     aberturaEm: snapshot.aberturaEm || item.openedAt || item.opened_at || "",
+    createdAt: item.createdAt || item.created_at || "",
+    userId: item.userId || item.user_id || null,
     fundoInicial: Number(snapshot.fundoInicial ?? item.openingBalance ?? 0),
     totalVendido: Number(snapshot.totalVendido ?? 0),
     totalTransacoes: Number(snapshot.totalTransacoes ?? 0),

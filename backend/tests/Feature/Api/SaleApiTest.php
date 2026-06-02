@@ -219,6 +219,7 @@ class SaleApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'referencia' => 'VD-TEST-A',
             'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
             'cash_session_id' => $sessaoA,
             'cliente' => 'Cliente Geral',
             'metodo_pagamento' => 'Dinheiro',
@@ -231,6 +232,7 @@ class SaleApiTest extends TestCase
             'id' => (string) Str::uuid(),
             'referencia' => 'VD-TEST-B',
             'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
             'cash_session_id' => $sessaoB,
             'cliente' => 'Cliente Geral',
             'metodo_pagamento' => 'Dinheiro',
@@ -342,6 +344,7 @@ class SaleApiTest extends TestCase
                 'id' => (string) Str::uuid(),
                 'referencia' => 'VD-PAG-'.$i,
                 'register_id' => $ambiente['register']->id,
+                'user_id' => $ambiente['user']->id,
                 'cash_session_id' => $sessao,
                 'cliente' => 'Cliente Geral',
                 'metodo_pagamento' => 'Dinheiro',
@@ -528,5 +531,132 @@ class SaleApiTest extends TestCase
 
         $produto->refresh();
         $this->assertSame(99.0, (float) $produto->stock);
+    }
+
+    public function test_persiste_e_devolve_iva_quando_pos_nao_envia_campos_de_imposto(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update([
+            'preco_venda' => 116,
+            'iva_tipo' => 'PERCENTUAL',
+            'iva_percentual' => 16,
+            'iva_valor' => 0,
+        ]);
+
+        $sessao = CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'OPEN',
+            'opening_balance' => 500,
+            'opened_at' => now(),
+        ]);
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'cash_session_id' => $sessao->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 116,
+            'total' => 116,
+            'valorPago' => 116,
+            'troco' => 0,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 1,
+                    'precoVenda' => 116,
+                    'subtotal' => 116,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta
+            ->assertCreated()
+            ->assertJsonPath('data.itens.0.ivaPercentual', 16)
+            ->assertJsonPath('data.itens.0.precoSemIva', 100)
+            ->assertJsonPath('data.itens.0.valorIvaUnitario', 16);
+
+        $this->assertDatabaseHas('sale_items', [
+            'produto_id' => $produto->id,
+            'iva_percentual' => 16,
+            'preco_sem_iva' => 100,
+            'valor_iva_unitario' => 16,
+        ]);
+
+        $listagem = $this->getJson('/api/v1/sales?register_id='.$ambiente['register']->id, $this->authHeaders($token));
+        $listagem
+            ->assertOk()
+            ->assertJsonPath('data.0.itens.0.ivaPercentual', 16)
+            ->assertJsonPath('data.0.itens.0.valorIvaUnitario', 16);
+    }
+
+    public function test_lista_apenas_vendas_do_utilizador_autenticado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $outroUser = \App\Models\User::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Outro Operador',
+            'username' => 'outro_operador',
+            'email' => 'outro@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'CASHIER',
+            'caixa_atribuido' => 'Caixa Teste',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'is_active' => true,
+        ]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-OUTRO-001',
+            'cliente' => 'Cliente Geral',
+            'caixa' => 'Caixa Teste',
+            'operador' => 'Outro Operador',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $outroUser->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodo_pagamento' => 'Dinheiro',
+            'estado' => 'Concluida',
+            'subtotal' => 100,
+            'total' => 100,
+            'valor_pago' => 100,
+            'troco' => 0,
+            'data' => now()->subHour(),
+        ]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-MEU-001',
+            'cliente' => 'Cliente Geral',
+            'caixa' => 'Caixa Teste',
+            'operador' => 'Operador Teste',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'metodo_pagamento' => 'Dinheiro',
+            'estado' => 'Concluida',
+            'subtotal' => 200,
+            'total' => 200,
+            'valor_pago' => 200,
+            'troco' => 0,
+            'data' => now(),
+        ]);
+
+        $resposta = $this->getJson(
+            '/api/v1/sales?register_id='.$ambiente['register']->id,
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.referencia', 'VD-MEU-001');
     }
 }

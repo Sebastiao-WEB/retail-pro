@@ -7,14 +7,18 @@ import PaginacaoTabela from "../../components/PaginacaoTabela.vue";
 import {
   useVendaStore,
   vendaPertenceTurnoAtual,
+  vendaPertenceUtilizadorAtual,
+  timestampInsercaoVenda,
   podeSolicitarReversao,
   motivoBloqueioReversao,
 } from "../../store/useVendaStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { isErroRedeOuIndisponivel } from "../../services/offline/networkError";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
+import { useProdutoStore } from "../../store/useProdutoStore";
 import { mostrarToastSwal } from "../../services/toast";
-import { enviarTalaoParaImpressao, formatarMT, formatarIva, obterIvaItem, obterTotalIvaVenda } from "../../services/talaoImpressao";
+import { enviarTalaoParaImpressao, formatarMT, formatarIva } from "../../services/talaoImpressao";
+import { aplicarIvaItensVenda } from "../../utils/ivaItem.js";
 import { temApiConfigurada } from "../../api";
 import { intlLocale } from "../../services/localeStorage.js";
 import { Check, Eye, Printer, RotateCcw, TriangleAlert, X } from "lucide-vue-next";
@@ -25,6 +29,7 @@ const { t, locale } = useI18n();
 const vendaStore = useVendaStore();
 const sessaoStore = useSessaoStore();
 const configuracaoStore = useConfiguracaoStore();
+const produtoStore = useProdutoStore();
 const imprimindoAgora = ref(false);
 const paginaAtual = ref(1);
 
@@ -38,6 +43,17 @@ const processandoReversao = ref(false);
 onMounted(async () => {
   sessaoStore.hidratar();
   configuracaoStore.hidratar();
+  const filtrosCatalogo = sessaoStore.sourceLocationId
+    ? { source_location_id: sessaoStore.sourceLocationId }
+    : {};
+  produtoStore.garantirCatalogoPosLocal(filtrosCatalogo);
+  if (temApiConfigurada()) {
+    try {
+      await produtoStore.garantirCatalogoPos(filtrosCatalogo);
+    } catch {
+      // Mantém catálogo em cache quando a API falhar.
+    }
+  }
   if (temApiConfigurada()) {
     try {
       await configuracaoStore.hidratarDadosEmpresaRemotos();
@@ -59,8 +75,12 @@ onMounted(async () => {
 
 const vendasDoTurnoCaixa = computed(() =>
   vendaStore.vendas
-    .filter((venda) => vendaPertenceTurnoAtual(venda, sessaoStore))
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+    .filter(
+      (venda) =>
+        vendaPertenceTurnoAtual(venda, sessaoStore) &&
+        vendaPertenceUtilizadorAtual(venda, sessaoStore)
+    )
+    .sort((a, b) => timestampInsercaoVenda(b) - timestampInsercaoVenda(a))
 );
 
 const totalVendas = computed(() => vendasDoTurnoCaixa.value.length);
@@ -102,7 +122,24 @@ function traduzirMetodoPagamento(metodo) {
   return metodo;
 }
 
-function abrirDetalhes(venda) {
+const itensDetalheSelecionada = computed(() => {
+  if (!vendaSelecionada.value) return [];
+  return aplicarIvaItensVenda(vendaSelecionada.value, produtoStore.produtos).itens || [];
+});
+
+const totalIvaDetalheSelecionada = computed(() =>
+  itensDetalheSelecionada.value.reduce((acc, item) => acc + Number(item.ivaTotal || 0), 0)
+);
+
+async function abrirDetalhes(venda) {
+  const filtrosCatalogo = sessaoStore.sourceLocationId
+    ? { source_location_id: sessaoStore.sourceLocationId }
+    : {};
+  try {
+    await produtoStore.garantirCatalogoPos(filtrosCatalogo);
+  } catch {
+    produtoStore.garantirCatalogoPosLocal(filtrosCatalogo);
+  }
   vendaSelecionada.value = venda;
   modalDetalhesAberto.value = true;
 }
@@ -288,11 +325,11 @@ async function solicitarReversao() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, idx) in vendaSelecionada.itens || []" :key="idx" class="border-t border-slate-100">
+            <tr v-for="(item, idx) in itensDetalheSelecionada" :key="idx" class="border-t border-slate-100">
               <td class="px-3 py-2">{{ item.nome }}</td>
               <td class="px-3 py-2">{{ item.quantidade }}</td>
               <td class="px-3 py-2">{{ formatarIva(item.ivaPercentual) }}</td>
-              <td class="px-3 py-2">{{ formatarMT(obterIvaItem(item)) }}</td>
+              <td class="px-3 py-2">{{ formatarMT(item.ivaTotal) }}</td>
               <td class="px-3 py-2">{{ formatarMT(item.subtotal) }}</td>
             </tr>
           </tbody>
@@ -301,7 +338,7 @@ async function solicitarReversao() {
 
       <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
         <p><strong>{{ t("common.subtotal") }}:</strong> {{ formatarMT(vendaSelecionada.subtotal || vendaSelecionada.total) }}</p>
-        <p><strong>{{ t("history.sales.detailsModal.totalIva") }}</strong> {{ formatarMT(obterTotalIvaVenda(vendaSelecionada)) }}</p>
+        <p><strong>{{ t("history.sales.detailsModal.totalIva") }}</strong> {{ formatarMT(totalIvaDetalheSelecionada) }}</p>
         <p><strong>{{ t("common.discount") }}:</strong> - {{ formatarMT(vendaSelecionada.descontoAplicado || 0) }}</p>
         <p><strong>{{ t("common.total") }}:</strong> {{ formatarMT(vendaSelecionada.total) }}</p>
       </div>

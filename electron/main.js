@@ -155,7 +155,7 @@ function opcoesJanelaProducao() {
     frame: false,
     fullscreen: true,
     alwaysOnTop: true,
-    minimizable: true,
+    minimizable: false,
     closable: true,
     maximizable: false,
     resizable: false,
@@ -280,12 +280,6 @@ function createWindow() {
 
   window.loadFile(indexLocal);
 }
-
-ipcMain.handle("pos:minimizar-janela", () => {
-  const alvo = mainWindow || BrowserWindow.getFocusedWindow();
-  alvo?.minimize();
-  return { ok: true };
-});
 
 ipcMain.handle("pos:fechar-janela", () => {
   const alvo = mainWindow || BrowserWindow.getFocusedWindow();

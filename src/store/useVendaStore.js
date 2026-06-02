@@ -13,6 +13,7 @@ import { extrairVendaApi } from "../services/offline/salePayload";
 import { mapearVenda } from "../api/mappers";
 import { useSessaoStore } from "./useSessaoStore";
 import { useProdutoStore } from "./useProdutoStore";
+import { aplicarIvaItensVenda, snapshotPossuiIvaValido } from "../utils/ivaItem.js";
 import { t } from "../services/i18nHelper.js";
 
 const CHAVE_REVERSOES = "retailpro:reversoes-venda";
@@ -71,6 +72,65 @@ function gerarReferenciaVenda(venda, indice = 0) {
   const dia = String(data.getDate()).padStart(2, "0");
   const sequencia = gerarSequenciaId(venda?.id, indice);
   return `VD-${ano}${mes}${dia}-${sequencia}`;
+}
+
+function mesclarItensVenda(itensLocais = [], itensRemotos = []) {
+  const remotos = Array.isArray(itensRemotos) ? itensRemotos : [];
+  if (!remotos.length) return Array.isArray(itensLocais) ? itensLocais : [];
+  const locais = Array.isArray(itensLocais) ? itensLocais : [];
+
+  return remotos.map((remoto, indice) => {
+    const local = locais[indice];
+    if (!local) return remoto;
+    if (snapshotPossuiIvaValido(remoto)) return remoto;
+    if (snapshotPossuiIvaValido(local)) {
+      return {
+        ...remoto,
+        precoSemIva: local.precoSemIva,
+        ivaTipo: local.ivaTipo,
+        ivaPercentual: local.ivaPercentual,
+        valorIvaUnitario: local.valorIvaUnitario,
+      };
+    }
+    return remoto;
+  });
+}
+
+function filtrosCatalogoSessao(sessaoStore) {
+  return sessaoStore.sourceLocationId ? { source_location_id: sessaoStore.sourceLocationId } : {};
+}
+
+function enriquecerVendaComCatalogo(venda, produtos = null) {
+  const produtoStore = useProdutoStore();
+  const filtros = filtrosCatalogoSessao(useSessaoStore());
+  produtoStore.garantirCatalogoPosLocal(filtros);
+  const catalogo = Array.isArray(produtos) ? produtos : produtoStore.produtos;
+  return aplicarIvaItensVenda(venda, catalogo);
+}
+
+export function timestampInsercaoVenda(venda) {
+  const ts = venda?.createdAt || venda?.created_at || venda?.data;
+  const ms = new Date(ts || 0).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+export function vendaPertenceUtilizadorAtual(venda, sessao) {
+  if (!venda || !sessao) return false;
+
+  const userId = sessao.userId;
+  const vendaUserId = venda.userId || venda.user_id;
+  if (userId && vendaUserId) {
+    return String(vendaUserId) === String(userId);
+  }
+
+  if (sessao.utilizador && venda.operador) {
+    return (
+      String(venda.operador).trim().toLowerCase() ===
+      String(sessao.utilizador).trim().toLowerCase()
+    );
+  }
+
+  return !userId;
 }
 
 export function vendaPertenceTurnoAtual(venda, sessao) {
@@ -146,30 +206,47 @@ export const useVendaStore = defineStore("vendas", {
     },
     inserirOuActualizarVenda(venda) {
       if (!venda?.id) return;
-      const indice = this.vendas.findIndex((item) => item.id === venda.id);
+      const vendaNormalizada = enriquecerVendaComCatalogo(venda);
+      const indice = this.vendas.findIndex((item) => item.id === vendaNormalizada.id);
       if (indice >= 0) {
-        this.vendas[indice] = { ...this.vendas[indice], ...venda };
+        const actual = this.vendas[indice];
+        this.vendas[indice] = enriquecerVendaComCatalogo({
+          ...actual,
+          ...vendaNormalizada,
+          itens: mesclarItensVenda(actual.itens, vendaNormalizada.itens),
+        });
         return;
       }
-      this.vendas.unshift(venda);
+      this.vendas.unshift(vendaNormalizada);
     },
     mesclarVendasPendentesLocais(vendasRemotas = []) {
+      const sessaoStore = useSessaoStore();
       const idsRemotos = new Set(vendasRemotas.map((v) => v.id));
-      const pendentesLocais = this.vendas.filter((v) => v.pendenteSync && !idsRemotos.has(v.id));
+      const pendentesLocais = this.vendas.filter(
+        (v) =>
+          v.pendenteSync &&
+          !idsRemotos.has(v.id) &&
+          vendaPertenceUtilizadorAtual(v, sessaoStore)
+      );
       return [...pendentesLocais, ...vendasRemotas];
     },
     mesclarVendasTurnoAtual(vendasRemotas = [], sessaoStore) {
       const remotas = Array.isArray(vendasRemotas) ? vendasRemotas : [];
       const idsRemotos = new Set(remotas.map((v) => v.id));
       const locaisTurno = this.vendas.filter(
-        (v) => !idsRemotos.has(v.id) && vendaPertenceTurnoAtual(v, sessaoStore)
+        (v) =>
+          !idsRemotos.has(v.id) &&
+          vendaPertenceTurnoAtual(v, sessaoStore) &&
+          vendaPertenceUtilizadorAtual(v, sessaoStore)
       );
       const porId = new Map();
       for (const venda of [...locaisTurno, ...remotas]) {
-        if (venda?.id) porId.set(venda.id, venda);
+        if (venda?.id && vendaPertenceUtilizadorAtual(venda, sessaoStore)) {
+          porId.set(venda.id, venda);
+        }
       }
       return [...porId.values()].sort(
-        (a, b) => new Date(b.data || 0).getTime() - new Date(a.data || 0).getTime()
+        (a, b) => timestampInsercaoVenda(b) - timestampInsercaoVenda(a)
       );
     },
     async carregarHistoricoRemoto(sessaoStore) {
@@ -185,23 +262,33 @@ export const useVendaStore = defineStore("vendas", {
       if (sessaoStore.cashSessionId && vendas.length === 0 && sessaoStore.registerId) {
         const fallback = await carregarHistoricoIntegrado({ register_id: sessaoStore.registerId });
         const inicio = sessaoStore.aberturaEm ? new Date(sessaoStore.aberturaEm).getTime() : NaN;
-        vendas = fallback.vendas.filter((venda) => {
-          if (venda.cashSessionId === sessaoStore.cashSessionId) return true;
-          if (!Number.isFinite(inicio)) return true;
-          const dataVenda = venda.data ? new Date(venda.data).getTime() : NaN;
-          return Number.isFinite(dataVenda) && dataVenda >= inicio;
-        });
+        vendas = fallback.vendas.filter(
+          (venda) =>
+            vendaPertenceUtilizadorAtual(venda, sessaoStore) &&
+            (venda.cashSessionId === sessaoStore.cashSessionId ||
+              (Number.isFinite(inicio) &&
+                Number.isFinite(new Date(venda.data).getTime()) &&
+                new Date(venda.data).getTime() >= inicio))
+        );
       }
 
-      return vendas;
+      return vendas.filter((venda) => vendaPertenceUtilizadorAtual(venda, sessaoStore));
     },
     async sincronizarHistorico() {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
+      const produtoStore = useProdutoStore();
+      const filtrosCatalogo = filtrosCatalogoSessao(sessaoStore);
       try {
         if (temApiConfigurada()) {
+          await produtoStore.garantirCatalogoPos(filtrosCatalogo);
           const vendasRemotas = await this.carregarHistoricoRemoto(sessaoStore);
-          const normalizadas = vendasRemotas.map((venda, indice) => normalizarVendaHistorico(venda, indice));
+          const normalizadas = vendasRemotas.map((venda, indice) =>
+            enriquecerVendaComCatalogo(
+              normalizarVendaHistorico(venda, indice),
+              produtoStore.produtos
+            )
+          );
           const mescladas = this.mesclarVendasTurnoAtual(normalizadas, sessaoStore);
           this.vendas = this.mesclarVendasPendentesLocais(mescladas);
         }
@@ -297,10 +384,12 @@ export const useVendaStore = defineStore("vendas", {
         id,
         referencia: novaVenda.referencia || gerarReferenciaVenda({ ...novaVenda, id }),
         operador: novaVenda.operador || sessaoStore.utilizador || "",
+        userId: novaVenda.userId || sessaoStore.userId || null,
         caixa: novaVenda.caixa || sessaoStore.caixaAtribuido || "",
         cashSessionId: novaVenda.cashSessionId || novaVenda.cash_session_id || sessaoStore.cashSessionId,
         registerId: novaVenda.registerId || novaVenda.register_id || sessaoStore.registerId,
         data: novaVenda.data || new Date().toISOString(),
+        createdAt: novaVenda.createdAt || novaVenda.data || new Date().toISOString(),
         estado: "Concluida",
         stockVersions: {},
       };

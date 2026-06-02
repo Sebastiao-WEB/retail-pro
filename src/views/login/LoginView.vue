@@ -57,6 +57,7 @@ async function concluirLogin(resposta) {
   const sourceLocation = extrairSourceLocation(user);
   sessaoStore.login({
     username: user.name || form.username.trim(),
+    userId: user.id ?? null,
     caixa: user.register?.name || user.caixa_atribuido || form.caixa,
     perfil: user.role || "CASHIER",
     token,

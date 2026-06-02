@@ -56,13 +56,49 @@ export function mapearCliente(item) {
 function mapearItemVenda(item) {
   if (!item || typeof item !== "object") return item;
   const precoVenda = Number(pick(item, "precoVenda", "preco_venda", "unit_price") ?? 0);
-  const precoSemIva = Number(pick(item, "precoSemIva", "preco_sem_iva") ?? 0);
-  const valorIvaUnitario = Number(pick(item, "valorIvaUnitario", "valor_iva_unitario", "tax_amount") ?? 0);
+  let precoSemIva = Number(pick(item, "precoSemIva", "preco_sem_iva") ?? 0);
+  const ivaTipo = normalizarIvaTipo(pick(item, "ivaTipo", "iva_tipo", "tax_type"));
   let ivaPercentual = Number(pick(item, "ivaPercentual", "iva_percentual", "tax_rate") ?? 0);
+  let valorIvaUnitario = Number(pick(item, "valorIvaUnitario", "valor_iva_unitario", "tax_amount") ?? 0);
+
+  if (
+    ivaPercentual <= 0 &&
+    valorIvaUnitario <= 0 &&
+    precoSemIva > 0 &&
+    precoVenda > 0 &&
+    precoVenda - precoSemIva <= 0.004
+  ) {
+    precoSemIva = 0;
+  }
+
+  if (
+    ivaPercentual > 0 &&
+    precoVenda > 0 &&
+    (precoSemIva <= 0 || precoVenda - precoSemIva <= 0.004)
+  ) {
+    precoSemIva = Number((precoVenda / (1 + ivaPercentual / 100)).toFixed(2));
+    if (valorIvaUnitario <= 0) {
+      valorIvaUnitario = Number((precoVenda - precoSemIva).toFixed(2));
+    }
+  }
+
   if (ivaPercentual <= 0 && valorIvaUnitario > 0 && precoSemIva > 0) {
     ivaPercentual = Number(((valorIvaUnitario / precoSemIva) * 100).toFixed(2));
   } else if (ivaPercentual <= 0 && precoVenda > precoSemIva && precoSemIva > 0) {
     ivaPercentual = Number((((precoVenda - precoSemIva) / precoSemIva) * 100).toFixed(2));
+  } else if (ivaPercentual > 0 && precoSemIva <= 0 && precoVenda > 0) {
+    const precoSemIvaDerivado = Number((precoVenda / (1 + ivaPercentual / 100)).toFixed(2));
+    return {
+      produtoId: pick(item, "produtoId", "produto_id", "product_id"),
+      nome: pick(item, "nome", "name", "product_name_snapshot") ?? "",
+      quantidade: Number(pick(item, "quantidade", "quantity") ?? 0),
+      precoVenda,
+      precoSemIva: precoSemIvaDerivado,
+      ivaTipo,
+      ivaPercentual,
+      valorIvaUnitario: valorIvaUnitario > 0 ? valorIvaUnitario : Number((precoVenda - precoSemIvaDerivado).toFixed(2)),
+      subtotal: Number(pick(item, "subtotal", "line_total", "line_subtotal") ?? 0),
+    };
   }
 
   return {
@@ -71,6 +107,7 @@ function mapearItemVenda(item) {
     quantidade: Number(pick(item, "quantidade", "quantity") ?? 0),
     precoVenda,
     precoSemIva,
+    ivaTipo,
     ivaPercentual,
     valorIvaUnitario,
     subtotal: Number(pick(item, "subtotal", "line_total", "line_subtotal") ?? 0),
@@ -99,6 +136,8 @@ export function mapearVenda(item) {
     valorPago: Number(pick(item, "valorPago", "valor_pago") ?? 0),
     troco: Number(pick(item, "troco", "change_amount") ?? 0),
     data: pick(item, "data", "created_at") ?? "",
+    createdAt: pick(item, "createdAt", "created_at") ?? "",
+    userId: pick(item, "userId", "user_id"),
     cashSessionId: pick(item, "cashSessionId", "cash_session_id"),
     registerId: pick(item, "registerId", "register_id"),
     sourceLocationId: pick(item, "sourceLocationId", "source_location_id"),

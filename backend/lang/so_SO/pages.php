@@ -202,6 +202,7 @@ return [
         'detail_status' => 'Xaaladda',
         'detail_date' => 'Taariikhda',
         'detail_subtotal' => 'Wadarta hoose',
+        'detail_total_iva' => 'Wadarta IVA',
         'detail_discount' => 'Qiimo dhimis',
         'detail_total' => 'Wadarta',
         'detail_amount_paid' => 'Lacagta la bixiyay',

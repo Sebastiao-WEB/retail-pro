@@ -53,4 +53,30 @@ describe("ivaItem", () => {
     expect(linha.ivaPercentual).toBeCloseTo(19.05, 2);
     expect(linha.ivaTotal).toBe(16);
   });
+
+  it("deriva IVA do produto quando preco sem iva igual ao preco final", () => {
+    const linha = enriquecerItemIva(
+      {
+        nome: "Alho Grande",
+        quantidade: 1,
+        produtoId: "p1",
+        precoVenda: 250,
+        precoSemIva: 250,
+        ivaPercentual: 0,
+        valorIvaUnitario: 0,
+        subtotal: 250,
+      },
+      {
+        id: "p1",
+        ivaTipo: "percentual",
+        ivaPercentual: 16,
+        valorIvaUnitario: 34.48,
+        precoVenda: 215.52,
+        precoVendaComIva: 250,
+      }
+    );
+
+    expect(linha.ivaPercentual).toBe(16);
+    expect(linha.ivaTotal).toBe(34.48);
+  });
 });

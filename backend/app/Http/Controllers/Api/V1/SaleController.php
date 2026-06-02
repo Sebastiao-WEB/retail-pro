@@ -11,6 +11,7 @@ use App\Models\SaleItem;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Support\ProductStockDisplay;
+use App\Support\SaleItemTaxSnapshot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -40,10 +41,13 @@ class SaleController extends Controller
 
         $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
 
+        $userId = auth('api')->id();
+
         $query = Sale::query()
-            ->with('itens')
+            ->with(['itens.product'])
             ->where('register_id', $registerId)
-            ->latest('data');
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->latest('created_at');
 
         if (! empty($dados['cash_session_id'])) {
             $query->where('cash_session_id', $dados['cash_session_id']);
@@ -214,17 +218,25 @@ class SaleController extends Controller
 
             $produtosAfetados = [];
 
+            $produtosPorId = Product::query()
+                ->whereIn('id', collect($dados['itens'])->pluck('produtoId')->filter()->unique()->values())
+                ->get()
+                ->keyBy('id');
+
             foreach ($dados['itens'] as $item) {
+                $produto = ! empty($item['produtoId']) ? $produtosPorId->get($item['produtoId']) : null;
+                $iva = SaleItemTaxSnapshot::fromPayload($item, $produto);
+
                 SaleItem::create([
                     'id' => (string) Str::uuid(),
                     'sale_id' => $sale->id,
                     'produto_id' => $item['produtoId'] ?? null,
                     'nome' => $item['nome'],
                     'quantidade' => $item['quantidade'],
-                    'preco_venda' => $item['precoVenda'],
-                    'preco_sem_iva' => $item['precoSemIva'] ?? 0,
-                    'iva_percentual' => $item['ivaPercentual'] ?? 0,
-                    'valor_iva_unitario' => $item['valorIvaUnitario'] ?? 0,
+                    'preco_venda' => $iva['precoVenda'],
+                    'preco_sem_iva' => $iva['precoSemIva'],
+                    'iva_percentual' => $iva['ivaPercentual'],
+                    'valor_iva_unitario' => $iva['valorIvaUnitario'],
                     'subtotal' => $item['subtotal'],
                 ]);
 
@@ -289,7 +301,7 @@ class SaleController extends Controller
      */
     public function show(Sale $sale)
     {
-        $sale->load('itens');
+        $sale->load(['itens.product']);
 
         return response()->json([
             'data' => $this->serializarVenda($sale),
@@ -301,7 +313,7 @@ class SaleController extends Controller
 
     private function serializarVenda(Sale $sale): array
     {
-        $sale->loadMissing('itens');
+        $sale->loadMissing(['itens.product']);
 
         return [
             'id' => $sale->id,
@@ -317,19 +329,40 @@ class SaleController extends Controller
             'valorPago' => (float) $sale->valor_pago,
             'troco' => (float) $sale->troco,
             'data' => optional($sale->data)->toISOString(),
+            'createdAt' => optional($sale->created_at)->toISOString(),
+            'userId' => $sale->user_id,
             'registerId' => $sale->register_id,
             'cashSessionId' => $sale->cash_session_id,
             'sourceLocationId' => $sale->source_location_id,
-            'itens' => $sale->itens->map(fn (SaleItem $item) => [
-                'produtoId' => $item->produto_id,
-                'nome' => $item->nome,
-                'quantidade' => (float) $item->quantidade,
-                'precoVenda' => (float) $item->preco_venda,
-                'precoSemIva' => (float) $item->preco_sem_iva,
-                'ivaPercentual' => (float) $item->iva_percentual,
-                'valorIvaUnitario' => (float) $item->valor_iva_unitario,
-                'subtotal' => (float) $item->subtotal,
-            ])->values(),
+            'itens' => $sale->itens->map(fn (SaleItem $item) => $this->serializarItemVenda($item))->values(),
+        ];
+    }
+
+    private function serializarItemVenda(SaleItem $item): array
+    {
+        $base = [
+            'produtoId' => $item->produto_id,
+            'nome' => $item->nome,
+            'quantidade' => (float) $item->quantidade,
+            'precoVenda' => (float) $item->preco_venda,
+            'precoSemIva' => (float) $item->preco_sem_iva,
+            'ivaPercentual' => (float) $item->iva_percentual,
+            'valorIvaUnitario' => (float) $item->valor_iva_unitario,
+            'subtotal' => (float) $item->subtotal,
+        ];
+
+        $iva = SaleItemTaxSnapshot::fromPayload($base, $item->product);
+
+        return [
+            'produtoId' => $base['produtoId'],
+            'nome' => $base['nome'],
+            'quantidade' => $base['quantidade'],
+            'precoVenda' => $iva['precoVenda'],
+            'precoSemIva' => $iva['precoSemIva'],
+            'ivaTipo' => SaleItemTaxSnapshot::ivaTipoProduto($item->product),
+            'ivaPercentual' => $iva['ivaPercentual'],
+            'valorIvaUnitario' => $iva['valorIvaUnitario'],
+            'subtotal' => $base['subtotal'],
         ];
     }
 

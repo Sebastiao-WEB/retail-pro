@@ -162,7 +162,7 @@ class SalesPage extends Component
         $detalhe = null;
         if ($this->detailId) {
             $detalhe = Sale::query()
-                ->with(['itens', 'register', 'cashSession', 'user'])
+                ->with(['itens.product', 'register', 'cashSession', 'user'])
                 ->find($this->detailId);
         }
 

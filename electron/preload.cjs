@@ -6,7 +6,6 @@ const api = {
   imprimirTalao: (payload) => ipcRenderer.invoke("pos:imprimir-talao", payload),
   imprimirRelatorioFecho: (payload) => ipcRenderer.invoke("pos:imprimir-relatorio-fecho", payload),
   abrirGaveta: (payload) => ipcRenderer.invoke("pos:abrir-gaveta", payload),
-  minimizarJanela: () => ipcRenderer.invoke("pos:minimizar-janela"),
   fecharJanela: () => ipcRenderer.invoke("pos:fechar-janela"),
 };
 
