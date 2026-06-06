@@ -72,25 +72,6 @@ class DashboardSummaryService
             ->values()
             ->all();
 
-        $ultimasVendas = Sale::query()
-            ->when($registerId, fn ($q) => $q->where('register_id', $registerId))
-            ->whereBetween('data', [$inicio, $fim])
-            ->latest('data')
-            ->limit(8)
-            ->get(['id', 'referencia', 'cliente', 'caixa', 'metodo_pagamento', 'total', 'estado', 'data'])
-            ->map(fn (Sale $sale) => [
-                'id' => $sale->id,
-                'referencia' => $sale->referencia,
-                'cliente' => $sale->cliente,
-                'caixa' => $sale->caixa,
-                'metodoPagamento' => $sale->metodo_pagamento,
-                'total' => (float) $sale->total,
-                'estado' => $sale->estado,
-                'data' => $sale->data?->toIso8601String(),
-            ])
-            ->values()
-            ->all();
-
         return [
             'period' => $period,
             'registerId' => $registerId,
@@ -112,7 +93,64 @@ class DashboardSummaryService
                 ],
                 'metodosPagamento' => $metodosPagamento,
             ],
-            'ultimasVendas' => $ultimasVendas,
+        ];
+    }
+
+    /** @return array{items: array<int, array<string, mixed>>, meta: array<string, int>} */
+    public function recentSales(?string $registerId, int $page = 1, int $perPage = 5): array
+    {
+        $perPage = min(20, max(1, $perPage));
+
+        $paginado = Sale::query()
+            ->when($registerId, fn ($q) => $q->where('register_id', $registerId))
+            ->latest('created_at')
+            ->latest('data')
+            ->paginate(
+                $perPage,
+                [
+                    'id',
+                    'referencia',
+                    'cliente',
+                    'caixa',
+                    'operador',
+                    'metodo_pagamento',
+                    'total',
+                    'estado',
+                    'data',
+                    'created_at',
+                ],
+                'page',
+                max(1, $page)
+            );
+
+        return [
+            'items' => collect($paginado->items())
+                ->map(fn (Sale $sale) => $this->serializarVendaResumo($sale))
+                ->values()
+                ->all(),
+            'meta' => [
+                'current_page' => $paginado->currentPage(),
+                'last_page' => $paginado->lastPage(),
+                'per_page' => $paginado->perPage(),
+                'total' => $paginado->total(),
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarVendaResumo(Sale $sale): array
+    {
+        return [
+            'id' => $sale->id,
+            'referencia' => $sale->referencia,
+            'cliente' => $sale->cliente,
+            'caixa' => $sale->caixa,
+            'operador' => $sale->operador,
+            'metodoPagamento' => $sale->metodo_pagamento,
+            'total' => (float) $sale->total,
+            'estado' => $sale->estado,
+            'data' => $sale->data?->toIso8601String(),
+            'createdAt' => $sale->created_at?->toIso8601String(),
         ];
     }
 }

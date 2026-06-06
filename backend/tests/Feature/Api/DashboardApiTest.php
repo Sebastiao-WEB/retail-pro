@@ -67,11 +67,65 @@ class DashboardApiTest extends TestCase
                         'caixasAtivos',
                     ],
                     'charts' => ['vendasPorDia', 'metodosPagamento'],
-                    'ultimasVendas',
                 ],
             ]);
 
         $this->assertSame(100.0, (float) $resposta->json('data.metrics.totalVendasPeriodo'));
+        $this->assertSame('VD-TEST-001', $resposta->json('data.recentSales.items.0.referencia'));
+    }
+
+    public function test_dashboard_recent_sales_lista_mais_recentes_com_paginacao(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $this->criarAdmin($ambiente['register']->id);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-ANTIGA-001',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'user_id' => $admin->id,
+            'cliente' => 'Cliente Geral',
+            'caixa' => 'Caixa Teste',
+            'metodo_pagamento' => 'Dinheiro',
+            'estado' => 'Concluida',
+            'subtotal' => 50,
+            'desconto_aplicado' => 0,
+            'total' => 50,
+            'valor_pago' => 50,
+            'troco' => 0,
+            'data' => now()->subDays(2),
+            'created_at' => now()->subDays(2),
+        ]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-RECENTE-001',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'user_id' => $admin->id,
+            'cliente' => 'Cliente Geral',
+            'caixa' => 'Caixa Teste',
+            'metodo_pagamento' => 'Transferência',
+            'estado' => 'Concluida',
+            'subtotal' => 100,
+            'desconto_aplicado' => 0,
+            'total' => 100,
+            'valor_pago' => 100,
+            'troco' => 0,
+            'data' => now(),
+            'created_at' => now(),
+        ]);
+
+        $token = $this->loginApiAdmin($admin);
+
+        $resposta = $this->getJson('/api/v1/dashboard/recent-sales?page=1&per_page=5', $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.meta.per_page', 5)
+            ->assertJsonPath('data.meta.total', 2)
+            ->assertJsonPath('data.items.0.referencia', 'VD-RECENTE-001');
     }
 
     public function test_operador_nao_acede_dashboard_summary(): void

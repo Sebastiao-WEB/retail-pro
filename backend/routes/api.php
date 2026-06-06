@@ -30,6 +30,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:api')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('dashboard/recent-sales', [DashboardController::class, 'recentSales']);
 
         Route::prefix('auth/two-factor')->group(function () {
             Route::get('status', [TwoFactorSettingsController::class, 'status']);
