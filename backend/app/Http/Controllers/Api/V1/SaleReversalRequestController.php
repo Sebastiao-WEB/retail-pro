@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\SaleReversalRequest;
 use App\Models\Sale;
+use App\Models\SaleItem;
+use App\Models\SaleReversalRequest;
 use App\Services\SaleReversalService;
+use App\Support\SaleItemTaxSnapshot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,24 +19,29 @@ class SaleReversalRequestController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $requests = SaleReversalRequest::query()
-            ->with('sale')
-            ->latest('requested_at')
-            ->get()
-            ->map(fn (SaleReversalRequest $item) => [
-                'id' => $item->id,
-                'saleId' => $item->sale_id,
-                'requestedBy' => $item->requested_by,
-                'approvedBy' => $item->approved_by,
-                'status' => $item->status,
-                'reason' => $item->reason,
-                'requestedAt' => optional($item->requested_at)->toISOString(),
-                'decidedAt' => optional($item->decided_at)->toISOString(),
-            ]);
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = min(20, max(1, (int) $request->query('per_page', 10)));
 
-        return response()->json(['data' => $requests]);
+        $paginado = SaleReversalRequest::query()
+            ->with(['sale.itens.product', 'requestedByUser', 'approvedByUser'])
+            ->latest('requested_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => [
+                'items' => collect($paginado->items())
+                    ->map(fn (SaleReversalRequest $item) => $this->serializarPedido($item))
+                    ->values(),
+                'meta' => [
+                    'current_page' => $paginado->currentPage(),
+                    'last_page' => $paginado->lastPage(),
+                    'per_page' => $paginado->perPage(),
+                    'total' => $paginado->total(),
+                ],
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -155,5 +162,78 @@ class SaleReversalRequestController extends Controller
                 'status' => $saleReversalRequest->fresh()->status,
             ],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarPedido(SaleReversalRequest $item): array
+    {
+        $item->loadMissing(['sale.itens.product', 'requestedByUser', 'approvedByUser']);
+
+        return [
+            'id' => $item->id,
+            'saleId' => $item->sale_id,
+            'requestedBy' => $item->requestedByUser?->name ?? '—',
+            'approvedBy' => $item->approvedByUser?->name,
+            'status' => $item->status,
+            'reason' => $item->reason,
+            'requestedAt' => optional($item->requested_at)->toISOString(),
+            'decidedAt' => optional($item->decided_at)->toISOString(),
+            'sale' => $item->sale ? $this->serializarVenda($item->sale) : null,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarVenda(Sale $sale): array
+    {
+        $sale->loadMissing(['itens.product']);
+
+        return [
+            'id' => $sale->id,
+            'referencia' => $sale->referencia,
+            'cliente' => $sale->cliente,
+            'caixa' => $sale->caixa,
+            'operador' => $sale->operador,
+            'metodoPagamento' => $sale->metodo_pagamento,
+            'estado' => $sale->estado,
+            'subtotal' => (float) $sale->subtotal,
+            'descontoAplicado' => (float) $sale->desconto_aplicado,
+            'total' => (float) $sale->total,
+            'valorPago' => (float) $sale->valor_pago,
+            'troco' => (float) $sale->troco,
+            'data' => optional($sale->data)->toISOString(),
+            'createdAt' => optional($sale->created_at)->toISOString(),
+            'itens' => $sale->itens
+                ->map(fn (SaleItem $saleItem) => $this->serializarItemVenda($saleItem))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarItemVenda(SaleItem $item): array
+    {
+        $base = [
+            'produtoId' => $item->produto_id,
+            'nome' => $item->nome,
+            'quantidade' => (float) $item->quantidade,
+            'precoVenda' => (float) $item->preco_venda,
+            'precoSemIva' => (float) $item->preco_sem_iva,
+            'ivaPercentual' => (float) $item->iva_percentual,
+            'valorIvaUnitario' => (float) $item->valor_iva_unitario,
+            'subtotal' => (float) $item->subtotal,
+        ];
+
+        $iva = SaleItemTaxSnapshot::fromPayload($base, $item->product);
+
+        return [
+            'produtoId' => $base['produtoId'],
+            'nome' => $base['nome'],
+            'quantidade' => $base['quantidade'],
+            'precoVenda' => $iva['precoVenda'],
+            'precoSemIva' => $iva['precoSemIva'],
+            'ivaPercentual' => $iva['ivaPercentual'],
+            'valorIvaUnitario' => $iva['valorIvaUnitario'],
+            'subtotal' => $base['subtotal'],
+        ];
     }
 }

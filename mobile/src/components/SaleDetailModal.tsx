@@ -7,11 +7,13 @@ import {
   View,
 } from 'react-native';
 import { calcularIvaTotalItem, type SaleDetail } from '@/src/api/salesApi';
+import type { ReversalRequest } from '@/src/api/reversalsApi';
 import { brand, formatMt } from '@/src/theme/brand';
 
 type Props = {
   visible: boolean;
   sale: SaleDetail | null;
+  reversal?: ReversalRequest | null;
   onClose: () => void;
 };
 
@@ -31,7 +33,14 @@ function formatarIva(valor?: number) {
   return `${Number.isFinite(numero) ? numero : 0}%`;
 }
 
-export default function SaleDetailModal({ visible, sale, onClose }: Props) {
+function traduzirEstadoReversao(status: string) {
+  if (status === 'PENDING') return 'Pendente';
+  if (status === 'APPROVED') return 'Aprovada';
+  if (status === 'REJECTED') return 'Rejeitada';
+  return status;
+}
+
+export default function SaleDetailModal({ visible, sale, reversal, onClose }: Props) {
   const totalIva = (sale?.itens ?? []).reduce(
     (acc, item) => acc + calcularIvaTotalItem(item),
     0,
@@ -50,6 +59,42 @@ export default function SaleDetailModal({ visible, sale, onClose }: Props) {
 
           {sale ? (
             <ScrollView contentContainerStyle={styles.content}>
+              {reversal ? (
+                <View style={styles.reversalCard}>
+                  <Text style={styles.reversalTitle}>Solicitação de reversão</Text>
+                  <Text style={styles.infoLine}>
+                    <Text style={styles.infoLabel}>Estado: </Text>
+                    {traduzirEstadoReversao(reversal.status)}
+                  </Text>
+                  <Text style={styles.infoLine}>
+                    <Text style={styles.infoLabel}>Solicitado por: </Text>
+                    {reversal.requestedBy}
+                  </Text>
+                  <Text style={styles.infoLine}>
+                    <Text style={styles.infoLabel}>Data do pedido: </Text>
+                    {formatarData(reversal.requestedAt)}
+                  </Text>
+                  {reversal.approvedBy ? (
+                    <Text style={styles.infoLine}>
+                      <Text style={styles.infoLabel}>Decidido por: </Text>
+                      {reversal.approvedBy}
+                    </Text>
+                  ) : null}
+                  {reversal.decidedAt ? (
+                    <Text style={styles.infoLine}>
+                      <Text style={styles.infoLabel}>Data da decisão: </Text>
+                      {formatarData(reversal.decidedAt)}
+                    </Text>
+                  ) : null}
+                  {reversal.reason ? (
+                    <Text style={styles.reasonLine}>
+                      <Text style={styles.infoLabel}>Motivo: </Text>
+                      {reversal.reason}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
               <View style={styles.infoCard}>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Data: </Text>
@@ -160,6 +205,25 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     gap: 12,
+  },
+  reversalCard: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: brand.gold,
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  reversalTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: brand.dark,
+    marginBottom: 2,
+  },
+  reasonLine: {
+    fontSize: 14,
+    color: brand.dark,
+    marginTop: 4,
   },
   infoCard: {
     backgroundColor: brand.background,
