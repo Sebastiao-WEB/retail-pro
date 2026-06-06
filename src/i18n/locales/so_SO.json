@@ -539,6 +539,8 @@
   },
   "desktopWindow": {
     "minimize": "Yaree daaqada",
+    "maximize": "Balaadhi daaqada",
+    "restore": "Soo celi daaqada",
     "close": "Xir barnaamijka"
   }
 }

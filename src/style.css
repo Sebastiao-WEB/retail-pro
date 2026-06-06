@@ -77,7 +77,14 @@ button:disabled {
   z-index: 20001 !important;
 }
 
-html.pos-desktop-frameless header,
+html.pos-desktop-frameless body {
+  padding-top: 2rem;
+}
+
+html.pos-desktop-frameless #app {
+  min-height: calc(100vh - 2rem);
+}
+
 html.pos-desktop-frameless .pos-login-top {
-  padding-right: 2.75rem;
+  top: 2.5rem;
 }
