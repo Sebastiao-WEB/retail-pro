@@ -11,6 +11,7 @@ import {
 import { fetchDashboardSummary, type DashboardSummary } from '@/src/api/dashboardApi';
 import { ApiError } from '@/src/api/httpClient';
 import type { SaleDetail } from '@/src/api/salesApi';
+import FullScreenLoader from '@/src/components/FullScreenLoader';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
 import { brand, formatMt } from '@/src/theme/brand';
 
@@ -36,6 +37,7 @@ export default function DashboardScreen() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [salesPage, setSalesPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [paginating, setPaginating] = useState(false);
   const [error, setError] = useState('');
   const [saleSelecionada, setSaleSelecionada] = useState<SaleDetail | null>(null);
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
@@ -50,6 +52,7 @@ export default function DashboardScreen() {
       setError(err instanceof ApiError ? err.message : 'Erro ao carregar dashboard.');
     } finally {
       setLoading(false);
+      setPaginating(false);
     }
   }, [period, salesPage]);
 
@@ -65,6 +68,12 @@ export default function DashboardScreen() {
   function fecharDetalhes() {
     setModalDetalhesAberto(false);
     setSaleSelecionada(null);
+  }
+
+  function irParaPagina(pagina: number) {
+    if (loading || paginating || pagina === salesPage) return;
+    setPaginating(true);
+    setSalesPage(pagina);
   }
 
   const salesData = data?.recentSales ?? null;
@@ -146,8 +155,8 @@ export default function DashboardScreen() {
           <View style={styles.pagination}>
             <Pressable
               style={[styles.pageButton, salesPage <= 1 && styles.pageButtonDisabled]}
-              disabled={salesPage <= 1 || loading}
-              onPress={() => setSalesPage((pagina) => Math.max(1, pagina - 1))}
+              disabled={salesPage <= 1 || loading || paginating}
+              onPress={() => irParaPagina(Math.max(1, salesPage - 1))}
             >
               <Text style={styles.pageButtonText}>Anterior</Text>
             </Pressable>
@@ -156,8 +165,8 @@ export default function DashboardScreen() {
             </Text>
             <Pressable
               style={[styles.pageButton, salesPage >= totalPaginas && styles.pageButtonDisabled]}
-              disabled={salesPage >= totalPaginas || loading}
-              onPress={() => setSalesPage((pagina) => Math.min(totalPaginas, pagina + 1))}
+              disabled={salesPage >= totalPaginas || loading || paginating}
+              onPress={() => irParaPagina(Math.min(totalPaginas, salesPage + 1))}
             >
               <Text style={styles.pageButtonText}>Seguinte</Text>
             </Pressable>
@@ -166,6 +175,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <SaleDetailModal visible={modalDetalhesAberto} sale={saleSelecionada} onClose={fecharDetalhes} />
+      <FullScreenLoader visible={paginating} />
     </>
   );
 }
