@@ -32,6 +32,8 @@ class User extends Authenticatable implements JWTSubject
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
 
+    protected string $guard_name = 'web';
+
     public $incrementing = false;
 
     protected $keyType = 'string';

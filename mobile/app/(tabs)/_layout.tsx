@@ -1,10 +1,19 @@
 import { SymbolView } from 'expo-symbols';
 import { Tabs, Redirect } from 'expo-router';
 import { useAuthStore } from '@/src/store/authStore';
+import type { AuthUser } from '@/src/types/auth';
 import { brand } from '@/src/theme/brand';
+
+function podeGerirUtilizadores(user: AuthUser | null) {
+  if (!user) return false;
+  if (user.permissions?.includes('users.manage')) return true;
+  const roles = user.roles ?? (user.role ? [user.role] : []);
+  return roles.some((role) => role === 'ADMIN' || role === 'MANAGER');
+}
 
 export default function TabLayout() {
   const { user } = useAuthStore();
+  const mostrarUtilizadores = podeGerirUtilizadores(user);
 
   if (!user) {
     return <Redirect href="/login" />;
@@ -53,6 +62,16 @@ export default function TabLayout() {
           title: 'Produtos',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'shippingbox', android: 'inventory_2', web: 'inventory_2' }} tintColor={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: 'Utilizadores',
+          href: mostrarUtilizadores ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'person.2', android: 'group', web: 'group' }} tintColor={color} size={24} />
           ),
         }}
       />

@@ -14,31 +14,49 @@ class UserController extends Controller
     {
         $this->authorizeApiUserManagement($request);
 
-        $search = $request->string('search')->toString();
-        $users = User::query()
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($inner) use ($search) {
-                    $inner->where('name', 'like', "%{$search}%")
+        $dados = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $search = (string) ($dados['search'] ?? '');
+
+        $query = User::query()
+            ->with(['registers'])
+            ->when($search !== '', function ($innerQuery) use ($search) {
+                $innerQuery->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
                         ->orWhere('username', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('name')
-            ->get()
-            ->map(function (User $user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'username' => $user->username,
-                    'email' => $user->email,
-                    'role' => $user->getRoleNames()->first() ?? $user->role,
-                    'isActive' => (bool) $user->is_active,
-                    'registerId' => $user->register_id,
-                    'sourceLocationId' => $user->source_location_id,
-                ];
-            });
+            ->orderBy('name');
 
-        return response()->json(['data' => $users]);
+        if ($request->filled('page')) {
+            $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
+            $paginado = $query->paginate($perPage, ['*'], 'page', max(1, (int) $dados['page']));
+
+            return response()->json([
+                'data' => collect($paginado->items())
+                    ->map(fn (User $user) => $this->serializarUsuario($user))
+                    ->values(),
+                'meta' => [
+                    'current_page' => $paginado->currentPage(),
+                    'last_page' => $paginado->lastPage(),
+                    'per_page' => $paginado->perPage(),
+                    'total' => $paginado->total(),
+                ],
+            ]);
+        }
+
+        $users = $query->get();
+
+        return response()->json([
+            'data' => $users
+                ->map(fn (User $user) => $this->serializarUsuario($user))
+                ->values(),
+        ]);
     }
 
     public function store(Request $request)
@@ -107,6 +125,10 @@ class UserController extends Controller
             'sourceLocationId' => 'source_location_id',
         ];
 
+        if (array_key_exists('isActive', $dados) && ! $dados['isActive'] && $request->user('api')?->id === $user->id) {
+            abort(403, 'Não pode desactivar a sua própria conta enquanto está autenticado.');
+        }
+
         foreach ($mapeamento as $entrada => $coluna) {
             if (array_key_exists($entrada, $dados)) {
                 $user->{$coluna} = $dados[$entrada];
@@ -169,5 +191,37 @@ class UserController extends Controller
         $allowedByRole = in_array((string) ($authUser->role ?? ''), ['ADMIN', 'MANAGER'], true);
         $allowedByPermission = $authUser->can('users.manage');
         abort_unless($allowedByRole || $allowedByPermission, 403);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarUsuario(User $user): array
+    {
+        $user->loadMissing(['registers']);
+
+        $registerIds = $user->registers->pluck('id')->all();
+        if ($registerIds === [] && $user->register_id) {
+            $registerIds = [$user->register_id];
+        }
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'email' => $user->email,
+            'role' => $user->getRoleNames()->first() ?? $user->role,
+            'isActive' => (bool) $user->is_active,
+            'registerId' => $user->register_id,
+            'registerIds' => $registerIds,
+            'registers' => $user->assignedRegisters()
+                ->map(fn ($register) => [
+                    'id' => $register->id,
+                    'code' => $register->code,
+                    'name' => $register->name,
+                ])
+                ->values()
+                ->all(),
+            'sourceLocationId' => $user->source_location_id,
+            'caixaAtribuido' => $user->caixa_atribuido,
+        ];
     }
 }
