@@ -634,7 +634,7 @@ class SaleApiTest extends TestCase
             ->assertJsonPath('data.0.itens.0.valorIvaUnitario', 16);
     }
 
-    public function test_lista_apenas_vendas_do_utilizador_autenticado(): void
+    public function test_lista_vendas_de_todo_o_register(): void
     {
         $ambiente = $this->criarAmbienteApi();
         $token = $this->loginApi($ambiente['user']);
@@ -695,7 +695,8 @@ class SaleApiTest extends TestCase
 
         $resposta
             ->assertOk()
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.referencia', 'VD-MEU-001');
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.referencia', 'VD-MEU-001')
+            ->assertJsonPath('data.1.referencia', 'VD-OUTRO-001');
     }
 }

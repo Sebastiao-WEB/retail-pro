@@ -45,12 +45,9 @@ class SaleController extends Controller
 
         $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
 
-        $userId = auth('api')->id();
-
         $query = Sale::query()
             ->with(['itens.product'])
             ->where('register_id', $registerId)
-            ->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->latest('created_at')
             ->latest('data');
 
