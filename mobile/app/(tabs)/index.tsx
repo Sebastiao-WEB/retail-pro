@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { fetchDashboardSummary, type DashboardSummary } from '@/src/api/dashboardApi';
 import { ApiError } from '@/src/api/httpClient';
-import type { SaleSummary } from '@/src/api/salesApi';
+import type { SaleDetail } from '@/src/api/salesApi';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
 import { brand, formatMt } from '@/src/theme/brand';
 
@@ -37,7 +37,7 @@ export default function DashboardScreen() {
   const [salesPage, setSalesPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [saleSelecionada, setSaleSelecionada] = useState<SaleSummary | null>(null);
+  const [saleSelecionada, setSaleSelecionada] = useState<SaleDetail | null>(null);
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
 
   const loadDashboard = useCallback(async () => {
@@ -57,7 +57,7 @@ export default function DashboardScreen() {
     loadDashboard();
   }, [loadDashboard]);
 
-  function abrirDetalhes(sale: SaleSummary) {
+  function abrirDetalhes(sale: SaleDetail) {
     setSaleSelecionada(sale);
     setModalDetalhesAberto(true);
   }

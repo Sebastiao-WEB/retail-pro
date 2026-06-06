@@ -1,18 +1,3 @@
-import { httpRequest } from './httpClient';
-
-export type SaleSummary = {
-  id: string;
-  referencia: string;
-  cliente: string;
-  caixa: string;
-  operador?: string | null;
-  metodoPagamento: string;
-  total: number;
-  estado: string;
-  data: string | null;
-  createdAt?: string | null;
-};
-
 export type SaleItem = {
   produtoId?: string | null;
   nome: string;
@@ -24,7 +9,17 @@ export type SaleItem = {
   subtotal: number;
 };
 
-export type SaleDetail = SaleSummary & {
+export type SaleDetail = {
+  id: string;
+  referencia: string;
+  cliente: string;
+  caixa: string;
+  operador?: string | null;
+  metodoPagamento: string;
+  total: number;
+  estado: string;
+  data: string | null;
+  createdAt?: string | null;
   subtotal: number;
   descontoAplicado: number;
   valorPago?: number;
@@ -33,7 +28,7 @@ export type SaleDetail = SaleSummary & {
 };
 
 export type RecentSalesResponse = {
-  items: SaleSummary[];
+  items: SaleDetail[];
   meta: {
     current_page: number;
     last_page: number;
@@ -41,11 +36,6 @@ export type RecentSalesResponse = {
     total: number;
   };
 };
-
-export async function fetchSaleDetail(id: string) {
-  const response = await httpRequest<{ data: SaleDetail }>(`/sales/${id}`);
-  return response.data;
-}
 
 export function calcularIvaTotalItem(item: SaleItem) {
   const quantidade = Number(item.quantidade || 0);

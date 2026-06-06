@@ -6,8 +6,10 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Register;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\SaleReversalRequest;
 use App\Models\StockMovement;
+use App\Support\SaleItemTaxSnapshot;
 use Carbon\Carbon;
 
 class DashboardSummaryService
@@ -102,30 +104,15 @@ class DashboardSummaryService
         $perPage = min(20, max(1, $perPage));
 
         $paginado = Sale::query()
+            ->with(['itens.product'])
             ->when($registerId, fn ($q) => $q->where('register_id', $registerId))
             ->latest('created_at')
             ->latest('data')
-            ->paginate(
-                $perPage,
-                [
-                    'id',
-                    'referencia',
-                    'cliente',
-                    'caixa',
-                    'operador',
-                    'metodo_pagamento',
-                    'total',
-                    'estado',
-                    'data',
-                    'created_at',
-                ],
-                'page',
-                max(1, $page)
-            );
+            ->paginate($perPage, ['*'], 'page', max(1, $page));
 
         return [
             'items' => collect($paginado->items())
-                ->map(fn (Sale $sale) => $this->serializarVendaResumo($sale))
+                ->map(fn (Sale $sale) => $this->serializarVendaDetalhe($sale))
                 ->values()
                 ->all(),
             'meta' => [
@@ -138,8 +125,10 @@ class DashboardSummaryService
     }
 
     /** @return array<string, mixed> */
-    private function serializarVendaResumo(Sale $sale): array
+    private function serializarVendaDetalhe(Sale $sale): array
     {
+        $sale->loadMissing(['itens.product']);
+
         return [
             'id' => $sale->id,
             'referencia' => $sale->referencia,
@@ -147,10 +136,46 @@ class DashboardSummaryService
             'caixa' => $sale->caixa,
             'operador' => $sale->operador,
             'metodoPagamento' => $sale->metodo_pagamento,
-            'total' => (float) $sale->total,
             'estado' => $sale->estado,
+            'subtotal' => (float) $sale->subtotal,
+            'descontoAplicado' => (float) $sale->desconto_aplicado,
+            'total' => (float) $sale->total,
+            'valorPago' => (float) $sale->valor_pago,
+            'troco' => (float) $sale->troco,
             'data' => $sale->data?->toIso8601String(),
             'createdAt' => $sale->created_at?->toIso8601String(),
+            'itens' => $sale->itens
+                ->map(fn (SaleItem $item) => $this->serializarItemVenda($item))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarItemVenda(SaleItem $item): array
+    {
+        $base = [
+            'produtoId' => $item->produto_id,
+            'nome' => $item->nome,
+            'quantidade' => (float) $item->quantidade,
+            'precoVenda' => (float) $item->preco_venda,
+            'precoSemIva' => (float) $item->preco_sem_iva,
+            'ivaPercentual' => (float) $item->iva_percentual,
+            'valorIvaUnitario' => (float) $item->valor_iva_unitario,
+            'subtotal' => (float) $item->subtotal,
+        ];
+
+        $iva = SaleItemTaxSnapshot::fromPayload($base, $item->product);
+
+        return [
+            'produtoId' => $base['produtoId'],
+            'nome' => $base['nome'],
+            'quantidade' => $base['quantidade'],
+            'precoVenda' => $iva['precoVenda'],
+            'precoSemIva' => $iva['precoSemIva'],
+            'ivaPercentual' => $iva['ivaPercentual'],
+            'valorIvaUnitario' => $iva['valorIvaUnitario'],
+            'subtotal' => $base['subtotal'],
         ];
     }
 }

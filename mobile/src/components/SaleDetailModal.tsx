@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -8,18 +6,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ApiError } from '@/src/api/httpClient';
-import {
-  calcularIvaTotalItem,
-  fetchSaleDetail,
-  type SaleDetail,
-  type SaleSummary,
-} from '@/src/api/salesApi';
+import { calcularIvaTotalItem, type SaleDetail } from '@/src/api/salesApi';
 import { brand, formatMt } from '@/src/theme/brand';
 
 type Props = {
   visible: boolean;
-  sale: SaleSummary | null;
+  sale: SaleDetail | null;
   onClose: () => void;
 };
 
@@ -40,41 +32,7 @@ function formatarIva(valor?: number) {
 }
 
 export default function SaleDetailModal({ visible, sale, onClose }: Props) {
-  const [detalhe, setDetalhe] = useState<SaleDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!visible || !sale?.id) {
-      setDetalhe(null);
-      setError('');
-      return;
-    }
-
-    let activo = true;
-    setLoading(true);
-    setError('');
-
-    fetchSaleDetail(sale.id)
-      .then((data) => {
-        if (!activo) return;
-        setDetalhe(data);
-      })
-      .catch((err) => {
-        if (!activo) return;
-        setDetalhe(null);
-        setError(err instanceof ApiError ? err.message : 'Erro ao carregar detalhes da venda.');
-      })
-      .finally(() => {
-        if (activo) setLoading(false);
-      });
-
-    return () => {
-      activo = false;
-    };
-  }, [visible, sale?.id]);
-
-  const totalIva = (detalhe?.itens ?? []).reduce(
+  const totalIva = (sale?.itens ?? []).reduce(
     (acc, item) => acc + calcularIvaTotalItem(item),
     0,
   );
@@ -90,36 +48,32 @@ export default function SaleDetailModal({ visible, sale, onClose }: Props) {
             </Pressable>
           </View>
 
-          {loading ? (
-            <ActivityIndicator color={brand.gold} style={{ marginVertical: 32 }} />
-          ) : error ? (
-            <Text style={styles.error}>{error}</Text>
-          ) : detalhe ? (
+          {sale ? (
             <ScrollView contentContainerStyle={styles.content}>
               <View style={styles.infoCard}>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Data: </Text>
-                  {formatarData(detalhe.data || detalhe.createdAt)}
+                  {formatarData(sale.data || sale.createdAt)}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Cliente: </Text>
-                  {detalhe.cliente}
+                  {sale.cliente}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Caixa: </Text>
-                  {detalhe.caixa || '—'}
+                  {sale.caixa || '—'}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Operador: </Text>
-                  {detalhe.operador || '—'}
+                  {sale.operador || '—'}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Pagamento: </Text>
-                  {traduzirMetodoPagamento(detalhe.metodoPagamento)}
+                  {traduzirMetodoPagamento(sale.metodoPagamento)}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Referência: </Text>
-                  {detalhe.referencia || detalhe.id}
+                  {sale.referencia || sale.id}
                 </Text>
               </View>
 
@@ -130,7 +84,7 @@ export default function SaleDetailModal({ visible, sale, onClose }: Props) {
                   <Text style={[styles.cellHeader, styles.ivaCol]}>IVA</Text>
                   <Text style={[styles.cellHeader, styles.totalCol]}>Total</Text>
                 </View>
-                {detalhe.itens.map((item, index) => (
+                {sale.itens.map((item, index) => (
                   <View key={`${item.produtoId ?? item.nome}-${index}`} style={styles.tableRow}>
                     <Text style={[styles.cell, styles.itemCol]} numberOfLines={2}>
                       {item.nome}
@@ -145,7 +99,7 @@ export default function SaleDetailModal({ visible, sale, onClose }: Props) {
               <View style={styles.infoCard}>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Subtotal: </Text>
-                  {formatMt(detalhe.subtotal || detalhe.total)}
+                  {formatMt(sale.subtotal || sale.total)}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Total IVA: </Text>
@@ -153,11 +107,11 @@ export default function SaleDetailModal({ visible, sale, onClose }: Props) {
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Desconto: </Text>
-                  - {formatMt(detalhe.descontoAplicado || 0)}
+                  - {formatMt(sale.descontoAplicado || 0)}
                 </Text>
                 <Text style={[styles.infoLine, styles.totalLine]}>
                   <Text style={styles.infoLabel}>Total: </Text>
-                  {formatMt(detalhe.total)}
+                  {formatMt(sale.total)}
                 </Text>
               </View>
             </ScrollView>
@@ -259,9 +213,4 @@ const styles = StyleSheet.create({
   qtyCol: { flex: 0.6, textAlign: 'center' },
   ivaCol: { flex: 0.7, textAlign: 'center' },
   totalCol: { flex: 1.1, textAlign: 'right', fontWeight: '700' },
-  error: {
-    color: brand.danger,
-    padding: 20,
-    textAlign: 'center',
-  },
 });
