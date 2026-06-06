@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
-const ACCESS_KEY = 'retailpro:access_token';
-const REFRESH_KEY = 'retailpro:refresh_token';
+const ACCESS_KEY = 'retailpro.access-token';
+const REFRESH_KEY = 'retailpro.refresh-token';
 
 export async function saveTokens(accessToken: string, refreshToken?: string) {
   await SecureStore.setItemAsync(ACCESS_KEY, accessToken);
