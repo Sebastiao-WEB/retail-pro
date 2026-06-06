@@ -87,4 +87,42 @@ class AuthApiTest extends TestCase
 
         $resposta->assertOk()->assertJson(['message' => 'Sessão encerrada com sucesso.']);
     }
+
+    public function test_actualiza_senha_do_utilizador_autenticado(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $resposta = $this->putJson('/api/v1/auth/password', [
+            'current_password' => '123456',
+            'password' => '65432198',
+            'password_confirmation' => '65432198',
+        ], $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJson(['message' => 'Senha actualizada com sucesso.']);
+
+        $this->postJson('/api/v1/auth/login', [
+            'username' => $ambiente['user']->username,
+            'password' => '65432198',
+            'register_code' => 'Caixa Teste',
+        ])->assertOk();
+    }
+
+    public function test_rejeita_alteracao_de_senha_com_senha_actual_invalida(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $resposta = $this->putJson('/api/v1/auth/password', [
+            'current_password' => 'errada',
+            'password' => '65432198',
+            'password_confirmation' => '65432198',
+        ], $this->authHeaders($token));
+
+        $resposta
+            ->assertStatus(422)
+            ->assertJsonPath('errors.current_password.0', 'A senha actual está incorrecta.');
+    }
 }

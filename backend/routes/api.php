@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:api')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::put('auth/password', [AuthController::class, 'updatePassword']);
         Route::get('dashboard/summary', [DashboardController::class, 'summary']);
         Route::get('dashboard/recent-sales', [DashboardController::class, 'recentSales']);
 

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\ApiTwoFactorChallengeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Fortify;
 
@@ -226,6 +227,38 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Sessão encerrada com sucesso.',
+        ]);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user('api');
+        abort_unless($user, 401);
+
+        $dados = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'confirmed', Password::default()],
+        ], [
+            'current_password.required' => 'Informe a senha actual.',
+            'password.required' => 'Informe a nova senha.',
+            'password.confirmed' => 'A confirmação da nova senha não coincide.',
+        ]);
+
+        if (! Hash::check($dados['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'A senha actual está incorrecta.',
+                'errors' => [
+                    'current_password' => ['A senha actual está incorrecta.'],
+                ],
+            ], 422);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($dados['password']),
+        ])->save();
+
+        return response()->json([
+            'message' => 'Senha actualizada com sucesso.',
         ]);
     }
 
