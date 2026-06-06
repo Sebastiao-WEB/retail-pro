@@ -48,6 +48,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="products"
+        options={{
+          title: 'Produtos',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'shippingbox', android: 'inventory_2', web: 'inventory_2' }} tintColor={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="more"
         options={{
           title: 'Conta',

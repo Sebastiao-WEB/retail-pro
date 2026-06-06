@@ -112,4 +112,63 @@ class ProductApiTest extends TestCase
         $resposta->assertStatus(422)->assertJsonValidationErrors(['codigoBarras']);
         $this->assertDatabaseCount('products', 1);
     }
+
+    public function test_lista_produtos_com_paginacao(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        for ($i = 0; $i < 12; $i++) {
+            \App\Models\Product::query()->create([
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'nome' => 'Produto Pag '.$i,
+                'codigo_barras' => 'PAG'.$i,
+                'preco_compra' => 10,
+                'preco_venda' => 20,
+                'iva_tipo' => 'ISENTO',
+                'stock' => 5,
+                'is_active' => true,
+            ]);
+        }
+
+        $resposta = $this->getJson('/api/v1/products?page=1&per_page=10', $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonPath('meta.total', 13)
+            ->assertJsonPath('meta.last_page', 2);
+
+        $this->assertCount(10, $resposta->json('data'));
+        $this->assertArrayHasKey('isActive', $resposta->json('data.0'));
+    }
+
+    public function test_actualiza_produto_por_api(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+
+        $resposta = $this->putJson('/api/v1/products/'.$produto->id, [
+            'nome' => 'Produto Actualizado',
+            'codigoBarras' => '9999999999999',
+            'categoria' => 'Mercearia',
+            'unidadeVenda' => 'KG',
+            'precoCompra' => 40,
+            'precoVenda' => 75,
+            'ivaTipo' => 'PERCENTUAL',
+            'ivaPercentual' => 16,
+            'ivaValor' => 0,
+            'is_active' => true,
+        ], $this->authHeaders($token));
+
+        $resposta->assertOk();
+
+        $this->assertDatabaseHas('products', [
+            'id' => $produto->id,
+            'nome' => 'Produto Actualizado',
+            'unidade_venda' => 'KG',
+            'preco_venda' => 75,
+        ]);
+    }
 }

@@ -13,12 +13,20 @@ class ProductController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $search = request()->string('search')->toString();
-        $barcode = request()->string('barcode')->toString();
-        $locationId = request()->string('source_location_id')->toString()
-            ?: request()->string('location_id')->toString();
+        $dados = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'barcode' => ['nullable', 'string', 'max:255'],
+            'source_location_id' => ['nullable', 'uuid'],
+            'location_id' => ['nullable', 'uuid'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $search = (string) ($dados['search'] ?? '');
+        $barcode = (string) ($dados['barcode'] ?? '');
+        $locationId = (string) ($dados['source_location_id'] ?? ($dados['location_id'] ?? ''));
 
         $query = Product::query()->where('is_active', true);
 
@@ -27,30 +35,35 @@ class ProductController extends Controller
         } elseif ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('nome', 'like', "%{$search}%")
-                    ->orWhere('codigo_barras', 'like', "%{$search}%");
+                    ->orWhere('codigo_barras', 'like', "%{$search}%")
+                    ->orWhere('categoria', 'like', "%{$search}%");
             });
+        }
+
+        if ($request->filled('page')) {
+            $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
+            $paginado = $query->orderBy('nome')->paginate($perPage, ['*'], 'page', max(1, (int) $dados['page']));
+
+            return response()->json([
+                'data' => collect($paginado->items())
+                    ->map(fn (Product $produto) => $this->serializarProduto($produto))
+                    ->values(),
+                'meta' => [
+                    'current_page' => $paginado->currentPage(),
+                    'last_page' => $paginado->lastPage(),
+                    'per_page' => $paginado->perPage(),
+                    'total' => $paginado->total(),
+                ],
+            ]);
         }
 
         $produtos = $query->orderBy('nome')->get();
 
-        $lista = $produtos->map(function (Product $produto) {
-            return [
-                'id' => $produto->id,
-                'nome' => $produto->nome,
-                'codigoBarras' => $produto->codigo_barras,
-                'categoria' => $produto->categoria,
-                'unidadeVenda' => ProductValidation::normalizarUnidadeVenda($produto->unidade_venda),
-                'precoCompra' => (float) $produto->preco_compra,
-                'precoVenda' => (float) $produto->preco_venda,
-                'ivaTipo' => $produto->iva_tipo,
-                'ivaValor' => (float) $produto->iva_valor,
-                'ivaPercentual' => (float) $produto->iva_percentual,
-                // Mesmo valor que o admin (products.stock); a baixa na venda usa stock_balances.
-                'stock' => (float) $produto->stock,
-            ];
-        });
-
-        return response()->json(['data' => $lista]);
+        return response()->json([
+            'data' => $produtos
+                ->map(fn (Product $produto) => $this->serializarProduto($produto))
+                ->values(),
+        ]);
     }
 
     /**
@@ -115,20 +128,7 @@ class ProductController extends Controller
     public function show(Product $product)
     {
         return response()->json([
-            'data' => [
-                'id' => $product->id,
-                'nome' => $product->nome,
-                'codigoBarras' => $product->codigo_barras,
-                'categoria' => $product->categoria,
-                'unidadeVenda' => ProductValidation::normalizarUnidadeVenda($product->unidade_venda),
-                'precoCompra' => (float) $product->preco_compra,
-                'precoVenda' => (float) $product->preco_venda,
-                'ivaTipo' => $product->iva_tipo,
-                'ivaValor' => (float) $product->iva_valor,
-                'ivaPercentual' => (float) $product->iva_percentual,
-                'stock' => (float) $product->stock,
-                'isActive' => (bool) $product->is_active,
-            ],
+            'data' => $this->serializarProduto($product),
         ]);
     }
 
@@ -217,5 +217,24 @@ class ProductController extends Controller
             'message' => 'Produto desactivado com sucesso.',
             'data' => ['id' => $product->id],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializarProduto(Product $produto): array
+    {
+        return [
+            'id' => $produto->id,
+            'nome' => $produto->nome,
+            'codigoBarras' => $produto->codigo_barras,
+            'categoria' => $produto->categoria,
+            'unidadeVenda' => ProductValidation::normalizarUnidadeVenda($produto->unidade_venda),
+            'precoCompra' => (float) $produto->preco_compra,
+            'precoVenda' => (float) $produto->preco_venda,
+            'ivaTipo' => $produto->iva_tipo,
+            'ivaValor' => (float) $produto->iva_valor,
+            'ivaPercentual' => (float) $produto->iva_percentual,
+            'stock' => (float) $produto->stock,
+            'isActive' => (bool) $produto->is_active,
+        ];
     }
 }
