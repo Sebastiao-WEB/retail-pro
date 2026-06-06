@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\CashSession;
+use App\Support\PermissionCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Concerns\ApiTestHelpers;
@@ -12,6 +13,12 @@ class CashSessionApiTest extends TestCase
 {
     use ApiTestHelpers;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        PermissionCatalog::sync('web');
+    }
 
     public function test_abre_fecha_e_consulta_sessao_ativa(): void
     {
@@ -219,6 +226,92 @@ class CashSessionApiTest extends TestCase
             ->assertJsonPath('data.0.reportSnapshot.utilizador', 'Operador Teste');
     }
 
+    public function test_admin_ve_todos_fechos_do_caixa(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $this->criarAdminComPermissao($ambiente['register']->id);
+        $token = $this->loginApiAdmin($admin);
+
+        $outroUser = \App\Models\User::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Outro Operador',
+            'username' => 'outro_operador_admin',
+            'email' => 'outro_admin@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'CASHIER',
+            'register_id' => $ambiente['register']->id,
+            'is_active' => true,
+        ]);
+
+        foreach ([$ambiente['user'], $outroUser] as $operador) {
+            CashSession::query()->create([
+                'id' => (string) Str::uuid(),
+                'register_id' => $ambiente['register']->id,
+                'user_id' => $operador->id,
+                'status' => 'CLOSED',
+                'opening_balance' => 1000,
+                'closing_balance' => 1100,
+                'difference_amount' => 100,
+                'opened_at' => now()->subHours(2),
+                'closed_at' => now()->subHour(),
+                'report_snapshot' => ['utilizador' => $operador->name],
+            ]);
+        }
+
+        $resposta = $this->getJson(
+            '/api/v1/cash-sessions?status=CLOSED',
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_pesquisa_fechos_por_operador(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $this->criarAdminComPermissao($ambiente['register']->id);
+        $token = $this->loginApiAdmin($admin);
+
+        CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'CLOSED',
+            'opening_balance' => 1000,
+            'closing_balance' => 1100,
+            'difference_amount' => 100,
+            'opened_at' => now()->subHours(2),
+            'closed_at' => now()->subHour(),
+            'report_snapshot' => ['utilizador' => 'Operador Teste'],
+        ]);
+
+        CashSession::query()->create([
+            'id' => (string) Str::uuid(),
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'status' => 'CLOSED',
+            'opening_balance' => 500,
+            'closing_balance' => 600,
+            'difference_amount' => 100,
+            'opened_at' => now()->subHours(4),
+            'closed_at' => now()->subHours(3),
+            'note' => 'Fecho especial',
+            'report_snapshot' => ['utilizador' => 'Outro Nome'],
+        ]);
+
+        $resposta = $this->getJson(
+            '/api/v1/cash-sessions?status=CLOSED&search=Fecho%20especial',
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.note', 'Fecho especial');
+    }
+
     public function test_rejeita_consulta_de_caixa_diferente_do_atribuido(): void
     {
         $ambiente = $this->criarAmbienteApi();
@@ -235,5 +328,39 @@ class CashSessionApiTest extends TestCase
             '/api/v1/cash-sessions?register_id='.$outroRegister->id.'&status=CLOSED',
             $this->authHeaders($token)
         )->assertForbidden();
+    }
+
+    /** @return \App\Models\User */
+    private function criarAdminComPermissao(string $registerId): \App\Models\User
+    {
+        \Spatie\Permission\Models\Role::query()->firstOrCreate(['name' => 'ADMIN', 'guard_name' => 'web']);
+
+        $admin = \App\Models\User::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Admin Fechos',
+            'username' => 'admin_fechos',
+            'email' => 'admin_fechos@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'ADMIN',
+            'register_id' => $registerId,
+            'is_active' => true,
+        ]);
+
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo('cash_sessions.view');
+
+        return $admin;
+    }
+
+    private function loginApiAdmin(\App\Models\User $admin): string
+    {
+        $resposta = $this->postJson('/api/v1/auth/admin-login', [
+            'username' => $admin->username,
+            'password' => '123456',
+        ]);
+
+        $resposta->assertOk();
+
+        return (string) $resposta->json('access_token');
     }
 }
