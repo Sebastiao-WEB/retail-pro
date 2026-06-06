@@ -24,11 +24,16 @@ function traduzirPerfil(role?: string) {
   return role || '—';
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        value={value}
+        editable={false}
+        selectTextOnFocus={false}
+        style={styles.readOnlyInput}
+      />
     </View>
   );
 }
@@ -55,11 +60,6 @@ export default function MoreScreen() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
-
-  async function handleLogout() {
-    await logout();
-    router.replace('/login');
-  }
 
   async function handleUpdatePassword() {
     setPasswordError('');
@@ -104,12 +104,12 @@ export default function MoreScreen() {
         <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Perfil</Text>
-            <InfoRow label="Nome" value={dados?.name || '—'} />
-            <InfoRow label="Utilizador" value={dados?.username || '—'} />
-            <InfoRow label="Email" value={dados?.email || '—'} />
-            <InfoRow label="Perfil" value={traduzirPerfil(dados?.role)} />
-            <InfoRow label="Caixa(s)" value={caixas} />
-            <InfoRow label="Sessão" value={client === 'admin' ? 'Mobile admin' : 'POS'} />
+            <ReadOnlyField label="Nome" value={dados?.name || '—'} />
+            <ReadOnlyField label="Utilizador" value={dados?.username || '—'} />
+            <ReadOnlyField label="Email" value={dados?.email || '—'} />
+            <ReadOnlyField label="Perfil" value={traduzirPerfil(dados?.role)} />
+            <ReadOnlyField label="Caixa(s)" value={caixas} />
+            <ReadOnlyField label="Sessão" value={client === 'admin' ? 'Mobile admin' : 'POS'} />
           </View>
 
           <View style={styles.card}>
@@ -195,25 +195,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 4,
   },
-  infoRow: {
-    gap: 2,
-    paddingVertical: 4,
-  },
-  infoLabel: {
-    color: brand.muted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  infoValue: {
-    color: brand.dark,
-    fontSize: 14,
-    fontWeight: '600',
+  fieldGroup: {
+    gap: 4,
   },
   fieldLabel: {
     color: brand.muted,
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 4,
+  },
+  readOnlyInput: {
+    borderWidth: 1,
+    borderColor: brand.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: brand.dark,
+    backgroundColor: brand.background,
   },
   input: {
     borderWidth: 1,
@@ -223,6 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: brand.white,
+    marginTop: 4,
   },
   saveButton: {
     marginTop: 8,
