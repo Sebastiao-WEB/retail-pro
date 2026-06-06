@@ -47,8 +47,11 @@ export function buildClosingReportLabels() {
     cashSales: t('pos.closingReport.labels.cashSales'),
     transferSales: t('pos.closingReport.labels.transferSales'),
     expectedCash: t('pos.closingReport.labels.expectedCash'),
+    expectedTransfers: t('pos.closingReport.labels.expectedTransfers'),
     actualCash: t('pos.closingReport.labels.actualCash'),
+    actualMobileWallets: t('pos.closingReport.labels.actualMobileWallets'),
     difference: t('pos.closingReport.labels.difference'),
+    transferDifference: t('pos.closingReport.labels.transferDifference'),
     justification: t('pos.closingReport.labels.justification'),
   };
 }

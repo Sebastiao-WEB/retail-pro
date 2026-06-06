@@ -18,6 +18,7 @@ import {
 } from "../api/mappers";
 import { obterClientes, obterProdutos, obterVendas } from "./dadosMockados";
 import { normalizarMapaDisponibilidade } from "./stockDisponibilidade";
+import { arredondarMoeda } from "./caixaMetricas.js";
 
 function normalizarLista(resposta) {
   if (Array.isArray(resposta)) return resposta;
@@ -170,15 +171,18 @@ function mapearHistoricoFechoSessao(item) {
     aberturaEm: snapshot.aberturaEm || item.openedAt || item.opened_at || "",
     createdAt: item.createdAt || item.created_at || "",
     userId: item.userId || item.user_id || null,
-    fundoInicial: Number(snapshot.fundoInicial ?? item.openingBalance ?? 0),
-    totalVendido: Number(snapshot.totalVendido ?? 0),
+    fundoInicial: arredondarMoeda(snapshot.fundoInicial ?? item.openingBalance ?? 0),
+    totalVendido: arredondarMoeda(snapshot.totalVendido ?? 0),
     totalTransacoes: Number(snapshot.totalTransacoes ?? 0),
-    ticketMedio: Number(snapshot.ticketMedio ?? 0),
-    vendasDinheiro: Number(snapshot.vendasDinheiro ?? 0),
-    vendasTransferencia: Number(snapshot.vendasTransferencia ?? 0),
-    dinheiroEsperado: Number(snapshot.dinheiroEsperado ?? 0),
-    dinheiroReal: Number(snapshot.dinheiroReal ?? item.closingBalance ?? 0),
-    diferenca: Number(snapshot.diferenca ?? item.differenceAmount ?? 0),
+    ticketMedio: arredondarMoeda(snapshot.ticketMedio ?? 0),
+    vendasDinheiro: arredondarMoeda(snapshot.vendasDinheiro ?? 0),
+    vendasTransferencia: arredondarMoeda(snapshot.vendasTransferencia ?? 0),
+    dinheiroEsperado: arredondarMoeda(snapshot.dinheiroEsperado ?? 0),
+    dinheiroReal: arredondarMoeda(snapshot.dinheiroReal ?? item.closingBalance ?? 0),
+    diferenca: arredondarMoeda(snapshot.diferenca ?? item.differenceAmount ?? 0),
+    transferenciasEsperadas: arredondarMoeda(snapshot.transferenciasEsperadas ?? snapshot.vendasTransferencia ?? 0),
+    transferenciasReais: arredondarMoeda(snapshot.transferenciasReais ?? 0),
+    diferencaTransferencias: arredondarMoeda(snapshot.diferencaTransferencias ?? 0),
     justificativaDiferenca: String(snapshot.justificativaDiferenca || item.note || ""),
   };
 }

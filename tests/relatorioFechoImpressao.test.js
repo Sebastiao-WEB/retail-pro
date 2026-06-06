@@ -19,6 +19,9 @@ describe("relatorioFechoImpressao", () => {
         dinheiroEsperado: 2800,
         dinheiroReal: 2790,
         diferenca: -10,
+        transferenciasEsperadas: 700,
+        transferenciasReais: 620,
+        diferencaTransferencias: -80,
         justificativaDiferenca: "Troco em falta",
         auditoriaVendas: [
           {
@@ -38,6 +41,9 @@ describe("relatorioFechoImpressao", () => {
 
     expect(payload.relatorio.caixa).toBe("Caixa 1");
     expect(payload.relatorio.totalVendido).toBe(2500);
+    expect(payload.relatorio.transferenciasEsperadas).toBe(700);
+    expect(payload.relatorio.transferenciasReais).toBe(620);
+    expect(payload.relatorio.diferencaTransferencias).toBe(-80);
     expect(payload.relatorio.justificativaDiferenca).toBe("Troco em falta");
     expect(payload.relatorio.vendas).toBeUndefined();
   });
@@ -103,6 +109,9 @@ describe("relatorioFechoImpressao", () => {
         dinheiroEsperado: 2800,
         dinheiroReal: 2790,
         diferenca: -10,
+        transferenciasEsperadas: 700,
+        transferenciasReais: 620,
+        diferencaTransferencias: -80,
         auditoriaVendas: [],
       },
       { nomeEmpresa: "Empresa Demo", larguraTalao: "80mm" }
@@ -114,7 +123,9 @@ describe("relatorioFechoImpressao", () => {
     expect(texto).toContain("Relatorio de Fecho de Caixa");
     expect(texto).toContain("Total vendido");
     expect(texto).toContain("2500,00 MT");
-    expect(texto).toContain("Diferenca");
+    expect(texto).toContain("Diferenca caixa");
     expect(texto).toContain("-10,00 MT");
+    expect(texto).toContain("Diferenca transfer.");
+    expect(texto).toContain("-80,00 MT");
   });
 });

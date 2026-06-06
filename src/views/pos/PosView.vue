@@ -17,7 +17,7 @@ import {
 } from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
-import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
+import { arredondarMoeda, calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
 import { temCatalogoOffline } from "../../services/offline/catalogCache";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../../services/offline/networkError";
@@ -97,6 +97,7 @@ const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
 const dinheiroRealFecho = ref(null);
+const transferenciasRealFecho = ref(null);
 const justificativaDiferenca = ref("");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
@@ -405,27 +406,50 @@ const solicitacoesPendentesPorVenda = computed(() => {
   });
   return mapa;
 });
-const totalVendidoTurno = computed(() => vendasTurno.value.reduce((acc, venda) => acc + venda.total, 0));
+const totalVendidoTurno = computed(() =>
+  arredondarMoeda(vendasTurno.value.reduce((acc, venda) => acc + venda.total, 0))
+);
 const totalTransacoesTurno = computed(() => vendasTurno.value.length);
-const ticketMedioTurno = computed(() => (totalTransacoesTurno.value ? totalVendidoTurno.value / totalTransacoesTurno.value : 0));
+const ticketMedioTurno = computed(() =>
+  arredondarMoeda(totalTransacoesTurno.value ? totalVendidoTurno.value / totalTransacoesTurno.value : 0)
+);
 const totalDinheiroTurno = computed(() =>
-  vendasTurno.value
-    .filter((venda) => venda.metodoPagamento === "Dinheiro")
-    .reduce((acc, venda) => acc + venda.total, 0)
+  arredondarMoeda(
+    vendasTurno.value
+      .filter((venda) => venda.metodoPagamento === "Dinheiro")
+      .reduce((acc, venda) => acc + venda.total, 0)
+  )
 );
 const totalTransferenciaTurno = computed(() =>
-  vendasTurno.value
-    .filter((venda) => venda.metodoPagamento === "Transferência")
-    .reduce((acc, venda) => acc + venda.total, 0)
+  arredondarMoeda(
+    vendasTurno.value
+      .filter((venda) => venda.metodoPagamento === "Transferência")
+      .reduce((acc, venda) => acc + venda.total, 0)
+  )
 );
-const dinheiroEsperadoFecho = computed(() => Number(sessaoStore.fundoInicial || 0) + totalDinheiroTurno.value);
+const dinheiroEsperadoFecho = computed(() =>
+  arredondarMoeda(Number(sessaoStore.fundoInicial || 0) + totalDinheiroTurno.value)
+);
+const transferenciasEsperadasFecho = computed(() => arredondarMoeda(totalTransferenciaTurno.value));
 const diferencaFecho = computed(() =>
   calcularDiferencaProjetada({
     dinheiroReal: dinheiroRealFecho.value,
     dinheiroEsperado: dinheiroEsperadoFecho.value,
   })
 );
+const diferencaTransferenciasFecho = computed(() =>
+  calcularDiferencaProjetada({
+    dinheiroReal: transferenciasRealFecho.value,
+    dinheiroEsperado: transferenciasEsperadasFecho.value,
+  })
+);
 const diferencaFechoTemValor = computed(() => diferencaFecho.value !== null);
+const diferencaTransferenciasTemValor = computed(() => diferencaTransferenciasFecho.value !== null);
+const temDiferencaFecho = computed(
+  () =>
+    (diferencaFechoTemValor.value && diferencaFecho.value !== 0) ||
+    (diferencaTransferenciasTemValor.value && diferencaTransferenciasFecho.value !== 0)
+);
 const origemStockVenda = computed(() => ({
   id: sessaoStore.sourceLocationId,
   codigo: sessaoStore.sourceLocationCodigo || "",
@@ -1077,8 +1101,14 @@ async function abrirTurnoCaixa() {
   iniciarSincronizacaoStockPeriodica();
 }
 
+function normalizarMoedaFecho(campo) {
+  if (campo.value === null || campo.value === undefined || campo.value === "") return;
+  campo.value = arredondarMoeda(campo.value);
+}
+
 function abrirFechoCaixa() {
   dinheiroRealFecho.value = dinheiroEsperadoFecho.value;
+  transferenciasRealFecho.value = transferenciasEsperadasFecho.value;
   justificativaDiferenca.value = "";
   modalFechoCaixa.value = true;
 }
@@ -1089,10 +1119,16 @@ async function confirmarFechoCaixa() {
     mostrarToastSwal(t("pos.toast.enterActualCash"), "warning");
     return;
   }
-  if (diferencaFecho.value !== 0 && !justificativaDiferenca.value.trim()) {
+  if (diferencaTransferenciasFecho.value === null) {
+    mostrarToastSwal(t("pos.toast.enterActualMobileWallets"), "warning");
+    return;
+  }
+  if (temDiferencaFecho.value && !justificativaDiferenca.value.trim()) {
     mostrarToastSwal(t("pos.toast.enterDifferenceJustification"), "warning");
     return;
   }
+  normalizarMoedaFecho(dinheiroRealFecho);
+  normalizarMoedaFecho(transferenciasRealFecho);
   processandoFechoCaixa.value = true;
   const fechadoEm = new Date().toISOString();
   const relatorio = {
@@ -1100,13 +1136,16 @@ async function confirmarFechoCaixa() {
     caixa: sessaoStore.caixaAtribuido,
     aberturaEm: sessaoStore.aberturaEm,
     fechadoEm,
-    fundoInicial: sessaoStore.fundoInicial,
+    fundoInicial: arredondarMoeda(sessaoStore.fundoInicial),
     totalVendido: totalVendidoTurno.value,
     totalTransacoes: totalTransacoesTurno.value,
     ticketMedio: ticketMedioTurno.value,
     dinheiroEsperado: dinheiroEsperadoFecho.value,
-    dinheiroReal: Number(dinheiroRealFecho.value || 0),
+    dinheiroReal: arredondarMoeda(dinheiroRealFecho.value || 0),
     diferenca: diferencaFecho.value,
+    transferenciasEsperadas: transferenciasEsperadasFecho.value,
+    transferenciasReais: arredondarMoeda(transferenciasRealFecho.value || 0),
+    diferencaTransferencias: diferencaTransferenciasFecho.value,
     vendasDinheiro: totalDinheiroTurno.value,
     vendasTransferencia: totalTransferenciaTurno.value,
     justificativaDiferenca: justificativaDiferenca.value.trim(),
@@ -1574,18 +1613,52 @@ async function confirmarFechoCaixa() {
         <p><strong>{{ t("pos.closingModal.cashSales") }}</strong> {{ formatarMT(totalDinheiroTurno) }}</p>
         <p><strong>{{ t("pos.closingModal.transferSales") }}</strong> {{ formatarMT(totalTransferenciaTurno) }}</p>
         <p><strong>{{ t("pos.closingModal.expectedCash") }}</strong> {{ formatarMT(dinheiroEsperadoFecho) }}</p>
+        <p><strong>{{ t("pos.closingModal.expectedTransfers") }}</strong> {{ formatarMT(transferenciasEsperadasFecho) }}</p>
       </div>
 
-      <div>
-        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualCashLabel") }}</label>
-        <input v-model.number="dinheiroRealFecho" type="number" min="0" class="rp-input" @keyup.enter="confirmarFechoCaixa" />
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualCashLabel") }}</label>
+          <input
+            v-model.number="dinheiroRealFecho"
+            type="number"
+            min="0"
+            step="0.01"
+            class="rp-input"
+            @blur="normalizarMoedaFecho(dinheiroRealFecho)"
+            @keyup.enter="confirmarFechoCaixa"
+          />
+          <div
+            v-if="diferencaFechoTemValor"
+            class="mt-2 rounded-lg p-2 text-xs"
+            :class="diferencaFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+          >
+            {{ t("pos.closingModal.cashDifference") }} <strong>{{ formatarMT(diferencaFecho) }}</strong>
+          </div>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualMobileWalletsLabel") }}</label>
+          <input
+            v-model.number="transferenciasRealFecho"
+            type="number"
+            min="0"
+            step="0.01"
+            class="rp-input"
+            @blur="normalizarMoedaFecho(transferenciasRealFecho)"
+            @keyup.enter="confirmarFechoCaixa"
+          />
+          <p class="mt-1 text-[11px] text-slate-500">{{ t("pos.closingModal.mobileWalletsHint") }}</p>
+          <div
+            v-if="diferencaTransferenciasTemValor"
+            class="mt-2 rounded-lg p-2 text-xs"
+            :class="diferencaTransferenciasFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+          >
+            {{ t("pos.closingModal.transferDifference") }} <strong>{{ formatarMT(diferencaTransferenciasFecho) }}</strong>
+          </div>
+        </div>
       </div>
 
-      <div class="rounded-lg p-3 text-sm" :class="diferencaFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">
-        {{ t("pos.closingModal.difference") }} <strong>{{ formatarMT(diferencaFecho) }}</strong>
-      </div>
-
-      <div v-if="diferencaFechoTemValor && diferencaFecho !== 0">
+      <div v-if="temDiferencaFecho">
         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.justificationRequired") }}</label>
         <textarea
           v-model="justificativaDiferenca"
