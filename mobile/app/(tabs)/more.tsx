@@ -10,9 +10,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
 import { ApiError, fetchMe, updatePassword } from '@/src/api/authApi';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
+import { useConfirmLogout } from '@/src/hooks/useConfirmLogout';
 import { useAuthStore } from '@/src/store/authStore';
 import type { AuthUser } from '@/src/types/auth';
 import { brand } from '@/src/theme/brand';
@@ -34,7 +34,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function MoreScreen() {
-  const { user, client, logout, hydrate } = useAuthStore();
+  const { user, client, hydrate } = useAuthStore();
+  const confirmLogout = useConfirmLogout();
   const [profile, setProfile] = useState<AuthUser | null>(user);
   const [submitting, setSubmitting] = useState(false);
   const [senhaActual, setSenhaActual] = useState('');
@@ -161,7 +162,7 @@ export default function MoreScreen() {
             </Pressable>
           </View>
 
-          <Pressable style={styles.logout} onPress={handleLogout}>
+          <Pressable style={styles.logout} onPress={confirmLogout}>
             <Text style={styles.logoutText}>Terminar sessão</Text>
           </Pressable>
         </ScrollView>

@@ -1,5 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { Tabs, Redirect } from 'expo-router';
+import HeaderUserMenu from '@/src/components/HeaderUserMenu';
 import { useAuthStore } from '@/src/store/authStore';
 import type { AuthUser } from '@/src/types/auth';
 import { brand } from '@/src/theme/brand';
@@ -51,6 +52,8 @@ export default function TabLayout() {
         tabBarInactiveTintColor: brand.muted,
         headerStyle: { backgroundColor: brand.dark },
         headerTintColor: '#fff',
+        headerRight: () => <HeaderUserMenu />,
+        headerRightContainerStyle: { paddingRight: 12 },
         tabBarStyle: { backgroundColor: brand.white },
       }}
     >
