@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -49,6 +50,7 @@ export default function ReversalsScreen() {
   const [data, setData] = useState<ReversalRequestsResponse | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [reversaoSelecionada, setReversaoSelecionada] = useState<ReversalRequest | null>(null);
   const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
@@ -70,12 +72,37 @@ export default function ReversalsScreen() {
     load();
   }, [load]);
 
-  async function handleDecision(item: ReversalRequest, status: 'APPROVED' | 'REJECTED') {
+  function confirmarDecisao(item: ReversalRequest, status: 'APPROVED' | 'REJECTED') {
+    const referencia = item.sale?.referencia || item.saleId.slice(0, 8);
+    const aprovar = status === 'APPROVED';
+
+    Alert.alert(
+      aprovar ? 'Confirmar aprovação' : 'Confirmar rejeição',
+      aprovar
+        ? `Deseja aprovar a reversão da venda ${referencia}?`
+        : `Deseja rejeitar a reversão da venda ${referencia}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: aprovar ? 'Aprovar' : 'Rejeitar',
+          style: aprovar ? 'default' : 'destructive',
+          onPress: () => executarDecisao(item, status),
+        },
+      ],
+    );
+  }
+
+  async function executarDecisao(item: ReversalRequest, status: 'APPROVED' | 'REJECTED') {
+    if (submitting) return;
+
+    setSubmitting(true);
     try {
       await updateReversalRequest(item.id, status);
       await load();
     } catch (err) {
       Alert.alert('Erro', err instanceof ApiError ? err.message : 'Não foi possível actualizar.');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -145,10 +172,18 @@ export default function ReversalsScreen() {
 
             {item.status === 'PENDING' ? (
               <View style={styles.actions}>
-                <Pressable style={[styles.btn, styles.reject]} onPress={() => handleDecision(item, 'REJECTED')}>
+                <Pressable
+                  style={[styles.btn, styles.reject, submitting && styles.btnDisabled]}
+                  disabled={submitting}
+                  onPress={() => confirmarDecisao(item, 'REJECTED')}
+                >
                   <Text style={styles.btnText}>Rejeitar</Text>
                 </Pressable>
-                <Pressable style={[styles.btn, styles.approve]} onPress={() => handleDecision(item, 'APPROVED')}>
+                <Pressable
+                  style={[styles.btn, styles.approve, submitting && styles.btnDisabled]}
+                  disabled={submitting}
+                  onPress={() => confirmarDecisao(item, 'APPROVED')}
+                >
                   <Text style={styles.btnText}>Aprovar</Text>
                 </Pressable>
               </View>
@@ -185,6 +220,12 @@ export default function ReversalsScreen() {
         reversal={reversaoSelecionada}
         onClose={fecharDetalhes}
       />
+
+      <Modal visible={submitting} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color={brand.gold} />
+        </View>
+      </Modal>
     </>
   );
 }
@@ -223,6 +264,13 @@ const styles = StyleSheet.create({
   approve: { backgroundColor: brand.success },
   reject: { backgroundColor: brand.danger },
   btnText: { color: brand.white, fontWeight: '700' },
+  btnDisabled: { opacity: 0.6 },
+  loaderOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   pagination: {
     flexDirection: 'row',
     alignItems: 'center',
