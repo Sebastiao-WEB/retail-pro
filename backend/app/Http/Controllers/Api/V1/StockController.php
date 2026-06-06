@@ -95,6 +95,27 @@ class StockController extends Controller
         ]);
     }
 
+    public function balance(Request $request)
+    {
+        $dados = $request->validate([
+            'location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
+            'product_id' => ['required', 'uuid', 'exists:products,id'],
+        ]);
+
+        $balance = StockBalance::query()
+            ->where('location_id', $dados['location_id'])
+            ->where('product_id', $dados['product_id'])
+            ->first();
+
+        return response()->json([
+            'data' => [
+                'location_id' => $dados['location_id'],
+                'product_id' => $dados['product_id'],
+                'quantity' => (float) ($balance?->quantity ?? 0),
+            ],
+        ]);
+    }
+
     public function availability(Request $request)
     {
         $dados = $request->validate([

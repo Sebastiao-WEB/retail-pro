@@ -82,6 +82,7 @@ Route::prefix('v1')->group(function () {
 
         Route::post('stock/reload', [StockController::class, 'reload']);
         Route::post('stock/adjust', [StockController::class, 'adjust']);
+        Route::get('stock/balance', [StockController::class, 'balance']);
         Route::get('stock/availability', [StockController::class, 'availability']);
         Route::get('stock/movements', [StockMovementController::class, 'index']);
         Route::get('stock/transfers', [StockTransferController::class, 'index']);

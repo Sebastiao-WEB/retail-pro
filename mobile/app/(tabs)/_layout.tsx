@@ -4,16 +4,34 @@ import { useAuthStore } from '@/src/store/authStore';
 import type { AuthUser } from '@/src/types/auth';
 import { brand } from '@/src/theme/brand';
 
+function temRoleGestao(user: AuthUser | null) {
+  const roles = user?.roles ?? (user?.role ? [user.role] : []);
+  return roles.some((role) => role === 'ADMIN' || role === 'MANAGER');
+}
+
 function podeGerirUtilizadores(user: AuthUser | null) {
   if (!user) return false;
   if (user.permissions?.includes('users.manage')) return true;
-  const roles = user.roles ?? (user.role ? [user.role] : []);
-  return roles.some((role) => role === 'ADMIN' || role === 'MANAGER');
+  return temRoleGestao(user);
+}
+
+function podeGerirStock(user: AuthUser | null) {
+  if (!user) return false;
+  const permissoesStock = [
+    'stock.reload',
+    'stock.movements.view',
+    'stock.transfers.view',
+    'stock.transfers.manage',
+    'stock_locations.view',
+  ];
+  if (user.permissions?.some((item) => permissoesStock.includes(item))) return true;
+  return temRoleGestao(user);
 }
 
 export default function TabLayout() {
   const { user } = useAuthStore();
   const mostrarUtilizadores = podeGerirUtilizadores(user);
+  const mostrarStock = podeGerirStock(user);
 
   if (!user) {
     return <Redirect href="/login" />;
@@ -62,6 +80,16 @@ export default function TabLayout() {
           title: 'Produtos',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'shippingbox', android: 'inventory_2', web: 'inventory_2' }} tintColor={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stock"
+        options={{
+          title: 'Stock',
+          href: mostrarStock ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'archivebox', android: 'inventory', web: 'inventory' }} tintColor={color} size={24} />
           ),
         }}
       />
