@@ -366,6 +366,45 @@ class SaleApiTest extends TestCase
             ->assertJsonPath('meta.last_page', 2);
 
         $this->assertCount(10, $resposta->json('data'));
+        $this->assertSame('VD-PAG-0', $resposta->json('data.0.referencia'));
+        $resposta->assertJsonStructure(['data' => [['itens']]]);
+    }
+
+    public function test_lista_vendas_filtra_por_periodo(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-HOJE',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 50,
+            'total' => 50,
+            'data' => now(),
+        ]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-ANTIGA',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 80,
+            'total' => 80,
+            'data' => now()->subDays(20),
+        ]);
+
+        $resposta = $this->getJson('/api/v1/sales?period=today&page=1&per_page=10', $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.referencia', 'VD-HOJE');
     }
 
     public function test_rejeita_reenvio_com_mesmo_id_e_conteudo_diferente(): void

@@ -10,6 +10,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Services\DashboardSummaryService;
 use App\Support\ProductStockDisplay;
 use App\Support\SaleItemTaxSnapshot;
 use Illuminate\Http\Request;
@@ -22,6 +23,8 @@ class SaleController extends Controller
 {
     use ResolvesAssignedRegister;
 
+    public function __construct(private readonly DashboardSummaryService $dashboardSummary) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -32,6 +35,7 @@ class SaleController extends Controller
             'cash_session_id' => ['nullable', 'uuid'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'period' => ['nullable', 'in:today,7d,30d,month'],
         ]);
 
         $registerId = $this->resolverRegisterIdConsulta($request, $dados['register_id'] ?? null);
@@ -47,10 +51,16 @@ class SaleController extends Controller
             ->with(['itens.product'])
             ->where('register_id', $registerId)
             ->when($userId, fn ($q) => $q->where('user_id', $userId))
-            ->latest('created_at');
+            ->latest('created_at')
+            ->latest('data');
 
         if (! empty($dados['cash_session_id'])) {
             $query->where('cash_session_id', $dados['cash_session_id']);
+        }
+
+        if (! empty($dados['period'])) {
+            [$inicio, $fim] = $this->dashboardSummary->periodRange($dados['period']);
+            $query->whereBetween('data', [$inicio, $fim]);
         }
 
         $paginado = $query->paginate($perPage);
