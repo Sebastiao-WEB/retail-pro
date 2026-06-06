@@ -20,6 +20,7 @@ import ProductEditModal from '@/src/components/ProductEditModal';
 import { brand, formatMt } from '@/src/theme/brand';
 
 const PER_PAGE = 10;
+const SEARCH_DEBOUNCE_MS = 3000;
 
 function traduzirUnidade(unidade: Product['unidadeVenda']) {
   return unidade === 'KG' ? 'Por peso (kg)' : 'Por unidade';
@@ -48,7 +49,7 @@ export default function ProductsScreen() {
       setSearchQuery(trimmed);
       setPage(1);
       setPaginating(true);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
   }, [search, searchQuery]);
