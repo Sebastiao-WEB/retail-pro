@@ -138,10 +138,11 @@ class ConsolidateStoreFloorStockService
 
             StockLocation::query()
                 ->whereIn('id', $sources->pluck('id'))
-                ->update([
-                    'register_id' => null,
-                    'is_saleable' => false,
-                ]);
+                ->update(['is_saleable' => false]);
+
+            foreach ($sources as $source) {
+                $source->registers()->detach();
+            }
         });
 
         $usersUpdated = User::query()->update(['source_location_id' => $storeFloor->id]);

@@ -94,13 +94,31 @@
                         </td>
                         @can('users.manage')
                             <td class="px-3 py-2">
-                                <div class="flex items-center gap-2">
-                                    <a href="{{ route('users.edit', $user) }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">
-                                        <i data-lucide="pencil" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.edit') }}
+                                <div class="flex flex-wrap items-center gap-1">
+                                    <a
+                                        href="{{ route('users.edit', ['user' => $user, 'search' => $search]) }}"
+                                        data-rp-page-nav
+                                        title="{{ __('app.edit') }}"
+                                        aria-label="{{ __('app.edit') }}: {{ $user->name }}"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50"
+                                    >
+                                        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
                                     </a>
-                                    @if ($user->id !== $currentUserId)
-                                        <button type="button" data-action="confirm-disable" data-id="{{ $user->id }}" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
-                                            <i data-lucide="user-x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('pages.users.disable') }}
+                                    @if ($user->id !== $currentUserId && $user->is_active)
+                                        <button
+                                            type="button"
+                                            data-action="confirm-disable"
+                                            data-id="{{ $user->id }}"
+                                            data-name="{{ $user->name }}"
+                                            data-username="{{ $user->username }}"
+                                            data-modal-target="user-disable-modal"
+                                            data-input-target="user-disable-id"
+                                            data-label-target="user-disable-label"
+                                            title="{{ __('pages.users.disable') }}"
+                                            aria-label="{{ __('pages.users.disable') }}: {{ $user->name }}"
+                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                                        >
+                                            <i data-lucide="ban" class="h-3.5 w-3.5"></i>
                                         </button>
                                     @else
                                         <span class="text-xs text-slate-400" title="{{ __('pages.common.current_account_hint') }}">{{ __('pages.common.current_account') }}</span>
@@ -219,18 +237,29 @@
             </div>
         </div>
 
-        <div id="user-disable-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
-            <div class="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-                <h3 class="text-base font-semibold text-slate-900">{{ __('pages.common.confirm_disable_title') }}</h3>
-                <p class="mt-2 text-sm text-slate-600">{{ __('pages.users.confirm_disable_message') }}</p>
-                <input type="hidden" id="user-disable-id" value="">
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" data-modal-close="user-disable-modal" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">
-                        <i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.close') }}
-                    </button>
-                    <button type="button" data-action="disable-user" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
-                        <i data-lucide="user-x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('pages.users.disable') }}
-                    </button>
+        <div id="user-disable-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="user-disable-title">
+            <div class="w-full max-w-md rounded-xl bg-white shadow-xl">
+                <div class="border-b border-slate-200 px-5 py-3">
+                    <h3 id="user-disable-title" class="text-base font-semibold text-slate-900">{{ __('pages.common.confirm_disable_title') }}</h3>
+                </div>
+                <div class="space-y-3 p-5">
+                    <p class="text-sm text-slate-600">{{ __('pages.users.confirm_disable_message') }}</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pages.users.confirm_disable_target') }}</p>
+                        <p id="user-disable-label" class="mt-1 font-semibold text-slate-900">—</p>
+                    </div>
+                    <p class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        {{ __('pages.users.confirm_disable_hint') }}
+                    </p>
+                    <input type="hidden" id="user-disable-id" value="">
+                    <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+                        <button type="button" data-modal-close="user-disable-modal" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
+                            <i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.cancel') }}
+                        </button>
+                        <button type="button" data-action="disable-user" class="rounded-lg border border-red-300 bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">
+                            <i data-lucide="ban" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('pages.users.disable') }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

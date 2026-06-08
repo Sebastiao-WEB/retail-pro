@@ -1,4 +1,4 @@
-import { bindModalDismiss } from './admin/modal.js';
+import { bindDisableConfirmHandlers, bindModalDismiss } from './admin/modal.js';
 import { bindAutoSubmitForms, showStoredToast } from './admin/form.js';
 import { bindAdminPreloader, markAdminPageReady } from './admin/preloader.js';
 
@@ -14,6 +14,7 @@ const pageModules = {
     'operator-reports': () => import('./admin/operator-reports.js'),
     reversals: () => import('./admin/reversals.js'),
     registers: () => import('./admin/registers.js'),
+    'registers-edit': () => import('./admin/registers-edit.js'),
     'stock-locations': () => import('./admin/stock-locations.js'),
     'stock-locations-edit': () => import('./admin/stock-locations-edit.js'),
     'stock-locations-stock': () => import('./admin/stock-locations-stock.js'),
@@ -28,6 +29,7 @@ const pageModules = {
 
 document.addEventListener('DOMContentLoaded', () => {
     bindAdminPreloader();
+    bindDisableConfirmHandlers();
     bindModalDismiss();
     bindAutoSubmitForms();
     showStoredToast();

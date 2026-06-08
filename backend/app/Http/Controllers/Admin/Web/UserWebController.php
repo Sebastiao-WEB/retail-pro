@@ -43,8 +43,8 @@ class UserWebController extends Controller
             'search' => $search,
             'canManage' => auth()->user()?->can('users.manage') ?? false,
             'currentUserId' => auth()->id(),
-            'registers' => Register::query()->with('sourceLocation')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-            'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'register_id']),
+            'registers' => Register::query()->with('stockLocations')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
         ]);
     }
 
@@ -57,8 +57,8 @@ class UserWebController extends Controller
         return view('admin.users.edit', [
             'user' => $user,
             'currentUserId' => auth()->id(),
-            'registers' => Register::query()->with('sourceLocation')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-            'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'register_id']),
+            'registers' => Register::query()->with('stockLocations')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
         ]);
     }
 
@@ -217,8 +217,8 @@ class UserWebController extends Controller
             'is_active' => (bool) $user->is_active,
             'register_ids' => $user->registers->pluck('id')->all(),
             'source_location_id' => $user->source_location_id,
-            'registers' => Register::query()->with('sourceLocation')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-            'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'register_id']),
+            'registers' => Register::query()->with('stockLocations')->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'locations' => StockLocation::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
         ];
     }
 }

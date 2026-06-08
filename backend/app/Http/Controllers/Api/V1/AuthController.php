@@ -98,7 +98,7 @@ class AuthController extends Controller
         $user = $request->user('api');
         abort_unless($user, 401);
 
-        $user->loadMissing(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation']);
+        $user->loadMissing(['registers.stockLocations', 'register.stockLocations', 'sourceLocation']);
 
         $registers = $user->assignedRegisters();
         $selectedRegister = $user->register_id
@@ -141,7 +141,7 @@ class AuthController extends Controller
         }
 
         $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation'])
+            ->with(['registers.stockLocations', 'register.stockLocations', 'sourceLocation'])
             ->find($challenge['user_id']);
 
         if (! $user || ! $user->is_active) {
@@ -265,7 +265,7 @@ class AuthController extends Controller
     private function findUserByCredentials(string $username, string $password): User|\Illuminate\Http\JsonResponse
     {
         $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation'])
+            ->with(['registers.stockLocations', 'register.stockLocations', 'sourceLocation'])
             ->where(function ($q) use ($username) {
                 $q->where('username', $username)
                     ->orWhere('email', $username);
@@ -432,7 +432,7 @@ class AuthController extends Controller
 
     private function serializeUser(User $user, Register $selectedRegister, $allRegisters): array
     {
-        $selectedRegister->loadMissing('sourceLocation');
+        $selectedRegister->loadMissing('stockLocations');
         $user->loadMissing('sourceLocation');
 
         $sourceLocation = $this->resolveSourceLocationPayload($user, $selectedRegister);

@@ -91,6 +91,7 @@ return [
         'total' => 'Total',
         'date' => 'Data',
         'register' => 'Caixa',
+        'registers' => 'Caixas',
         'period' => 'Período',
         'phone' => 'Telefone',
         'nuit' => 'NUIT',

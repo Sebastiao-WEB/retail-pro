@@ -14,8 +14,8 @@
             </p>
             <p class="text-sm text-slate-500">
                 {{ $location->type }}
-                @if ($location->register)
-                    · {{ __('app.fields.register') }}: {{ $location->register->code }}
+                @if ($location->registers->isNotEmpty())
+                    · {{ __('app.fields.registers') }}: {{ $location->registerCodesLabel() }}
                 @endif
                 ·
                 <span class="{{ $location->is_active ? 'text-emerald-600' : 'text-red-600' }}">

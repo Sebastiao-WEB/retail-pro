@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class StockLocation extends Model
 {
@@ -16,7 +17,6 @@ class StockLocation extends Model
 
     protected $fillable = [
         'id',
-        'register_id',
         'code',
         'name',
         'type',
@@ -29,9 +29,10 @@ class StockLocation extends Model
         'is_active' => 'boolean',
     ];
 
-    public function register()
+    public function registers(): BelongsToMany
     {
-        return $this->belongsTo(Register::class);
+        return $this->belongsToMany(Register::class, 'register_stock_location')
+            ->withTimestamps();
     }
 
     public function balances()
@@ -42,5 +43,16 @@ class StockLocation extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    public function registerCodesLabel(): string
+    {
+        if ($this->relationLoaded('registers')) {
+            $codes = $this->registers->pluck('code')->filter()->sort()->values();
+
+            return $codes->isNotEmpty() ? $codes->join(', ') : '—';
+        }
+
+        return '—';
     }
 }

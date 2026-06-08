@@ -48,12 +48,12 @@ class DatabaseSeeder extends Seeder
         $sourceLocation = StockLocation::query()->firstOrCreate([
             'code' => 'LOC-CX01',
         ], [
-            'register_id' => $register->id,
             'name' => 'Loja - Caixa 01',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $sourceLocation->registers()->syncWithoutDetaching([$register->id]);
 
         $user = User::query()->updateOrCreate([
             'username' => 'operador',
@@ -75,16 +75,12 @@ class DatabaseSeeder extends Seeder
         $sourceLocation2 = StockLocation::query()->firstOrCreate([
             'code' => 'LOC-CX02',
         ], [
-            'register_id' => $register2->id,
             'name' => 'Loja - Caixa 02',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
-
-        if ($sourceLocation2->register_id !== $register2->id) {
-            $sourceLocation2->update(['register_id' => $register2->id]);
-        }
+        $sourceLocation2->registers()->syncWithoutDetaching([$register2->id]);
 
         $user->syncRoles(['CASHIER']);
         $user->syncAssignedRegisters([$register->id, $register2->id]);
@@ -164,7 +160,6 @@ class DatabaseSeeder extends Seeder
         StockLocation::query()->firstOrCreate([
             'code' => 'LOC-ARM-CENTRAL',
         ], [
-            'register_id' => null,
             'name' => 'Armazém Central',
             'type' => 'WAREHOUSE',
             'is_saleable' => false,

@@ -44,12 +44,12 @@ class BalanceSheetTest extends TestCase
         $location = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-BAL',
-            'register_id' => $register->id,
             'name' => 'Loja Balanço',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $location->registers()->sync([$register->id]);
 
         $product = Product::query()->create([
             'id' => (string) Str::uuid(),
@@ -118,22 +118,22 @@ class BalanceSheetTest extends TestCase
         $localActivo = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-ACT',
-            'register_id' => $register->id,
             'name' => 'Loja Activa',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $localActivo->registers()->sync([$register->id]);
 
         $localInactivo = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-OFF',
-            'register_id' => $register->id,
             'name' => 'Loja Desactivada',
             'type' => 'WAREHOUSE',
             'is_saleable' => false,
             'is_active' => false,
         ]);
+        $localInactivo->registers()->sync([$register->id]);
 
         $product = Product::query()->create([
             'id' => (string) Str::uuid(),
@@ -195,12 +195,12 @@ class BalanceSheetTest extends TestCase
         $localInactivo = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-OFF-2',
-            'register_id' => $register->id,
-            'name' => 'Armazém Desactivado',
+            'name' => 'Armaz?m Desactivado',
             'type' => 'WAREHOUSE',
             'is_saleable' => false,
             'is_active' => false,
         ]);
+        $localInactivo->registers()->sync([$register->id]);
 
         $product = Product::query()->create([
             'id' => (string) Str::uuid(),

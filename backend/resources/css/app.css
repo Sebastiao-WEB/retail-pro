@@ -29,6 +29,21 @@ body {
     color: var(--text);
 }
 
+button:not(:disabled),
+a[href],
+label:has(input[type="checkbox"]),
+label:has(input[type="radio"]),
+[data-action],
+[data-rp-page-nav],
+[data-modal-close] {
+    cursor: pointer;
+}
+
+button:disabled,
+[disabled] {
+    cursor: not-allowed;
+}
+
 .rp-card {
     border: 1px solid var(--border);
     background: var(--panel);
@@ -78,6 +93,10 @@ body {
 
 .retailpro-toast-top {
     z-index: 20001 !important;
+}
+
+.rp-admin-modal {
+    z-index: 31000;
 }
 
 .rp-admin-preloader {

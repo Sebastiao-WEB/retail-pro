@@ -78,6 +78,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:registers.view')->group(function () {
         Route::get('/caixas', [RegisterWebController::class, 'index'])->name('registers.index');
+        Route::get('/caixas/{register}/editar', [RegisterWebController::class, 'edit'])->middleware('permission:registers.manage')->name('registers.edit');
         Route::get('/caixas/{register}', [RegisterWebController::class, 'show'])->middleware('permission:registers.manage')->name('registers.show');
         Route::post('/caixas', [RegisterWebController::class, 'store'])->middleware('permission:registers.manage')->name('registers.store');
         Route::put('/caixas/{register}', [RegisterWebController::class, 'update'])->middleware('permission:registers.manage')->name('registers.update');

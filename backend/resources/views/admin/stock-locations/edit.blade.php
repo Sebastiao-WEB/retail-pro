@@ -1,6 +1,7 @@
 @php
     $isSaleable = old('is_saleable', $location->is_saleable);
     $isActive = old('is_active', $location->is_active);
+    $selectedRegisterIds = old('register_ids', $location->registers->pluck('id')->all());
 @endphp
 
 <x-layouts.desktop :title="__('pages.titles.stock_locations_edit')" admin-page="stock-locations-edit">
@@ -52,17 +53,27 @@
             @enderror
         </div>
 
-        <div>
-            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.register') }}</label>
-            <select name="register_id" class="rp-input @error('register_id') border-red-300 @enderror">
-                <option value="">{{ __('app.select') }}</option>
+        <div class="md:col-span-2">
+            <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.registers') }}</label>
+            <p class="mb-2 text-xs text-slate-500">{{ __('pages.stock_locations.registers_hint') }}</p>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 @foreach ($registers as $register)
-                    <option value="{{ $register->id }}" @selected(old('register_id', $location->register_id) === $register->id)>
-                        {{ $register->code }} — {{ $register->name }}
-                    </option>
+                    <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                        <input
+                            type="checkbox"
+                            name="register_ids[]"
+                            value="{{ $register->id }}"
+                            @checked(in_array($register->id, $selectedRegisterIds, true))
+                            class="h-4 w-4 accent-amber-500"
+                        >
+                        <span>{{ $register->code }} — {{ $register->name }}</span>
+                    </label>
                 @endforeach
-            </select>
-            @error('register_id')
+            </div>
+            @error('register_ids')
+                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+            @enderror
+            @error('register_ids.*')
                 <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
             @enderror
         </div>

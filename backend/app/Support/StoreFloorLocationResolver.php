@@ -34,7 +34,7 @@ final class StoreFloorLocationResolver
             return $shared;
         }
 
-        $register?->loadMissing('sourceLocation');
+        $register?->loadMissing('stockLocations');
         $user?->loadMissing('sourceLocation');
 
         return $register?->sourceLocation ?? $user?->sourceLocation;
@@ -64,7 +64,6 @@ final class StoreFloorLocationResolver
 
         return StockLocation::query()->create([
             'id' => (string) \Illuminate\Support\Str::uuid(),
-            'register_id' => null,
             'code' => self::CODE,
             'name' => self::NAME,
             'type' => 'STORE_FLOOR',

@@ -91,6 +91,7 @@ return [
         'total' => 'Wadarta',
         'date' => 'Taariikhda',
         'register' => 'Sanduuqa',
+        'registers' => 'Sanduuqyada',
         'period' => 'Xilliga',
         'phone' => 'Telefoon',
         'nuit' => 'NUIT',

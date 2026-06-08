@@ -10,6 +10,7 @@ return [
         'users' => 'Utilizadores e Gerentes | RetailPro',
         'users_edit' => 'Editar utilizador | RetailPro',
         'registers' => 'Caixas | RetailPro',
+        'registers_edit' => 'Editar caixa | RetailPro',
         'sales' => 'Vendas | RetailPro',
         'sales_detail' => 'Detalhe da venda | RetailPro',
         'cash_sessions_detail' => 'Detalhe da sessão de caixa | RetailPro',
@@ -241,6 +242,8 @@ return [
         'default_stock_location' => 'Local de stock predefinido',
         'default_stock_location_hint' => 'Origem do stock quando o operador vende no POS. Deve corresponder ao caixa em uso.',
         'confirm_disable_message' => 'Deseja desativar este utilizador?',
+        'confirm_disable_target' => 'Utilizador seleccionado',
+        'confirm_disable_hint' => 'O utilizador deixa de iniciar sessão no POS e no painel até ser reactivado.',
     ],
     'products' => [
         'title' => 'Catálogo de produtos',
@@ -280,9 +283,13 @@ return [
         'search_placeholder' => 'Pesquisar por código ou nome...',
         'no_registers' => 'Sem caixas cadastrados.',
         'stock_location' => 'Localização de stock',
+        'stock_locations' => 'Localizações de stock',
         'code_placeholder' => 'CX-01',
         'name_placeholder' => 'Caixa 01',
         'confirm_disable_message' => 'Deseja desativar este caixa?',
+        'confirm_disable_target' => 'Caixa seleccionado',
+        'stock_locations_hint' => 'Seleccione uma ou mais localizações de stock associadas a este caixa.',
+        'no_stock_locations' => 'Sem localizações disponíveis. Crie localizações em Armazéns/Localizações.',
     ],
     'reversals' => [
         'title' => 'Solicitações de reversão',
@@ -365,6 +372,7 @@ return [
         'confirm_disable_hint' => 'O stock mantém-se registado, mas deixa de contar nos balanços de fecho.',
         'confirm_disable_target' => 'Localização seleccionada',
         'stock_title' => 'Stock em :location',
+        'registers_hint' => 'Seleccione um ou mais caixas associados a esta localização.',
     ],
     'balance_sheets' => [
         'title' => 'Balanço de fecho',

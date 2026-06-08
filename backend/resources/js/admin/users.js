@@ -2,13 +2,13 @@ import { openModal, closeModal } from './modal.js';
 import { submitJson } from './form.js';
 import http from './http.js';
 import { route } from './routes.js';
+import { showPreloader } from './preloader.js';
 import { reloadWithToast, setCheckboxGroup } from './utils.js';
 
 const FORM_MODAL_ID = 'user-form-modal';
 const DISABLE_MODAL_ID = 'user-disable-modal';
 const FORM_ID = 'user-form';
 const DISABLE_ID_INPUT = 'user-disable-id';
-
 function resetUserForm(form) {
     form.reset();
     form.querySelector('[name="is_active"]').checked = true;
@@ -32,7 +32,6 @@ function syncLocationFromSingleRegister(form) {
 export default function init() {
     const form = document.getElementById(FORM_ID);
     const disableIdInput = document.getElementById(DISABLE_ID_INPUT);
-
     form?.querySelectorAll('input[name="register_ids[]"]').forEach((checkbox) => {
         checkbox.addEventListener('change', () => syncLocationFromSingleRegister(form));
     });
@@ -47,7 +46,13 @@ export default function init() {
     });
 
     document.addEventListener('click', async (event) => {
-        const trigger = event.target.closest('[data-action]');
+        const pageLink = event.target instanceof Element ? event.target.closest('a[href][data-rp-page-nav]') : null;
+        if (pageLink) {
+            showPreloader();
+            return;
+        }
+
+        const trigger = event.target instanceof Element ? event.target.closest('[data-action]') : null;
         if (!trigger) {
             return;
         }
@@ -68,29 +73,21 @@ export default function init() {
             return;
         }
 
-        if (action === 'confirm-disable' && disableIdInput) {
-            const id = trigger.dataset.id;
-            if (!id) {
-                return;
-            }
-
-            disableIdInput.value = id;
-            openModal(DISABLE_MODAL_ID);
-            return;
-        }
-
         if (action === 'disable-user' && disableIdInput) {
             const userId = disableIdInput.value;
-            if (!userId) {
+            if (!userId || trigger.disabled) {
                 return;
             }
 
+            trigger.disabled = true;
+
             try {
-                const response = await http.delete(route('destroy', { user: userId }));
+                const response = await http.delete(route('destroy', { user: userId }), { skipPreloader: true });
                 closeModal(DISABLE_MODAL_ID);
                 reloadWithToast(response.data?.message);
             } catch (error) {
                 window.retailToast?.(error.message, 'error');
+                trigger.disabled = false;
             }
         }
     });

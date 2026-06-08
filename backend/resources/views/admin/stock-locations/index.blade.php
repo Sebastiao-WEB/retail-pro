@@ -36,7 +36,7 @@
                     <th class="px-3 py-2">{{ __('app.fields.code') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.name') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.type') }}</th>
-                    <th class="px-3 py-2">{{ __('app.fields.register') }}</th>
+                    <th class="px-3 py-2">{{ __('app.fields.registers') }}</th>
                     <th class="px-3 py-2">{{ __('pages.common.products_count') }}</th>
                     <th class="px-3 py-2">{{ __('pages.common.total_qty') }}</th>
                     <th class="px-3 py-2">{{ __('app.status') }}</th>
@@ -49,7 +49,7 @@
                         <td class="px-3 py-2 font-medium">{{ $location->code }}</td>
                         <td class="px-3 py-2">{{ $location->name }}</td>
                         <td class="px-3 py-2">{{ $location->type }}</td>
-                        <td class="px-3 py-2">{{ $location->register?->code ?? '—' }}</td>
+                        <td class="px-3 py-2">{{ $location->registerCodesLabel() }}</td>
                         <td class="px-3 py-2">{{ $location->products_count ?? 0 }}</td>
                         <td class="px-3 py-2">{{ number_format((float) ($location->total_quantity ?? 0), 0, ',', '.') }}</td>
                         <td class="px-3 py-2">
@@ -87,6 +87,9 @@
                                             data-id="{{ $location->id }}"
                                             data-code="{{ $location->code }}"
                                             data-name="{{ $location->name }}"
+                                            data-modal-target="stock-location-delete-modal"
+                                            data-input-target="stock-location-delete-id"
+                                            data-label-target="stock-location-delete-label"
                                             title="{{ __('app.disable') }}"
                                             aria-label="{{ __('app.disable') }}: {{ $location->name }}"
                                             class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50"
@@ -138,15 +141,19 @@
                         </select>
                         <p data-field-error="type" class="mt-1 hidden text-xs text-red-600"></p>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.register') }}</label>
-                        <select name="register_id" class="rp-input">
-                            <option value="">{{ __('app.select') }}</option>
+                    <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.registers') }}</label>
+                        <p class="mb-2 text-xs text-slate-500">{{ __('pages.stock_locations.registers_hint') }}</p>
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             @foreach ($registers as $register)
-                                <option value="{{ $register->id }}">{{ $register->code }} — {{ $register->name }}</option>
+                                <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                                    <input type="checkbox" name="register_ids[]" value="{{ $register->id }}" class="h-4 w-4 accent-amber-500">
+                                    <span>{{ $register->code }} — {{ $register->name }}</span>
+                                </label>
                             @endforeach
-                        </select>
-                        <p data-field-error="register_id" class="mt-1 hidden text-xs text-red-600"></p>
+                        </div>
+                        <p data-field-error="register_ids" class="mt-1 hidden text-xs text-red-600"></p>
+                        <p data-field-error="register_ids.*" class="mt-1 hidden text-xs text-red-600"></p>
                     </div>
                     <div class="md:col-span-2 flex flex-wrap gap-4">
                         <label class="inline-flex items-center gap-2 text-sm text-slate-600">

@@ -10,6 +10,7 @@ return [
         'users' => 'Isticmaalayaasha | RetailPro',
         'users_edit' => 'Wax ka beddel isticmaalaha | RetailPro',
         'registers' => 'Sanduuqyada | RetailPro',
+        'registers_edit' => 'Wax ka beddel sanduuqa | RetailPro',
         'sales' => 'Iibka | RetailPro',
         'sales_detail' => 'Faahfaahinta iibka | RetailPro',
         'cash_sessions_detail' => 'Faahfaahinta fadhiga sanduuqa | RetailPro',
@@ -239,6 +240,8 @@ return [
         'default_stock_location' => 'Goobta kaydka ee caadiga ah',
         'default_stock_location_hint' => 'Asalka kaydka marka hawlgaluhu iibiyo POS. Waa inuu la jaan qaadaa sanduuqa la isticmaalayo.',
         'confirm_disable_message' => 'Ma rabtaa inaad joojiso isticmaalahan?',
+        'confirm_disable_target' => 'Isticmaalaha la doortay',
+        'confirm_disable_hint' => 'Isticmaaluhu ma bilaabi karo fadhiga POS ama guddiga illaa dib loo firfircooniyo.',
     ],
     'products' => [
         'title' => 'Buugga alaabta',
@@ -278,9 +281,13 @@ return [
         'search_placeholder' => 'Raadi koodhka ama magaca...',
         'no_registers' => 'Sanduuq lama diiwaangelin.',
         'stock_location' => 'Goobta kaydka',
+        'stock_locations' => 'Goobaha kaydka',
         'code_placeholder' => 'CX-01',
         'name_placeholder' => 'Sanduuqa 01',
         'confirm_disable_message' => 'Ma rabtaa inaad joojiso sanduuqan?',
+        'confirm_disable_target' => 'Sanduuqa la doortay',
+        'stock_locations_hint' => 'Dooro hal ama in ka badan oo goobo kayd ah oo la xiriira sanduuqan.',
+        'no_stock_locations' => 'Goob lama heli karo. Ku abuur Bakhaarada/Goobaha.',
     ],
     'reversals' => [
         'title' => 'Codsiyada dib u celinta',
@@ -363,6 +370,7 @@ return [
         'confirm_disable_hint' => 'Kaydka waa la hayaa, laakiin kama tirin doono dheelitirrada xiritaanka.',
         'confirm_disable_target' => 'Goobta la doortay',
         'stock_title' => 'Kaydka :location',
+        'registers_hint' => 'Dooro hal ama in ka badan oo sanduuqyo ah oo la xiriira goobtan.',
     ],
     'balance_sheets' => [
         'title' => 'Dheelitirka xiritaanka',

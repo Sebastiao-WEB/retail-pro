@@ -35,21 +35,22 @@ class ConsolidateStoreFloorStockTest extends TestCase
         $cx01 = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-CX01',
-            'register_id' => $register1->id,
             'name' => 'Loja - Caixa 01',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $cx01->registers()->sync([$register1->id]);
+
         $cx02 = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-CX02',
-            'register_id' => $register2->id,
             'name' => 'Loja - Caixa 02',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $cx02->registers()->sync([$register2->id]);
 
         $product = Product::query()->create([
             'id' => (string) Str::uuid(),
@@ -99,7 +100,8 @@ class ConsolidateStoreFloorStockTest extends TestCase
         ]);
 
         $cx01->refresh();
-        $this->assertNull($cx01->register_id);
+        $cx01->load('registers');
+        $this->assertCount(0, $cx01->registers);
         $this->assertFalse($cx01->is_saleable);
     }
 
@@ -134,15 +136,15 @@ class ConsolidateStoreFloorStockTest extends TestCase
             'is_active' => true,
         ]);
 
-        StockLocation::query()->create([
+        $legacy = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-CX01',
-            'register_id' => $register->id,
             'name' => 'Loja - Caixa 01',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $legacy->registers()->sync([$register->id]);
 
         $loja = StoreFloorLocationResolver::ensureExists();
 

@@ -9,8 +9,6 @@ const FORM_MODAL_ID = 'customer-form-modal';
 const DELETE_MODAL_ID = 'customer-delete-modal';
 const FORM_ID = 'customer-form';
 const DELETE_ID_INPUT = 'customer-delete-id';
-const DELETE_LABEL_ID = 'customer-delete-label';
-
 function resetCustomerForm(form) {
     form.reset();
     form.querySelector('[name="is_active"]').checked = true;
@@ -19,7 +17,6 @@ function resetCustomerForm(form) {
 export default function init() {
     const form = document.getElementById(FORM_ID);
     const deleteIdInput = document.getElementById(DELETE_ID_INPUT);
-    const deleteLabel = document.getElementById(DELETE_LABEL_ID);
 
     form?.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -51,34 +48,21 @@ export default function init() {
             return;
         }
 
-        if (action === 'confirm-delete' && deleteIdInput) {
-            const id = trigger.dataset.id;
-            if (!id) {
-                return;
-            }
-
-            deleteIdInput.value = id;
-
-            if (deleteLabel) {
-                deleteLabel.textContent = trigger.dataset.name || '—';
-            }
-
-            openModal(DELETE_MODAL_ID);
-            return;
-        }
-
         if (action === 'delete-customer' && deleteIdInput) {
             const customerId = deleteIdInput.value;
-            if (!customerId) {
+            if (!customerId || trigger.disabled) {
                 return;
             }
 
+            trigger.disabled = true;
+
             try {
-                const response = await http.delete(route('destroy', { customer: customerId }));
+                const response = await http.delete(route('destroy', { customer: customerId }), { skipPreloader: true });
                 closeModal(DELETE_MODAL_ID);
                 reloadWithToast(response.data?.message);
             } catch (error) {
                 window.retailToast?.(error.message, 'error');
+                trigger.disabled = false;
             }
         }
     });

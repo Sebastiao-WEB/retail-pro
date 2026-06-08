@@ -15,22 +15,30 @@ if (token) {
 
 http.interceptors.request.use(
     (config) => {
-        trackRequestStart();
+        if (!config.skipPreloader) {
+            trackRequestStart();
+        }
         return config;
     },
     (error) => {
-        trackRequestEnd();
+        if (!error?.config?.skipPreloader) {
+            trackRequestEnd();
+        }
         return Promise.reject(error);
     }
 );
 
 http.interceptors.response.use(
     (response) => {
-        trackRequestEnd();
+        if (!response.config?.skipPreloader) {
+            trackRequestEnd();
+        }
         return response;
     },
     (error) => {
-        trackRequestEnd();
+        if (!error?.config?.skipPreloader) {
+            trackRequestEnd();
+        }
         const message =
             error?.response?.data?.message ||
             error?.response?.data?.errors?.[Object.keys(error?.response?.data?.errors || {})[0]]?.[0] ||

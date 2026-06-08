@@ -151,7 +151,7 @@ class User extends Authenticatable implements JWTSubject
             return;
         }
 
-        $register = Register::query()->with('sourceLocation')->find($registerId);
+        $register = Register::query()->with('stockLocations')->find($registerId);
         $location = $register?->sourceLocation;
         if ($location) {
             $this->source_location_id = $location->id;

@@ -178,10 +178,28 @@ window.fetch = async (...args) => {
     }
 };
 
+function shouldSkipButtonLoading(button) {
+    if (!button) {
+        return true;
+    }
+
+    if (
+        button.hasAttribute('data-rp-ignore-loading')
+        || button.hasAttribute('data-action')
+        || button.hasAttribute('data-modal-close')
+        || button.closest('.rp-admin-modal')
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 document.addEventListener('click', (event) => {
     const button = event.target instanceof Element ? event.target.closest('button') : null;
     if (!button || button.disabled) return;
     if (button.type === 'submit' && button.form) return;
+    if (shouldSkipButtonLoading(button)) return;
     setButtonLoading(button);
     window.setTimeout(() => {
         if (pendingRequests === 0) syncLoadingState();

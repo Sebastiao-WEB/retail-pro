@@ -23,7 +23,7 @@ class StockLocationWebController extends Controller
         $search = $request->string('search')->toString();
 
         $locations = StockLocation::query()
-            ->with('register')
+            ->with('registers')
             ->withSum(['balances as total_quantity' => fn ($q) => $q->where('quantity', '>', 0)], 'quantity')
             ->withCount(['balances as products_count' => fn ($q) => $q->where('quantity', '>', 0)])
             ->when($search !== '', function ($q) use ($search) {
@@ -48,6 +48,7 @@ class StockLocationWebController extends Controller
     {
         $this->authorizeAdmin('stock_locations.manage');
 
+        $stockLocation->load('registers');
         $search = $request->string('search')->toString();
 
         return view('admin.stock-locations.edit', [
@@ -64,6 +65,8 @@ class StockLocationWebController extends Controller
     {
         $this->authorizeAdmin('stock_locations.manage');
 
+        $stockLocation->load('registers');
+
         return $this->jsonOk($this->serializeLocation($stockLocation));
     }
 
@@ -71,7 +74,7 @@ class StockLocationWebController extends Controller
     {
         $this->authorizeAdmin('stock_locations.view');
 
-        $stockLocation->load('register');
+        $stockLocation->load('registers');
         $resumo = $stockService->resumoPorLocalizacao($stockLocation->id);
         $stockDetalhe = $resumo[0] ?? null;
 
@@ -95,8 +98,10 @@ class StockLocationWebController extends Controller
         $this->authorizeAdmin('stock_locations.manage');
 
         try {
-            $payload = $this->validatedPayload($request);
+            [$payload, $registerIds] = $this->validatedPayload($request);
             $location = StockLocation::query()->create($payload);
+            $location->registers()->sync($registerIds);
+            $location->load('registers');
         } catch (ValidationException $exception) {
             return $this->jsonFromValidation($exception);
         }
@@ -109,8 +114,9 @@ class StockLocationWebController extends Controller
         $this->authorizeAdmin('stock_locations.manage');
 
         try {
-            $payload = $this->validatedPayload($request, $stockLocation->id);
+            [$payload, $registerIds] = $this->validatedPayload($request, $stockLocation->id);
             $stockLocation->update($payload);
+            $stockLocation->registers()->sync($registerIds);
         } catch (ValidationException $exception) {
             if ($request->expectsJson()) {
                 return $this->jsonFromValidation($exception);
@@ -120,7 +126,9 @@ class StockLocationWebController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return $this->jsonOk($this->serializeLocation($stockLocation->fresh()), __('toasts.location_updated'));
+            $stockLocation->load('registers');
+
+            return $this->jsonOk($this->serializeLocation($stockLocation), __('toasts.location_updated'));
         }
 
         return redirect()
@@ -140,18 +148,29 @@ class StockLocationWebController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{0: array<string, mixed>, 1: list<string>}
      */
     private function validatedPayload(Request $request, ?string $editingId = null): array
     {
-        return $request->validate([
-            'register_id' => ['nullable', 'uuid', 'exists:registers,id'],
+        $data = $request->validate([
+            'register_ids' => ['nullable', 'array'],
+            'register_ids.*' => ['uuid', 'exists:registers,id'],
             'code' => ['required', 'string', 'max:255', 'unique:stock_locations,code,'.($editingId ?? 'NULL').',id'],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:STORE_FLOOR,WAREHOUSE,DAMAGE,RETURN_AREA,TRANSIT'],
             'is_saleable' => ['boolean'],
             'is_active' => ['boolean'],
         ]);
+
+        $registerIds = collect($data['register_ids'] ?? [])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        unset($data['register_ids']);
+
+        return [$data, $registerIds];
     }
 
     /**
@@ -161,7 +180,7 @@ class StockLocationWebController extends Controller
     {
         return [
             'id' => $location->id,
-            'register_id' => $location->register_id,
+            'register_ids' => $location->registers->pluck('id')->all(),
             'code' => $location->code,
             'name' => $location->name,
             'type' => $location->type,

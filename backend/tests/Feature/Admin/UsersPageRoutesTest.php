@@ -84,12 +84,12 @@ class UsersPageRoutesTest extends TestCase
         $location2 = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-CX02',
-            'register_id' => $register2->id,
             'name' => 'Loja Caixa 02',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $location2->registers()->sync([$register2->id]);
 
         $operador = User::query()->create([
             'id' => (string) Str::uuid(),
