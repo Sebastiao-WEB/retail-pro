@@ -27,6 +27,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:products.view')->group(function () {
         Route::get('/produtos', [ProductWebController::class, 'index'])->name('products.index');
+        Route::get('/produtos/{product}/editar', [ProductWebController::class, 'edit'])->middleware('permission:products.manage')->name('products.edit');
         Route::get('/produtos/{product}', [ProductWebController::class, 'show'])->middleware('permission:products.manage')->name('products.show');
         Route::post('/produtos', [ProductWebController::class, 'store'])->middleware('permission:products.manage')->name('products.store');
         Route::put('/produtos/{product}', [ProductWebController::class, 'update'])->middleware('permission:products.manage')->name('products.update');

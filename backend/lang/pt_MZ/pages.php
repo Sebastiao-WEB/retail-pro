@@ -4,6 +4,7 @@ return [
     'titles' => [
         'dashboard' => 'Dashboard | RetailPro',
         'products' => 'Produtos | RetailPro',
+        'products_edit' => 'Editar produto | RetailPro',
         'customers' => 'Clientes | RetailPro',
         'users' => 'Utilizadores e Gerentes | RetailPro',
         'users_edit' => 'Editar utilizador | RetailPro',

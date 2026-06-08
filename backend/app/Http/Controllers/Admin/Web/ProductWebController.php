@@ -41,6 +41,21 @@ class ProductWebController extends Controller
         ]);
     }
 
+    public function edit(Request $request, Product $product)
+    {
+        $this->authorizeAdmin('products.manage');
+
+        $search = $request->string('search')->toString();
+
+        return view('admin.products.edit', [
+            'product' => $product,
+            'search' => $search,
+            'backUrl' => route('products.index', array_filter([
+                'search' => $search !== '' ? $search : null,
+            ])),
+        ]);
+    }
+
     public function show(Product $product)
     {
         $this->authorizeAdmin('products.manage');
@@ -77,10 +92,22 @@ class ProductWebController extends Controller
             $payload = $this->validatedPayload($request, $product->id);
             $product->update($payload);
         } catch (ValidationException $exception) {
-            return $this->jsonFromValidation($exception);
+            if ($request->expectsJson()) {
+                return $this->jsonFromValidation($exception);
+            }
+
+            throw $exception;
         }
 
-        return $this->jsonOk($this->serializeProduct($product->fresh()), __('toasts.product_updated'));
+        if ($request->expectsJson()) {
+            return $this->jsonOk($this->serializeProduct($product->fresh()), __('toasts.product_updated'));
+        }
+
+        return redirect()
+            ->route('products.index', array_filter([
+                'search' => $request->string('return_search')->toString() ?: null,
+            ]))
+            ->with('toast', ['type' => 'success', 'message' => __('toasts.product_updated')]);
     }
 
     /**
@@ -140,7 +167,7 @@ class ProductWebController extends Controller
             'iva_tipo' => $ivaTipo,
             'iva_valor' => $ivaValor,
             'iva_percentual' => $ivaPercentual,
-            'is_active' => $dados['is_active'] ?? true,
+            'is_active' => $request->boolean('is_active', true),
         ];
     }
 

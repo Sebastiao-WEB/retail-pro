@@ -65,6 +65,48 @@ class ProductsPageTest extends TestCase
             ->assertSee('sliders-horizontal', false);
     }
 
+    public function test_pagina_editar_produto_mostra_formulario(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        $produto = $ambiente['product'];
+
+        $this->actingAs($admin)
+            ->get(route('products.edit', ['product' => $produto, 'search' => 'teste']))
+            ->assertOk()
+            ->assertSee($produto->nome)
+            ->assertSee('product-edit-form', false)
+            ->assertSee(route('products.update', $produto), false);
+    }
+
+    public function test_editar_produto_via_formulario_redireciona_para_lista(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        $produto = $ambiente['product'];
+
+        $this->actingAs($admin)
+            ->put(route('products.update', $produto), [
+                'nome' => 'Produto Actualizado',
+                'codigo_barras' => $produto->codigo_barras,
+                'unidade_venda' => 'UN',
+                'preco_compra' => '50',
+                'preco_venda' => '100',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => '1',
+                'return_search' => 'teste',
+            ])
+            ->assertRedirect(route('products.index', ['search' => 'teste']));
+
+        $this->assertSame('Produto Actualizado', $produto->fresh()->nome);
+    }
+
     public function test_rejeita_codigo_barras_duplicado_com_validacao_no_campo(): void
     {
         $ambiente = $this->criarAmbienteApi();

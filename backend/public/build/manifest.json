@@ -21,7 +21,7 @@
     "isEntry": true
   },
   "resources/js/admin.js": {
-    "file": "assets/admin-DPtOG0Qq.js",
+    "file": "assets/admin-BjL4riVn.js",
     "name": "admin",
     "src": "resources/js/admin.js",
     "isEntry": true,
@@ -31,6 +31,7 @@
     "dynamicImports": [
       "resources/js/admin/dashboard.js",
       "resources/js/admin/products.js",
+      "resources/js/admin/products-edit.js",
       "resources/js/admin/customers.js",
       "resources/js/admin/sales.js",
       "resources/js/admin/balance-sheets.js",
@@ -48,7 +49,7 @@
     ]
   },
   "resources/js/admin/balance-sheets.js": {
-    "file": "assets/balance-sheets-CbvM_cqh.js",
+    "file": "assets/balance-sheets-CRl2ftl-.js",
     "name": "balance-sheets",
     "src": "resources/js/admin/balance-sheets.js",
     "isDynamicEntry": true,
@@ -59,7 +60,7 @@
     ]
   },
   "resources/js/admin/company-settings.js": {
-    "file": "assets/company-settings-B7lD3PHs.js",
+    "file": "assets/company-settings-Bwjf9IpA.js",
     "name": "company-settings",
     "src": "resources/js/admin/company-settings.js",
     "isDynamicEntry": true,
@@ -69,7 +70,7 @@
     ]
   },
   "resources/js/admin/customers.js": {
-    "file": "assets/customers-CuE6dIr2.js",
+    "file": "assets/customers-CKKwoVRD.js",
     "name": "customers",
     "src": "resources/js/admin/customers.js",
     "isDynamicEntry": true,
@@ -91,19 +92,24 @@
     "src": "resources/js/admin/operator-reports.js",
     "isDynamicEntry": true
   },
+  "resources/js/admin/products-edit.js": {
+    "file": "assets/products-edit-ZoSHp7Z0.js",
+    "name": "products-edit",
+    "src": "resources/js/admin/products-edit.js",
+    "isDynamicEntry": true
+  },
   "resources/js/admin/products.js": {
-    "file": "assets/products-nKbRfqMf.js",
+    "file": "assets/products-DUfyH9_i.js",
     "name": "products",
     "src": "resources/js/admin/products.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js",
-      "_utils-DtBH2eac.js"
+      "_routes-CoarHjMD.js"
     ]
   },
   "resources/js/admin/registers.js": {
-    "file": "assets/registers-CEkn6zKJ.js",
+    "file": "assets/registers-ZIbaubjm.js",
     "name": "registers",
     "src": "resources/js/admin/registers.js",
     "isDynamicEntry": true,
@@ -114,7 +120,7 @@
     ]
   },
   "resources/js/admin/reversals.js": {
-    "file": "assets/reversals-B6ORkd88.js",
+    "file": "assets/reversals-CWPoGRkc.js",
     "name": "reversals",
     "src": "resources/js/admin/reversals.js",
     "isDynamicEntry": true,
@@ -124,7 +130,7 @@
     ]
   },
   "resources/js/admin/roles-permissions.js": {
-    "file": "assets/roles-permissions-DpT4Rxgm.js",
+    "file": "assets/roles-permissions-t6Cj34aA.js",
     "name": "roles-permissions",
     "src": "resources/js/admin/roles-permissions.js",
     "isDynamicEntry": true,
@@ -134,7 +140,7 @@
     ]
   },
   "resources/js/admin/sales.js": {
-    "file": "assets/sales-BF1ArLKQ.js",
+    "file": "assets/sales-qiOGJBZB.js",
     "name": "sales",
     "src": "resources/js/admin/sales.js",
     "isDynamicEntry": true,
@@ -144,7 +150,7 @@
     ]
   },
   "resources/js/admin/security.js": {
-    "file": "assets/security-CTafiSHd.js",
+    "file": "assets/security-Cr17Hg4p.js",
     "name": "security",
     "src": "resources/js/admin/security.js",
     "isDynamicEntry": true,
@@ -153,7 +159,7 @@
     ]
   },
   "resources/js/admin/stock-locations.js": {
-    "file": "assets/stock-locations-Dr1tPJ44.js",
+    "file": "assets/stock-locations-C0j9S6DV.js",
     "name": "stock-locations",
     "src": "resources/js/admin/stock-locations.js",
     "isDynamicEntry": true,
@@ -164,7 +170,7 @@
     ]
   },
   "resources/js/admin/stock-reload-adjust.js": {
-    "file": "assets/stock-reload-adjust-Dg8yMuJN.js",
+    "file": "assets/stock-reload-adjust-B7M2sgeF.js",
     "name": "stock-reload-adjust",
     "src": "resources/js/admin/stock-reload-adjust.js",
     "isDynamicEntry": true,
@@ -173,7 +179,7 @@
     ]
   },
   "resources/js/admin/stock-transfers.js": {
-    "file": "assets/stock-transfers-DFaPHMvP.js",
+    "file": "assets/stock-transfers-B5cEpMaC.js",
     "name": "stock-transfers",
     "src": "resources/js/admin/stock-transfers.js",
     "isDynamicEntry": true,
@@ -183,13 +189,13 @@
     ]
   },
   "resources/js/admin/users-edit.js": {
-    "file": "assets/users-edit-B8Dj8mHc.js",
+    "file": "assets/users-edit-U9nfy2mf.js",
     "name": "users-edit",
     "src": "resources/js/admin/users-edit.js",
     "isDynamicEntry": true
   },
   "resources/js/admin/users.js": {
-    "file": "assets/users-C2pAfQMN.js",
+    "file": "assets/users-CH86Le0D.js",
     "name": "users",
     "src": "resources/js/admin/users.js",
     "isDynamicEntry": true,

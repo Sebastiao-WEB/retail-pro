@@ -4,6 +4,7 @@ return [
     'titles' => [
         'dashboard' => 'Dashboard | RetailPro',
         'products' => 'Alaabta | RetailPro',
+        'products_edit' => 'Wax ka beddel alaabta | RetailPro',
         'customers' => 'Macaamiisha | RetailPro',
         'users' => 'Isticmaalayaasha | RetailPro',
         'users_edit' => 'Wax ka beddel isticmaalaha | RetailPro',

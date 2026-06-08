@@ -122,6 +122,10 @@ class AdminPagesSmokeTest extends TestCase
             ->assertOk();
 
         $this->actingAs($admin)
+            ->get(route('products.edit', ['product' => $ambiente['product']]))
+            ->assertOk();
+
+        $this->actingAs($admin)
             ->get(route('stock.reload.form', ['product' => $ambiente['product']]))
             ->assertOk();
 

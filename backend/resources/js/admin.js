@@ -5,6 +5,7 @@ import { bindAdminPreloader, markAdminPageReady } from './admin/preloader.js';
 const pageModules = {
     dashboard: () => import('./admin/dashboard.js'),
     products: () => import('./admin/products.js'),
+    'products-edit': () => import('./admin/products-edit.js'),
     customers: () => import('./admin/customers.js'),
     sales: () => import('./admin/sales.js'),
     'balance-sheets': () => import('./admin/balance-sheets.js'),

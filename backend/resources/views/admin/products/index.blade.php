@@ -1,9 +1,7 @@
 @php
     $products_index_blade_routes = [
         'index' => route('products.index'),
-        'show' => route('products.show', ['product' => '__ID__']),
         'store' => route('products.store'),
-        'update' => route('products.update', ['product' => '__ID__']),
     ];
     $showActions = $canManage || $canReload;
     $tableColspan = $showActions ? 6 : 5;
@@ -86,9 +84,9 @@
                                         @endif
                                     @endcan
                                     @can('products.manage')
-                                        <button type="button" data-action="open-edit" data-id="{{ $produto->id }}" title="{{ __('app.edit') }}" aria-label="{{ __('app.edit') }}: {{ $produto->nome }}" class="inline-flex h-7 items-center justify-center rounded-md border border-slate-200 px-2 text-xs hover:bg-slate-50">
+                                        <a href="{{ route('products.edit', ['product' => $produto, 'search' => $search]) }}" title="{{ __('app.edit') }}" aria-label="{{ __('app.edit') }}: {{ $produto->nome }}" class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">
                                             <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
-                                        </button>
+                                        </a>
                                     @endcan
                                 </div>
                             </td>
@@ -109,12 +107,7 @@
         <div id="product-form-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
             <div class="w-full max-w-2xl rounded-xl bg-white shadow-xl">
                 <div class="border-b border-slate-200 px-5 py-3">
-                    <h3
-                        id="product-form-title"
-                        class="text-base font-semibold text-slate-900"
-                        data-create-title="{{ __('pages.products.new') }}"
-                        data-edit-title="{{ __('pages.products.edit') }}"
-                    >{{ __('pages.products.new') }}</h3>
+                    <h3 id="product-form-title" class="text-base font-semibold text-slate-900">{{ __('pages.products.new') }}</h3>
                 </div>
                 <form id="product-form" class="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                     <input type="hidden" name="editing_id" id="product-editing-id" value="">
@@ -175,11 +168,7 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.stock') }}</label>
-                        <div id="product-stock-edit" class="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                            <span id="product-stock-value" class="font-semibold text-slate-800"></span>
-                            <span class="text-slate-500"> — {{ __('pages.products.stock_readonly') }}</span>
-                        </div>
-                        <div id="product-stock-create" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                             {{ __('pages.products.stock_initial') }}
                         </div>
                     </div>
