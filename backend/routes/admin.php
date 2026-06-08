@@ -93,6 +93,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:stock.reload')->group(function () {
         Route::get('/recarregar-stock', [StockReloadWebController::class, 'index'])->name('stock.reload');
+        Route::get('/historico-recargas', [StockReloadWebController::class, 'history'])->name('stock.reload.history');
         Route::get('/recarregar-stock/{product}/recarregar', [StockReloadWebController::class, 'reloadForm'])->name('stock.reload.form');
         Route::get('/recarregar-stock/{product}/ajustar', [StockReloadWebController::class, 'adjustForm'])->name('stock.reload.adjust.form');
         Route::post('/recarregar-stock/reload', [StockReloadWebController::class, 'reload'])->name('stock.reload.apply');

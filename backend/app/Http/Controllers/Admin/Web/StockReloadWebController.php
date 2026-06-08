@@ -39,14 +39,34 @@ class StockReloadWebController extends Controller
             ->paginate(12)
             ->withQueryString();
 
+        return view('admin.stock-reload.index', [
+            'products' => $products,
+            'search' => $search,
+        ]);
+    }
+
+    public function history(Request $request)
+    {
+        $this->authorizeAdmin('stock.reload');
+
+        $search = $request->string('search')->toString();
+
         $reloadHistory = StockMovement::query()
             ->stockReloads()
             ->with(['product', 'toLocation', 'performedBy', 'reloadRecord'])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->whereHas('product', function ($productQuery) use ($search) {
+                        $productQuery->where('nome', 'like', "%{$search}%")
+                            ->orWhere('codigo_barras', 'like', "%{$search}%");
+                    })->orWhere('note', 'like', "%{$search}%");
+                });
+            })
             ->latest()
-            ->paginate(10, ['*'], 'historyPage');
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('admin.stock-reload.index', [
-            'products' => $products,
+        return view('admin.stock-reload.history', [
             'reloadHistory' => $reloadHistory,
             'search' => $search,
         ]);
@@ -58,11 +78,13 @@ class StockReloadWebController extends Controller
         abort_unless($product->is_active, 404);
 
         $search = $request->string('search')->toString();
+        $returnTo = $request->string('return_to')->toString();
 
         return view('admin.stock-reload.reload', [
             'product' => $product,
             'search' => $search,
-            'backUrl' => $this->indexUrl($search),
+            'returnTo' => $returnTo,
+            'backUrl' => $this->backUrlFromRequest($request),
             'locations' => $this->activeLocations(),
             'defaultLocationId' => $this->defaultLocationId(),
         ]);
@@ -74,12 +96,14 @@ class StockReloadWebController extends Controller
         abort_unless($product->is_active, 404);
 
         $search = $request->string('search')->toString();
+        $returnTo = $request->string('return_to')->toString();
         $defaultLocationId = $this->defaultLocationId();
 
         return view('admin.stock-reload.adjust', [
             'product' => $product,
             'search' => $search,
-            'backUrl' => $this->indexUrl($search),
+            'returnTo' => $returnTo,
+            'backUrl' => $this->backUrlFromRequest($request),
             'locations' => $this->activeLocations(),
             'defaultLocationId' => $defaultLocationId,
             'initialBalance' => $this->balanceAtLocation($product->id, $defaultLocationId),
@@ -138,7 +162,7 @@ class StockReloadWebController extends Controller
         }
 
         return redirect()
-            ->to($this->indexUrl($request->string('return_search')->toString()))
+            ->to($this->redirectUrlFromRequest($request))
             ->with('toast', ['type' => 'success', 'message' => __('toasts.stock_adjusted')]);
     }
 
@@ -224,7 +248,7 @@ class StockReloadWebController extends Controller
         }
 
         return redirect()
-            ->to($this->indexUrl($request->string('return_search')->toString()))
+            ->to($this->redirectUrlFromRequest($request))
             ->with('toast', ['type' => 'success', 'message' => __('toasts.stock_reloaded')]);
     }
 
@@ -264,5 +288,24 @@ class StockReloadWebController extends Controller
         return route('stock.reload', array_filter([
             'search' => $search !== '' ? $search : null,
         ]));
+    }
+
+    private function backUrlFromRequest(Request $request): string
+    {
+        return $this->redirectUrlFromRequest($request);
+    }
+
+    private function redirectUrlFromRequest(Request $request): string
+    {
+        $returnTo = $request->string('return_to')->toString();
+        $search = $request->string('return_search')->toString() ?: $request->string('search')->toString();
+
+        if ($returnTo === 'products') {
+            return route('products.index', array_filter([
+                'search' => $search !== '' ? $search : null,
+            ]));
+        }
+
+        return $this->indexUrl($search);
     }
 }

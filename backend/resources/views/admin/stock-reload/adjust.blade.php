@@ -21,6 +21,7 @@
         @csrf
         <input type="hidden" name="productId" value="{{ $product->id }}">
         <input type="hidden" name="return_search" value="{{ $search }}">
+        <input type="hidden" name="return_to" value="{{ $returnTo }}">
 
         <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             {{ __('pages.stock_reload.adjust_hint') }}

@@ -45,6 +45,7 @@ return [
         'cash_sessions_active' => 'Sessões activas',
         'cash_sessions_closed' => 'Histórico de fechos',
         'stock_reload' => 'Recarregar stock',
+        'stock_reload_history' => 'Histórico de recargas',
         'stock_movements' => 'Movimentos stock',
         'stock_transfers' => 'Transferências',
         'products' => 'Produtos',

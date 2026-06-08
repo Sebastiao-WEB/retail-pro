@@ -37,7 +37,32 @@ class ProductsPageTest extends TestCase
             ->assertOk()
             ->assertSee(__('pages.products.title'))
             ->assertSee(__('pages.products.new'))
-            ->assertSee('product-form-modal', false);
+            ->assertSee('product-form-modal', false)
+            ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.category').'</th>', false)
+            ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.sale_unit').'</th>', false)
+            ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.iva').'</th>', false);
+    }
+
+    public function test_pagina_produtos_mostra_acoes_stock_com_permissao(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view', 'stock.reload']);
+
+        $this->actingAs($admin)
+            ->get(route('products.index'))
+            ->assertOk()
+            ->assertSee(route('stock.reload.form', [
+                'product' => $ambiente['product'],
+                'return_to' => 'products',
+            ]), false)
+            ->assertSee(route('stock.reload.adjust.form', [
+                'product' => $ambiente['product'],
+                'return_to' => 'products',
+            ]), false)
+            ->assertSee('package-plus', false)
+            ->assertSee('sliders-horizontal', false);
     }
 
     public function test_rejeita_codigo_barras_duplicado_com_validacao_no_campo(): void

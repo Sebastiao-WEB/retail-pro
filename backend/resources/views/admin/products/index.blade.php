@@ -1,10 +1,12 @@
 @php
     $products_index_blade_routes = [
-'index' => route('products.index'),
+        'index' => route('products.index'),
         'show' => route('products.show', ['product' => '__ID__']),
         'store' => route('products.store'),
         'update' => route('products.update', ['product' => '__ID__']),
     ];
+    $showActions = $canManage || $canReload;
+    $tableColspan = $showActions ? 6 : 5;
 @endphp
 
 <x-layouts.desktop :title="__('pages.titles.products')" admin-page="products">
@@ -35,15 +37,12 @@
                 <tr class="text-left text-xs uppercase tracking-wide text-slate-500">
                     <th class="px-3 py-2">{{ __('app.fields.name') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.code') }}</th>
-                    <th class="px-3 py-2">{{ __('app.fields.category') }}</th>
-                    <th class="px-3 py-2">{{ __('app.fields.sale_unit') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.sale_price') }}</th>
-                    <th class="px-3 py-2">{{ __('app.fields.iva') }}</th>
                     <th class="px-3 py-2">{{ __('app.fields.stock') }}</th>
                     <th class="px-3 py-2">{{ __('app.status') }}</th>
-                    @can('products.manage')
+                    @if ($showActions)
                         <th class="px-3 py-2">{{ __('app.actions') }}</th>
-                    @endcan
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -51,27 +50,10 @@
                     <tr class="border-t border-slate-100">
                         <td class="px-3 py-2 font-medium">{{ $produto->nome }}</td>
                         <td class="px-3 py-2">{{ $produto->codigo_barras ?: '---' }}</td>
-                        <td class="px-3 py-2">{{ $produto->categoria ?: '---' }}</td>
-                        <td class="px-3 py-2">
-                            @if ($produto->unidade_venda === 'KG')
-                                {{ __('pages.products.sale_unit_kg') }}
-                            @else
-                                {{ __('pages.products.sale_unit_un') }}
-                            @endif
-                        </td>
                         <td class="px-3 py-2">
                             {{ number_format((float) $produto->preco_venda, 2, ',', '.') }} {{ __('app.currency') }}
                             @if ($produto->unidade_venda === 'KG')
                                 <span class="text-xs text-slate-500">/ kg</span>
-                            @endif
-                        </td>
-                        <td class="px-3 py-2">
-                            @if ($produto->iva_tipo === 'PERCENTUAL')
-                                {{ number_format((float) $produto->iva_percentual, 2, ',', '.') }}%
-                            @elseif ($produto->iva_tipo === 'MONETARIO')
-                                {{ number_format((float) $produto->iva_valor, 2, ',', '.') }} {{ __('app.currency') }}
-                            @else
-                                {{ __('app.exempt') }}
                             @endif
                         </td>
                         <td class="px-3 py-2">{{ number_format((float) $produto->stock, 2, ',', '.') }}</td>
@@ -80,17 +62,41 @@
                                 {{ $produto->is_active ? __('app.active') : __('app.inactive') }}
                             </span>
                         </td>
-                        @can('products.manage')
+                        @if ($showActions)
                             <td class="px-3 py-2">
-                                <button type="button" data-action="open-edit" data-id="{{ $produto->id }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">
-                                    <i data-lucide="pencil" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.edit') }}
-                                </button>
+                                <div class="flex flex-wrap items-center gap-1">
+                                    @can('stock.reload')
+                                        @if ($produto->is_active)
+                                            <a
+                                                href="{{ route('stock.reload.form', ['product' => $produto, 'return_to' => 'products', 'search' => $search]) }}"
+                                                title="{{ __('pages.common.reload_action') }}"
+                                                aria-label="{{ __('pages.common.reload_action') }}: {{ $produto->nome }}"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                            >
+                                                <i data-lucide="package-plus" class="h-3.5 w-3.5"></i>
+                                            </a>
+                                            <a
+                                                href="{{ route('stock.reload.adjust.form', ['product' => $produto, 'return_to' => 'products', 'search' => $search]) }}"
+                                                title="{{ __('pages.stock_reload.adjust_action') }}"
+                                                aria-label="{{ __('pages.stock_reload.adjust_action') }}: {{ $produto->nome }}"
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-200 text-amber-800 hover:bg-amber-50"
+                                            >
+                                                <i data-lucide="sliders-horizontal" class="h-3.5 w-3.5"></i>
+                                            </a>
+                                        @endif
+                                    @endcan
+                                    @can('products.manage')
+                                        <button type="button" data-action="open-edit" data-id="{{ $produto->id }}" title="{{ __('app.edit') }}" aria-label="{{ __('app.edit') }}: {{ $produto->nome }}" class="inline-flex h-7 items-center justify-center rounded-md border border-slate-200 px-2 text-xs hover:bg-slate-50">
+                                            <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                        </button>
+                                    @endcan
+                                </div>
                             </td>
-                        @endcan
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ $canManage ? 9 : 8 }}" class="px-3 py-6 text-center text-slate-500">{{ __('pages.products.no_products') }}</td>
+                        <td colspan="{{ $tableColspan }}" class="px-3 py-6 text-center text-slate-500">{{ __('pages.products.no_products') }}</td>
                     </tr>
                 @endforelse
             </tbody>

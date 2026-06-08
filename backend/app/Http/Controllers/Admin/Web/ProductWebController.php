@@ -37,6 +37,7 @@ class ProductWebController extends Controller
             'produtos' => $produtos,
             'search' => $search,
             'canManage' => auth()->user()?->can('products.manage') ?? false,
+            'canReload' => auth()->user()?->can('stock.reload') ?? false,
         ]);
     }
 

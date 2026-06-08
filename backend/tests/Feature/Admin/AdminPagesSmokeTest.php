@@ -94,6 +94,7 @@ class AdminPagesSmokeTest extends TestCase
             'registers.index',
             'stock-locations.index',
             'stock.reload',
+            'stock.reload.history',
             'stock.movements',
             'stock.transfers',
             'settings.company',

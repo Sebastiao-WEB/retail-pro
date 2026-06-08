@@ -129,4 +129,22 @@ class StockAdjustmentTest extends TestCase
             ->assertSee($produto->nome)
             ->assertDontSee('stock-adjust-modal', false);
     }
+
+    public function test_historico_recargas_abre_pagina_dedicada(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['stock.reload', 'products.view']);
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload'))
+            ->assertOk()
+            ->assertDontSee(__('pages.common.reload_history_hint'), false);
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload.history'))
+            ->assertOk()
+            ->assertSee(__('pages.stock_reload_history.title'));
+    }
 }

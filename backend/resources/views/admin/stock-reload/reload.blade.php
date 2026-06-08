@@ -18,6 +18,7 @@
         @csrf
         <input type="hidden" name="productId" value="{{ $product->id }}">
         <input type="hidden" name="return_search" value="{{ $search }}">
+        <input type="hidden" name="return_to" value="{{ $returnTo }}">
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>

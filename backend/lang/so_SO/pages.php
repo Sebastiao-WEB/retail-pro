@@ -22,6 +22,7 @@ return [
         'stock_reload' => 'Buuxi kaydka | RetailPro',
         'stock_reload_form' => 'Buuxi kaydka | RetailPro',
         'stock_reload_adjust' => 'Hagaaji kaydka | RetailPro',
+        'stock_reload_history' => 'Taariikhda buuxinta | RetailPro',
         'stock_movements' => 'Dhaqdhaqaaqa kaydka | RetailPro',
         'stock_transfers' => 'Wareejinta kaydka | RetailPro',
         'stock_locations' => 'Bakhaarada/Goobaha | RetailPro',
@@ -326,6 +327,11 @@ return [
         'adjust_default_note' => 'Hagaajin kayd: :delta cutub.',
         'stock_at_location' => 'Kaydka hadda goobtan',
         'confirm_adjustment' => 'Xaqiiji hagaajinta',
+    ],
+    'stock_reload_history' => [
+        'title' => 'Taariikhda buuxinta',
+        'subtitle' => 'Dhammaan gelitaanka kaydka waa la diiwaangeliyaa mana tirtiri karo aragtidan.',
+        'search_placeholder' => 'Raadi alaab, koodh ama qoraal...',
     ],
     'stock_movements' => [
         'title' => 'Diiwaanka dhaqdhaqaaqa kaydka',

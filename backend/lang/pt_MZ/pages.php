@@ -22,6 +22,7 @@ return [
         'stock_reload' => 'Recarregar Stock | RetailPro',
         'stock_reload_form' => 'Recarregar stock | RetailPro',
         'stock_reload_adjust' => 'Corrigir stock | RetailPro',
+        'stock_reload_history' => 'Histórico de recargas | RetailPro',
         'stock_movements' => 'Movimentos de Stock | RetailPro',
         'stock_transfers' => 'Transferências de Stock | RetailPro',
         'stock_locations' => 'Armazéns/Localizações | RetailPro',
@@ -329,6 +330,11 @@ return [
         'adjust_default_note' => 'Ajuste de stock: :delta un.',
         'stock_at_location' => 'Stock actual nesta localização',
         'confirm_adjustment' => 'Confirmar ajuste',
+    ],
+    'stock_reload_history' => [
+        'title' => 'Histórico de recargas',
+        'subtitle' => 'Todas as entradas de stock ficam registadas e não podem ser apagadas desta vista.',
+        'search_placeholder' => 'Pesquisar por produto, código ou nota...',
     ],
     'stock_movements' => [
         'title' => 'Extrato de movimentos de stock',
