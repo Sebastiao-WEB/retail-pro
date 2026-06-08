@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\Register;
-use App\Models\StockLocation;
+use App\Support\StoreFloorLocationResolver;
 use App\Models\User;
 use App\Services\ApiTwoFactorChallengeService;
 use Illuminate\Http\Request;
@@ -454,22 +454,12 @@ class AuthController extends Controller
     }
 
     /**
-     * Local de stock para o POS: caixa (stock_locations.register_id) ou campo do utilizador.
+     * Local de stock para o POS: piso de loja partilhado (supermercado) ou fallback legado por caixa.
      *
      * @return array{id: string, code: string, name: string}|null
      */
     private function resolveSourceLocationPayload(User $user, Register $register): ?array
     {
-        $location = $register->sourceLocation ?? $user->sourceLocation;
-
-        if (! $location instanceof StockLocation) {
-            return null;
-        }
-
-        return [
-            'id' => $location->id,
-            'code' => $location->code,
-            'name' => $location->name,
-        ];
+        return StoreFloorLocationResolver::payloadForPos($user, $register);
     }
 }

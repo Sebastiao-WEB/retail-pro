@@ -2,11 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\RolesPermissionsPage;
 use App\Models\User;
 use App\Support\PermissionCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -31,10 +29,11 @@ class RolesPermissionsPageTest extends TestCase
         $user->assignRole('CASHIER');
         $user->givePermissionTo('roles.view');
 
-        Livewire::actingAs($user)
-            ->test(RolesPermissionsPage::class)
+        $this->actingAs($user)
+            ->get(route('roles.permissions'))
             ->assertOk()
-            ->assertViewHas('canManage', false);
+            ->assertSee(__('permissions.page_title'))
+            ->assertDontSee('data-action="save-role-permissions"', false);
     }
 
     public function test_utilizador_sem_roles_view_recebe_403(): void
@@ -42,8 +41,8 @@ class RolesPermissionsPageTest extends TestCase
         $user = User::factory()->create(['role' => 'CASHIER']);
         $user->assignRole('CASHIER');
 
-        Livewire::actingAs($user)
-            ->test(RolesPermissionsPage::class)
+        $this->actingAs($user)
+            ->get(route('roles.permissions'))
             ->assertForbidden();
     }
 
@@ -53,11 +52,11 @@ class RolesPermissionsPageTest extends TestCase
         $admin->assignRole('ADMIN');
         $admin->givePermissionTo(['roles.manage', 'roles.view']);
 
-        Livewire::actingAs($admin)
-            ->test(RolesPermissionsPage::class)
-            ->set('selectedRole', 'ADMIN')
-            ->set('rolePermissions', ['sales.view'])
-            ->call('saveRolePermissions');
+        $this->actingAs($admin)
+            ->putJson(route('roles.permissions.role', ['role' => 'ADMIN']), [
+                'rolePermissions' => ['sales.view'],
+            ])
+            ->assertOk();
 
         $adminRole = Role::findByName('ADMIN', 'web');
 
@@ -72,11 +71,11 @@ class RolesPermissionsPageTest extends TestCase
         $admin->assignRole('ADMIN');
         $admin->givePermissionTo(['roles.manage', 'roles.view']);
 
-        Livewire::actingAs($admin)
-            ->test(RolesPermissionsPage::class)
-            ->set('selectedUser', $admin->id)
-            ->set('selectedUserRole', 'MANAGER')
-            ->call('saveUserAccess')
+        $this->actingAs($admin)
+            ->putJson(route('roles.permissions.user', $admin), [
+                'selectedUserRole' => 'MANAGER',
+                'userDirectPermissions' => [],
+            ])
             ->assertForbidden();
     }
 

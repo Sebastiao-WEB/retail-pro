@@ -2,10 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\ProductsPage;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\Concerns\ApiTestHelpers;
@@ -24,6 +23,21 @@ class ProductsPageTest extends TestCase
         Permission::findOrCreate('products.view', 'web');
         $role = Role::findOrCreate('ADMIN', 'web');
         $role->givePermissionTo(['products.manage', 'products.view']);
+    }
+
+    public function test_pagina_produtos_carrega_com_tabela_e_modal(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        $this->actingAs($admin)
+            ->get(route('products.index'))
+            ->assertOk()
+            ->assertSee(__('pages.products.title'))
+            ->assertSee(__('pages.products.new'))
+            ->assertSee('product-form-modal', false);
     }
 
     public function test_rejeita_codigo_barras_duplicado_com_validacao_no_campo(): void
@@ -46,15 +60,17 @@ class ProductsPageTest extends TestCase
             'is_active' => true,
         ]);
 
-        Livewire::actingAs($admin)
-            ->test(ProductsPage::class)
-            ->call('openCreateModal')
-            ->set('nome', 'Bolacha')
-            ->set('codigo_barras', '1234567890123')
-            ->set('preco_compra', '1')
-            ->set('preco_venda', '2')
-            ->call('save')
-            ->assertHasErrors(['codigo_barras']);
+        $this->actingAs($admin)
+            ->postJson(route('products.store'), [
+                'nome' => 'Bolacha',
+                'codigo_barras' => '1234567890123',
+                'preco_compra' => '1',
+                'preco_venda' => '2',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => true,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['codigo_barras']);
 
         $this->assertDatabaseMissing('products', ['nome' => 'Bolacha']);
         $this->assertDatabaseHas('products', ['nome' => 'Pão', 'codigo_barras' => '1234567890123']);
@@ -67,15 +83,16 @@ class ProductsPageTest extends TestCase
         $admin->assignRole('ADMIN');
         $admin->givePermissionTo(['products.manage', 'products.view']);
 
-        Livewire::actingAs($admin)
-            ->test(ProductsPage::class)
-            ->call('openCreateModal')
-            ->set('nome', 'Peixe fresco')
-            ->set('unidade_venda', 'KG')
-            ->set('preco_compra', '200')
-            ->set('preco_venda', '450')
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)
+            ->postJson(route('products.store'), [
+                'nome' => 'Peixe fresco',
+                'unidade_venda' => 'KG',
+                'preco_compra' => '200',
+                'preco_venda' => '450',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => true,
+            ])
+            ->assertCreated();
 
         $this->assertDatabaseHas('products', [
             'nome' => 'Peixe fresco',
@@ -103,12 +120,17 @@ class ProductsPageTest extends TestCase
             'is_active' => true,
         ]);
 
-        Livewire::actingAs($admin)
-            ->test(ProductsPage::class)
-            ->call('openEditModal', $produto->id)
-            ->set('nome', 'Pão especial')
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)
+            ->putJson(route('products.update', $produto), [
+                'nome' => 'Pão especial',
+                'codigo_barras' => '1234567890123',
+                'unidade_venda' => 'UN',
+                'preco_compra' => '1',
+                'preco_venda' => '2',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => true,
+            ])
+            ->assertOk();
 
         $this->assertSame('Pão especial', $produto->fresh()->nome);
     }

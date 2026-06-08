@@ -2,7 +2,8 @@
 
 return [
     'language' => 'Idioma',
-    'backoffice' => 'Backoffice Livewire',
+    'backoffice' => 'Backoffice',
+    'loading' => 'A carregar...',
     'pos_edition' => 'Edição Caixa Pro',
     'central_management' => 'Gestão central do POS',
     'default_title' => 'Painel administrativo',
@@ -11,6 +12,7 @@ return [
     'logout' => 'Sair',
     'save' => 'Guardar',
     'cancel' => 'Cancelar',
+    'back' => 'Voltar',
     'close' => 'Fechar',
     'edit' => 'Editar',
     'new' => 'Novo',

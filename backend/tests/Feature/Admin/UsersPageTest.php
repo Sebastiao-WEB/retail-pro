@@ -2,10 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\UsersPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -30,11 +28,9 @@ class UsersPageTest extends TestCase
         $admin->assignRole('ADMIN');
         $admin->givePermissionTo(['users.manage', 'users.view']);
 
-        Livewire::actingAs($admin)
-            ->test(UsersPage::class)
-            ->call('confirmDisable', $admin->id)
-            ->assertSet('confirmDisableOpen', false)
-            ->assertSet('disableId', null);
+        $this->actingAs($admin)
+            ->deleteJson(route('users.destroy', $admin))
+            ->assertStatus(422);
 
         $this->assertTrue($admin->fresh()->is_active);
     }
@@ -50,12 +46,15 @@ class UsersPageTest extends TestCase
         $admin->assignRole('ADMIN');
         $admin->givePermissionTo(['users.manage', 'users.view']);
 
-        Livewire::actingAs($admin)
-            ->test(UsersPage::class)
-            ->call('openEditModal', $admin->id)
-            ->set('is_active', false)
-            ->call('save')
-            ->assertHasErrors(['is_active']);
+        $this->actingAs($admin)
+            ->put(route('users.update', $admin), [
+                'name' => $admin->name,
+                'username' => $admin->username,
+                'email' => $admin->email,
+                'role' => 'ADMIN',
+                'is_active' => '0',
+            ])
+            ->assertSessionHasErrors(['is_active']);
 
         $this->assertTrue($admin->fresh()->is_active);
     }

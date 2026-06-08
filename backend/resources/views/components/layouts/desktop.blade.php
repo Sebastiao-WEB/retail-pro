@@ -1,13 +1,31 @@
+@props(['title' => null, 'adminPage' => null])
+
 <!doctype html>
 <html lang="{{ \App\Support\SupportedLocales::htmlLang(app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? __('app.default_title') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/admin.js'])
 </head>
-<body class="h-screen overflow-hidden bg-[var(--bg-app)] text-slate-900">
+<body class="h-screen overflow-hidden bg-[var(--bg-app)] text-slate-900" @if(!empty($adminPage)) data-admin-page="{{ $adminPage }}" @endif>
+    @if (!empty($adminPage))
+        <div
+            id="rp-admin-preloader"
+            class="rp-admin-preloader"
+            role="status"
+            aria-live="polite"
+            aria-label="{{ __('app.loading') }}"
+        >
+            <div class="rp-admin-preloader-panel">
+                <img src="{{ asset('assets/images/rp.png') }}" alt="" class="rp-admin-preloader-logo" aria-hidden="true">
+                <div class="rp-admin-preloader-spinner" aria-hidden="true"></div>
+                <p class="rp-admin-preloader-text">{{ __('app.loading') }}</p>
+            </div>
+        </div>
+    @endif
+
     @php
         $user = auth()->user();
         $nomeUtilizador = $user?->name ?? __('app.operator');
@@ -228,6 +246,6 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    @livewireScripts
+    @stack('scripts')
 </body>
 </html>

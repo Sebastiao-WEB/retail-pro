@@ -89,6 +89,9 @@ class UserController extends Controller
         ]);
         $registerIds = $dados['registerIds'] ?? (isset($dados['registerId']) && $dados['registerId'] ? [$dados['registerId']] : []);
         $user->syncAssignedRegisters($registerIds);
+        if (! $user->source_location_id && $user->register_id) {
+            $user->syncSourceLocationFromRegister($user->register_id);
+        }
         $user->save();
         $user->syncRoles([$dados['role']]);
 
@@ -141,11 +144,31 @@ class UserController extends Controller
 
         $user->save();
 
+        $sourceLocationId = array_key_exists('sourceLocationId', $dados)
+            ? ($dados['sourceLocationId'] ?: null)
+            : null;
+
         if (array_key_exists('registerIds', $dados)) {
             $user->syncAssignedRegisters($dados['registerIds'] ?? []);
-            $user->save();
         } elseif (array_key_exists('registerId', $dados) && $dados['registerId']) {
             $user->syncAssignedRegisters([$dados['registerId']]);
+        }
+
+        if ($sourceLocationId !== null) {
+            $user->source_location_id = $sourceLocationId;
+        } elseif (
+            (array_key_exists('registerIds', $dados) || array_key_exists('registerId', $dados))
+            && $user->register_id
+            && ! $user->source_location_id
+        ) {
+            $user->syncSourceLocationFromRegister($user->register_id);
+        }
+
+        if (
+            array_key_exists('registerIds', $dados)
+            || array_key_exists('registerId', $dados)
+            || $sourceLocationId !== null
+        ) {
             $user->save();
         }
 

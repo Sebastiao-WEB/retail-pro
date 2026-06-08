@@ -2,7 +2,8 @@
 
 return [
     'language' => 'Luqadda',
-    'backoffice' => 'Backoffice Livewire',
+    'backoffice' => 'Backoffice',
+    'loading' => 'Waa la soo rarayaa...',
     'pos_edition' => 'Daabaca POS',
     'central_management' => 'Maamulka dhexe ee POS',
     'default_title' => 'Guddiga maamulka',
@@ -11,6 +12,7 @@ return [
     'logout' => 'Ka bax',
     'save' => 'Kaydi',
     'cancel' => 'Jooji',
+    'back' => 'Dib u noqo',
     'close' => 'Xir',
     'edit' => 'Wax ka beddel',
     'new' => 'Cusub',

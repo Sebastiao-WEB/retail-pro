@@ -223,24 +223,16 @@ window.retailToast = function retailToast(message, type = 'info') {
 };
 
 document.addEventListener('DOMContentLoaded', renderLucideIcons);
-document.addEventListener('livewire:navigated', renderLucideIcons);
-document.addEventListener('livewire:initialized', () => {
-    if (window.Livewire?.hook) {
-        window.Livewire.hook('morph.updated', () => {
-            renderLucideIcons();
-        });
+
+window.rpFocusField = function rpFocusField(field) {
+    const campo = String(field || '').trim();
+    if (!campo) return;
+
+    const input = document.getElementById(`campo-${campo}`);
+    if (!input) return;
+
+    input.focus();
+    if (typeof input.select === 'function' && input.type !== 'checkbox') {
+        input.select();
     }
-
-    Livewire.on('rp-focus-field', ({ field }) => {
-        const campo = String(field || '').trim();
-        if (!campo) return;
-
-        const input = document.getElementById(`campo-${campo}`);
-        if (!input) return;
-
-        input.focus();
-        if (typeof input.select === 'function' && input.type !== 'checkbox') {
-            input.select();
-        }
-    });
-});
+};

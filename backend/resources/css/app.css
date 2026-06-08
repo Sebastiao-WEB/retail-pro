@@ -79,3 +79,65 @@ body {
 .retailpro-toast-top {
     z-index: 20001 !important;
 }
+
+.rp-admin-preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 30000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17, 19, 26, 0.42);
+    backdrop-filter: blur(2px);
+}
+
+.rp-admin-preloader.hidden {
+    display: none;
+}
+
+.rp-admin-preloader-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 220px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.rp-admin-preloader-logo {
+    height: 2.5rem;
+    width: 2.5rem;
+    border-radius: 0.65rem;
+    object-fit: contain;
+}
+
+.rp-admin-preloader-spinner {
+    height: 2rem;
+    width: 2rem;
+    border-radius: 9999px;
+    border: 3px solid rgba(216, 182, 90, 0.25);
+    border-top-color: var(--gold);
+    animation: rp-admin-spin 0.8s linear infinite;
+}
+
+.rp-admin-preloader-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+body.rp-preloader-active {
+    cursor: progress;
+}
+
+@keyframes rp-admin-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

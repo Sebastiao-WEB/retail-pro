@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\StoreFloorLocationResolver;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -111,7 +112,6 @@ class User extends Authenticatable implements JWTSubject
                 $this->register_id = $ids[0];
             }
             $this->syncCaixaAtribuido($ids);
-            $this->syncSourceLocationFromRegister($this->register_id);
         } else {
             $this->register_id = null;
             $this->caixa_atribuido = null;
@@ -140,6 +140,13 @@ class User extends Authenticatable implements JWTSubject
 
     public function syncSourceLocationFromRegister(?string $registerId): void
     {
+        $shared = StoreFloorLocationResolver::findSharedStoreFloor();
+        if ($shared) {
+            $this->source_location_id = $shared->id;
+
+            return;
+        }
+
         if (! $registerId) {
             return;
         }

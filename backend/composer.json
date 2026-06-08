@@ -11,7 +11,6 @@
         "laravel/fortify": "^1.36",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
-        "livewire/livewire": "^4.2",
         "php-open-source-saver/jwt-auth": "^2.9",
         "spatie/laravel-permission": "^7.3"
     },

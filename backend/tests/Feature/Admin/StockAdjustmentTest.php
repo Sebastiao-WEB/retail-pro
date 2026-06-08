@@ -2,14 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\StockReloadPage;
 use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Services\StockAdjustmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\Concerns\ApiTestHelpers;
@@ -82,7 +80,7 @@ class StockAdjustmentTest extends TestCase
         );
     }
 
-    public function test_pagina_recarga_permite_corrigir_via_livewire(): void
+    public function test_pagina_recarga_permite_corrigir_via_api_web(): void
     {
         $ambiente = $this->criarAmbienteApi();
         $admin = $ambiente['user'];
@@ -91,13 +89,14 @@ class StockAdjustmentTest extends TestCase
 
         $produto = $ambiente['product'];
 
-        Livewire::actingAs($admin)
-            ->test(StockReloadPage::class)
-            ->call('openAdjustModal', $produto->id)
-            ->set('adjustmentDelta', '-3')
-            ->set('note', 'Correção recarga')
-            ->call('applyAdjustment')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)
+            ->postJson(route('stock.reload.adjust'), [
+                'productId' => $produto->id,
+                'to_location_id' => $ambiente['location']->id,
+                'adjustmentDelta' => -3,
+                'note' => 'Correção recarga',
+            ])
+            ->assertOk();
 
         $movement = StockMovement::query()
             ->where('product_id', $produto->id)
