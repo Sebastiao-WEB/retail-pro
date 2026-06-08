@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -36,5 +37,10 @@ class StockBalance extends Model
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function scopeInActiveLocations(Builder $query): Builder
+    {
+        return $query->whereHas('location', fn (Builder $locationQuery) => $locationQuery->active());
     }
 }

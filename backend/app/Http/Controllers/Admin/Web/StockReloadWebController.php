@@ -21,30 +21,6 @@ class StockReloadWebController extends Controller
     use AuthorizesAdminWeb;
     use RespondsAsJson;
 
-    public function index(Request $request)
-    {
-        $this->authorizeAdmin('stock.reload');
-
-        $search = $request->string('search')->toString();
-
-        $products = Product::query()
-            ->where('is_active', true)
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(fn ($inner) => $inner
-                    ->where('nome', 'like', "%{$search}%")
-                    ->orWhere('codigo_barras', 'like', "%{$search}%")
-                    ->orWhere('categoria', 'like', "%{$search}%"));
-            })
-            ->orderBy('nome')
-            ->paginate(12)
-            ->withQueryString();
-
-        return view('admin.stock-reload.index', [
-            'products' => $products,
-            'search' => $search,
-        ]);
-    }
-
     public function history(Request $request)
     {
         $this->authorizeAdmin('stock.reload');
@@ -283,13 +259,6 @@ class StockReloadWebController extends Controller
             ->value('quantity') ?? 0);
     }
 
-    private function indexUrl(string $search = ''): string
-    {
-        return route('stock.reload', array_filter([
-            'search' => $search !== '' ? $search : null,
-        ]));
-    }
-
     private function backUrlFromRequest(Request $request): string
     {
         return $this->redirectUrlFromRequest($request);
@@ -300,12 +269,8 @@ class StockReloadWebController extends Controller
         $returnTo = $request->string('return_to')->toString();
         $search = $request->string('return_search')->toString() ?: $request->string('search')->toString();
 
-        if ($returnTo === 'products') {
-            return route('products.index', array_filter([
-                'search' => $search !== '' ? $search : null,
-            ]));
-        }
-
-        return $this->indexUrl($search);
+        return route('products.index', array_filter([
+            'search' => $search !== '' ? $search : null,
+        ]));
     }
 }

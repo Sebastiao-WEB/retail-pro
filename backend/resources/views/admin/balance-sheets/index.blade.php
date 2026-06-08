@@ -67,9 +67,26 @@
                             </span>
                         </td>
                         <td class="px-3 py-2">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <button type="button" data-action="open-edit" data-id="{{ $balance->id }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('pages.common.view') }}</button>
-                                <a href="{{ route('balance-sheets.pdf', $balance) }}" target="_blank" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">PDF</a>
+                            <div class="flex flex-wrap items-center gap-1">
+                                <button
+                                    type="button"
+                                    data-action="open-edit"
+                                    data-id="{{ $balance->id }}"
+                                    title="{{ __('pages.common.view') }}"
+                                    aria-label="{{ __('pages.common.view') }}: {{ $balance->referencia }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                >
+                                    <i data-lucide="eye" class="h-3.5 w-3.5"></i>
+                                </button>
+                                <a
+                                    href="{{ route('balance-sheets.pdf', $balance) }}"
+                                    data-rp-page-nav
+                                    title="{{ __('pages.common.generate_pdf') }}"
+                                    aria-label="{{ __('pages.common.generate_pdf') }}: {{ $balance->referencia }}"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-200 text-rose-700 hover:bg-rose-50"
+                                >
+                                    <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -119,8 +136,12 @@
                         <textarea name="notas" rows="2" class="rp-input">{{ $defaultForm['notas'] }}</textarea>
                     </div>
                     <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-                        <button type="button" data-modal-close="balance-create-modal" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{{ __('app.cancel') }}</button>
-                        <button type="submit" data-action="create-balance" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black">{{ __('pages.common.calculate_balance') }}</button>
+                        <button type="button" data-modal-close="balance-create-modal" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+                            <i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.cancel') }}
+                        </button>
+                        <button type="submit" data-action="create-balance" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black">
+                            <i data-lucide="calculator" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('pages.common.calculate_balance') }}
+                        </button>
                     </div>
                 </form>
             </div>

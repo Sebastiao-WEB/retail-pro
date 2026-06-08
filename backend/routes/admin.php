@@ -85,15 +85,15 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:stock_locations.view')->group(function () {
         Route::get('/armazens-localizacoes', [StockLocationWebController::class, 'index'])->name('stock-locations.index');
-        Route::get('/armazens-localizacoes/{stockLocation}', [StockLocationWebController::class, 'show'])->middleware('permission:stock_locations.manage')->name('stock-locations.show');
+        Route::get('/armazens-localizacoes/{stockLocation}/editar', [StockLocationWebController::class, 'edit'])->middleware('permission:stock_locations.manage')->name('stock-locations.edit');
         Route::get('/armazens-localizacoes/{stockLocation}/stock', [StockLocationWebController::class, 'stock'])->name('stock-locations.stock');
+        Route::get('/armazens-localizacoes/{stockLocation}', [StockLocationWebController::class, 'show'])->middleware('permission:stock_locations.manage')->name('stock-locations.show');
         Route::post('/armazens-localizacoes', [StockLocationWebController::class, 'store'])->middleware('permission:stock_locations.manage')->name('stock-locations.store');
         Route::put('/armazens-localizacoes/{stockLocation}', [StockLocationWebController::class, 'update'])->middleware('permission:stock_locations.manage')->name('stock-locations.update');
         Route::delete('/armazens-localizacoes/{stockLocation}', [StockLocationWebController::class, 'destroy'])->middleware('permission:stock_locations.manage')->name('stock-locations.destroy');
     });
 
     Route::middleware('permission:stock.reload')->group(function () {
-        Route::get('/recarregar-stock', [StockReloadWebController::class, 'index'])->name('stock.reload');
         Route::get('/historico-recargas', [StockReloadWebController::class, 'history'])->name('stock.reload.history');
         Route::get('/recarregar-stock/{product}/recarregar', [StockReloadWebController::class, 'reloadForm'])->name('stock.reload.form');
         Route::get('/recarregar-stock/{product}/ajustar', [StockReloadWebController::class, 'adjustForm'])->name('stock.reload.adjust.form');

@@ -3,16 +3,26 @@
     "file": "assets/chunk-Dk7t3yRR.js",
     "name": "chunk"
   },
-  "_routes-CoarHjMD.js": {
-    "file": "assets/routes-CoarHjMD.js",
+  "_lucide-B0imimrI.js": {
+    "file": "assets/lucide-B0imimrI.js",
+    "name": "lucide",
+    "imports": [
+      "_chunk-Dk7t3yRR.js"
+    ]
+  },
+  "_routes-BllnY1ND.js": {
+    "file": "assets/routes-BllnY1ND.js",
     "name": "routes"
   },
-  "_utils-DtBH2eac.js": {
-    "file": "assets/utils-DtBH2eac.js",
-    "name": "utils"
+  "_utils-966dmwsd.js": {
+    "file": "assets/utils-966dmwsd.js",
+    "name": "utils",
+    "imports": [
+      "resources/js/admin.js"
+    ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-BIjibwEm.css",
+    "file": "assets/app-BYgnXhI7.css",
     "name": "app",
     "names": [
       "app.css"
@@ -21,7 +31,7 @@
     "isEntry": true
   },
   "resources/js/admin.js": {
-    "file": "assets/admin-BjL4riVn.js",
+    "file": "assets/admin-D-RMofsn.js",
     "name": "admin",
     "src": "resources/js/admin.js",
     "isEntry": true,
@@ -39,6 +49,8 @@
       "resources/js/admin/reversals.js",
       "resources/js/admin/registers.js",
       "resources/js/admin/stock-locations.js",
+      "resources/js/admin/stock-locations-edit.js",
+      "resources/js/admin/stock-locations-stock.js",
       "resources/js/admin/stock-reload-adjust.js",
       "resources/js/admin/stock-transfers.js",
       "resources/js/admin/company-settings.js",
@@ -49,128 +61,147 @@
     ]
   },
   "resources/js/admin/balance-sheets.js": {
-    "file": "assets/balance-sheets-CRl2ftl-.js",
+    "file": "assets/balance-sheets-C4rS3_DJ.js",
     "name": "balance-sheets",
     "src": "resources/js/admin/balance-sheets.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js",
-      "_utils-DtBH2eac.js"
+      "_lucide-B0imimrI.js",
+      "_routes-BllnY1ND.js",
+      "_utils-966dmwsd.js"
     ]
   },
   "resources/js/admin/company-settings.js": {
-    "file": "assets/company-settings-Bwjf9IpA.js",
+    "file": "assets/company-settings-Bn8yMjjx.js",
     "name": "company-settings",
     "src": "resources/js/admin/company-settings.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
     ]
   },
   "resources/js/admin/customers.js": {
-    "file": "assets/customers-CKKwoVRD.js",
+    "file": "assets/customers-B_oV8VDx.js",
     "name": "customers",
     "src": "resources/js/admin/customers.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js",
-      "_utils-DtBH2eac.js"
+      "_routes-BllnY1ND.js",
+      "_utils-966dmwsd.js"
     ]
   },
   "resources/js/admin/dashboard.js": {
-    "file": "assets/dashboard-Bnw8YS_2.js",
+    "file": "assets/dashboard-Datc29fb.js",
     "name": "dashboard",
     "src": "resources/js/admin/dashboard.js",
     "isDynamicEntry": true
   },
   "resources/js/admin/operator-reports.js": {
-    "file": "assets/operator-reports-k9QG0L03.js",
+    "file": "assets/operator-reports-UY31tdeb.js",
     "name": "operator-reports",
     "src": "resources/js/admin/operator-reports.js",
     "isDynamicEntry": true
   },
   "resources/js/admin/products-edit.js": {
-    "file": "assets/products-edit-ZoSHp7Z0.js",
+    "file": "assets/products-edit-uGiVGZ-o.js",
     "name": "products-edit",
     "src": "resources/js/admin/products-edit.js",
     "isDynamicEntry": true
   },
   "resources/js/admin/products.js": {
-    "file": "assets/products-DUfyH9_i.js",
+    "file": "assets/products-Du9BSQ8q.js",
     "name": "products",
     "src": "resources/js/admin/products.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
     ]
   },
   "resources/js/admin/registers.js": {
-    "file": "assets/registers-ZIbaubjm.js",
+    "file": "assets/registers-4vWzs1r6.js",
     "name": "registers",
     "src": "resources/js/admin/registers.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js",
-      "_utils-DtBH2eac.js"
+      "_routes-BllnY1ND.js",
+      "_utils-966dmwsd.js"
     ]
   },
   "resources/js/admin/reversals.js": {
-    "file": "assets/reversals-CWPoGRkc.js",
+    "file": "assets/reversals-DRxciy2_.js",
     "name": "reversals",
     "src": "resources/js/admin/reversals.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
     ]
   },
   "resources/js/admin/roles-permissions.js": {
-    "file": "assets/roles-permissions-t6Cj34aA.js",
+    "file": "assets/roles-permissions-6ps-2ot0.js",
     "name": "roles-permissions",
     "src": "resources/js/admin/roles-permissions.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
     ]
   },
   "resources/js/admin/sales.js": {
-    "file": "assets/sales-qiOGJBZB.js",
+    "file": "assets/sales-CiEamRfm.js",
     "name": "sales",
     "src": "resources/js/admin/sales.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
     ]
   },
   "resources/js/admin/security.js": {
-    "file": "assets/security-Cr17Hg4p.js",
+    "file": "assets/security-CzIED7Zv.js",
     "name": "security",
     "src": "resources/js/admin/security.js",
     "isDynamicEntry": true,
     "imports": [
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
+    ]
+  },
+  "resources/js/admin/stock-locations-edit.js": {
+    "file": "assets/stock-locations-edit-B0i_eX1B.js",
+    "name": "stock-locations-edit",
+    "src": "resources/js/admin/stock-locations-edit.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/admin/stock-locations-stock.js": {
+    "file": "assets/stock-locations-stock-CICiccc4.js",
+    "name": "stock-locations-stock",
+    "src": "resources/js/admin/stock-locations-stock.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
     ]
   },
   "resources/js/admin/stock-locations.js": {
-    "file": "assets/stock-locations-C0j9S6DV.js",
+    "file": "assets/stock-locations-CS11jyO0.js",
     "name": "stock-locations",
     "src": "resources/js/admin/stock-locations.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js",
-      "_utils-DtBH2eac.js"
+      "_routes-BllnY1ND.js",
+      "_utils-966dmwsd.js"
     ]
   },
   "resources/js/admin/stock-reload-adjust.js": {
-    "file": "assets/stock-reload-adjust-B7M2sgeF.js",
+    "file": "assets/stock-reload-adjust-Brd0dGr6.js",
     "name": "stock-reload-adjust",
     "src": "resources/js/admin/stock-reload-adjust.js",
     "isDynamicEntry": true,
@@ -179,39 +210,40 @@
     ]
   },
   "resources/js/admin/stock-transfers.js": {
-    "file": "assets/stock-transfers-B5cEpMaC.js",
+    "file": "assets/stock-transfers-C5pfkAk9.js",
     "name": "stock-transfers",
     "src": "resources/js/admin/stock-transfers.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js"
+      "_routes-BllnY1ND.js"
     ]
   },
   "resources/js/admin/users-edit.js": {
-    "file": "assets/users-edit-U9nfy2mf.js",
+    "file": "assets/users-edit-Cs53lGQh.js",
     "name": "users-edit",
     "src": "resources/js/admin/users-edit.js",
     "isDynamicEntry": true
   },
   "resources/js/admin/users.js": {
-    "file": "assets/users-CH86Le0D.js",
+    "file": "assets/users-YPj-_fZ6.js",
     "name": "users",
     "src": "resources/js/admin/users.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
-      "_routes-CoarHjMD.js",
-      "_utils-DtBH2eac.js"
+      "_routes-BllnY1ND.js",
+      "_utils-966dmwsd.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-fHaG6tum.js",
+    "file": "assets/app-CiopHyM8.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_chunk-Dk7t3yRR.js"
+      "_chunk-Dk7t3yRR.js",
+      "_lucide-B0imimrI.js"
     ]
   }
 }

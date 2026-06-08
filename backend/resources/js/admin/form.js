@@ -1,5 +1,6 @@
 import http from './http.js';
 import { clearFieldErrors, showFieldErrors } from './modal.js';
+import { showPreloader } from './preloader.js';
 
 export function formDataToObject(form) {
     const fd = new FormData(form);
@@ -54,6 +55,7 @@ export async function submitJson(form, { method = 'POST', url, onSuccess, reload
             if (message) {
                 sessionStorage.setItem('rp-toast', JSON.stringify({ message, type: 'success' }));
             }
+            showPreloader();
             window.location.reload();
         }
     } catch (error) {

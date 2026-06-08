@@ -542,5 +542,14 @@
     "maximize": "Maximizar janela",
     "restore": "Restaurar janela",
     "close": "Fechar aplicação"
+  },
+  "errors": {
+    "logoAlt": "RetailPro POS",
+    "goBack": "Voltar",
+    "goPos": "Ir para o caixa",
+    "notFound": {
+      "title": "Página não encontrada",
+      "message": "O ecrã que procurou não existe nesta aplicação."
+    }
   }
 }

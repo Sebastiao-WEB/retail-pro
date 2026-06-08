@@ -138,11 +138,6 @@ class StockAdjustmentTest extends TestCase
         $admin->givePermissionTo(['stock.reload', 'products.view']);
 
         $this->actingAs($admin)
-            ->get(route('stock.reload'))
-            ->assertOk()
-            ->assertDontSee(__('pages.common.reload_history_hint'), false);
-
-        $this->actingAs($admin)
             ->get(route('stock.reload.history'))
             ->assertOk()
             ->assertSee(__('pages.stock_reload_history.title'));

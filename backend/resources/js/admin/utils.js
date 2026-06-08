@@ -1,3 +1,5 @@
+import { showPreloader } from './preloader.js';
+
 export function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -11,6 +13,7 @@ export function reloadWithToast(message, type = 'success') {
         sessionStorage.setItem('rp-toast', JSON.stringify({ message, type }));
     }
 
+    showPreloader();
     window.location.reload();
 }
 

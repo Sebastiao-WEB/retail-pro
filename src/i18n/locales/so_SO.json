@@ -542,5 +542,14 @@
     "maximize": "Balaadhi daaqada",
     "restore": "Soo celi daaqada",
     "close": "Xir barnaamijka"
+  },
+  "errors": {
+    "logoAlt": "RetailPro POS",
+    "goBack": "Dib u noqo",
+    "goPos": "Tag POS",
+    "notFound": {
+      "title": "Bogga lama helin",
+      "message": "Shaashadda aad raadineysay kuma jirto barnaamijkan."
+    }
   }
 }

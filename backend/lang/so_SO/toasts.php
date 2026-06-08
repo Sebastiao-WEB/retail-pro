@@ -7,7 +7,7 @@ return [
     'product_saved' => 'Alaabta si guul leh ayaa loo kaydiyay.',
     'product_updated' => 'Alaabta waa la cusbooneysiiyay.',
     'product_created' => 'Alaabta waa la abuuray.',
-    'product_created_reload' => 'Alaabta waa la abuuray. Isticmaal Buuxi kaydka si aad u geliso alaabta.',
+    'product_created_reload' => 'Alaabta waa la abuuray. Isticmaal Alaabta si aad u diiwaangeliso gelitaanka alaabta.',
     'customer_updated' => 'Macmiilka waa la cusbooneysiiyay.',
     'customer_created' => 'Macmiilka waa la abuuray.',
     'customer_disabled' => 'Macmiilka waa la joojiyay.',

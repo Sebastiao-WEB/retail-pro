@@ -1,8 +1,6 @@
 @php
     $stock_locations_index_blade_routes = [
-'index' => route('stock-locations.index'),
-        'show' => route('stock-locations.show', ['stockLocation' => '__ID__']),
-        'stock' => route('stock-locations.stock', ['stockLocation' => '__ID__']),
+        'index' => route('stock-locations.index'),
         'store' => route('stock-locations.store'),
         'update' => route('stock-locations.update', ['stockLocation' => '__ID__']),
         'destroy' => route('stock-locations.destroy', ['stockLocation' => '__ID__']),
@@ -60,13 +58,42 @@
                             </span>
                         </td>
                         <td class="px-3 py-2">
-                            <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-1">
                                 @can('stock_locations.view')
-                                    <button type="button" data-action="open-stock" data-id="{{ $location->id }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('pages.common.view_stock') }}</button>
+                                    <a
+                                        href="{{ route('stock-locations.stock', ['stockLocation' => $location, 'search' => $search]) }}"
+                                        data-rp-page-nav
+                                        title="{{ __('pages.common.view_stock') }}"
+                                        aria-label="{{ __('pages.common.view_stock') }}: {{ $location->name }}"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                    >
+                                        <i data-lucide="boxes" class="h-3.5 w-3.5"></i>
+                                    </a>
                                 @endcan
                                 @can('stock_locations.manage')
-                                    <button type="button" data-action="open-edit" data-id="{{ $location->id }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('app.edit') }}</button>
-                                    <button type="button" data-action="confirm-delete" data-id="{{ $location->id }}" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">{{ __('app.disable') }}</button>
+                                    <a
+                                        href="{{ route('stock-locations.edit', ['stockLocation' => $location, 'search' => $search]) }}"
+                                        data-rp-page-nav
+                                        title="{{ __('app.edit') }}"
+                                        aria-label="{{ __('app.edit') }}: {{ $location->name }}"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50"
+                                    >
+                                        <i data-lucide="pencil" class="h-3.5 w-3.5"></i>
+                                    </a>
+                                    @if ($location->is_active)
+                                        <button
+                                            type="button"
+                                            data-action="confirm-delete"
+                                            data-id="{{ $location->id }}"
+                                            data-code="{{ $location->code }}"
+                                            data-name="{{ $location->name }}"
+                                            title="{{ __('app.disable') }}"
+                                            aria-label="{{ __('app.disable') }}: {{ $location->name }}"
+                                            class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                                        >
+                                            <i data-lucide="ban" class="h-3.5 w-3.5"></i>
+                                        </button>
+                                    @endif
                                 @endcan
                             </div>
                         </td>
@@ -82,22 +109,11 @@
 
     <div>{{ $locations->links() }}</div>
 
-    <div id="stock-location-stock-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
-        <div class="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl">
-            <div id="stock-location-stock-content"></div>
-        </div>
-    </div>
-
     @can('stock_locations.manage')
         <div id="stock-location-form-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
             <div class="w-full max-w-2xl rounded-xl bg-white shadow-xl">
                 <div class="border-b border-slate-200 px-5 py-3">
-                    <h3
-                        id="stock-location-form-title"
-                        class="text-base font-semibold"
-                        data-create-title="{{ __('pages.stock_locations.new') }}"
-                        data-edit-title="{{ __('pages.stock_locations.edit') }}"
-                    >{{ __('pages.stock_locations.new') }}</h3>
+                    <h3 id="stock-location-form-title" class="text-base font-semibold">{{ __('pages.stock_locations.new') }}</h3>
                 </div>
                 <form id="stock-location-form" class="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                     <input type="hidden" name="editing_id" id="stock-location-editing-id" value="">
@@ -150,14 +166,29 @@
             </div>
         </div>
 
-        <div id="stock-location-delete-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
-            <div class="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-                <h3 class="text-base font-semibold text-slate-900">{{ __('pages.common.confirm_disable_title') }}</h3>
-                <p class="mt-2 text-sm text-slate-600">{{ __('pages.stock_locations.confirm_disable_message') }}</p>
-                <input type="hidden" id="stock-location-delete-id" value="">
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" data-modal-close="stock-location-delete-modal" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold">{{ __('app.close') }}</button>
-                    <button type="button" data-action="delete-stock-location" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{{ __('app.disable') }}</button>
+        <div id="stock-location-delete-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="stock-location-delete-title">
+            <div class="w-full max-w-md rounded-xl bg-white shadow-xl">
+                <div class="border-b border-slate-200 px-5 py-3">
+                    <h3 id="stock-location-delete-title" class="text-base font-semibold text-slate-900">{{ __('pages.common.confirm_disable_title') }}</h3>
+                </div>
+                <div class="space-y-3 p-5">
+                    <p class="text-sm text-slate-600">{{ __('pages.stock_locations.confirm_disable_message') }}</p>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ __('pages.stock_locations.confirm_disable_target') }}</p>
+                        <p id="stock-location-delete-label" class="mt-1 font-semibold text-slate-900">—</p>
+                    </div>
+                    <p class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        {{ __('pages.stock_locations.confirm_disable_hint') }}
+                    </p>
+                    <input type="hidden" id="stock-location-delete-id" value="">
+                    <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+                        <button type="button" data-modal-close="stock-location-delete-modal" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
+                            <i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.cancel') }}
+                        </button>
+                        <button type="button" data-action="delete-stock-location" class="rounded-lg border border-red-300 bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">
+                            <i data-lucide="ban" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>{{ __('app.disable') }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

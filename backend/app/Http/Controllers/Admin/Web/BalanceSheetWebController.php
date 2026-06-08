@@ -29,7 +29,9 @@ class BalanceSheetWebController extends Controller
                         ->orWhere('titulo', 'like', "%{$search}%");
                 });
             })
-            ->latest('data_referencia')
+            ->orderByDesc('periodo_fim')
+            ->orderByDesc('data_referencia')
+            ->orderByDesc('created_at')
             ->paginate(10)
             ->withQueryString();
 

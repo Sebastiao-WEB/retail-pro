@@ -44,6 +44,22 @@ class StockLocationWebController extends Controller
         ]);
     }
 
+    public function edit(Request $request, StockLocation $stockLocation)
+    {
+        $this->authorizeAdmin('stock_locations.manage');
+
+        $search = $request->string('search')->toString();
+
+        return view('admin.stock-locations.edit', [
+            'location' => $stockLocation,
+            'search' => $search,
+            'registers' => Register::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+            'backUrl' => route('stock-locations.index', array_filter([
+                'search' => $search !== '' ? $search : null,
+            ])),
+        ]);
+    }
+
     public function show(StockLocation $stockLocation)
     {
         $this->authorizeAdmin('stock_locations.manage');
@@ -51,14 +67,27 @@ class StockLocationWebController extends Controller
         return $this->jsonOk($this->serializeLocation($stockLocation));
     }
 
-    public function stock(StockLocation $stockLocation, StockByLocationService $stockService)
+    public function stock(Request $request, StockLocation $stockLocation, StockByLocationService $stockService)
     {
         $this->authorizeAdmin('stock_locations.view');
 
+        $stockLocation->load('register');
         $resumo = $stockService->resumoPorLocalizacao($stockLocation->id);
         $stockDetalhe = $resumo[0] ?? null;
 
-        return $this->jsonOk($stockDetalhe);
+        if ($request->expectsJson()) {
+            return $this->jsonOk($stockDetalhe);
+        }
+
+        $search = $request->string('search')->toString();
+
+        return view('admin.stock-locations.stock', [
+            'location' => $stockLocation,
+            'stock' => $stockDetalhe,
+            'backUrl' => route('stock-locations.index', array_filter([
+                'search' => $search !== '' ? $search : null,
+            ])),
+        ]);
     }
 
     public function store(Request $request)
@@ -83,10 +112,22 @@ class StockLocationWebController extends Controller
             $payload = $this->validatedPayload($request, $stockLocation->id);
             $stockLocation->update($payload);
         } catch (ValidationException $exception) {
-            return $this->jsonFromValidation($exception);
+            if ($request->expectsJson()) {
+                return $this->jsonFromValidation($exception);
+            }
+
+            throw $exception;
         }
 
-        return $this->jsonOk($this->serializeLocation($stockLocation->fresh()), __('toasts.location_updated'));
+        if ($request->expectsJson()) {
+            return $this->jsonOk($this->serializeLocation($stockLocation->fresh()), __('toasts.location_updated'));
+        }
+
+        return redirect()
+            ->route('stock-locations.index', array_filter([
+                'search' => $request->string('return_search')->toString() ?: null,
+            ]))
+            ->with('toast', ['type' => 'success', 'message' => __('toasts.location_updated')]);
     }
 
     public function destroy(StockLocation $stockLocation)

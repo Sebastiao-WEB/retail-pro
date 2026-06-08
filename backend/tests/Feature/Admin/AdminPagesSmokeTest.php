@@ -93,7 +93,6 @@ class AdminPagesSmokeTest extends TestCase
             'reversals.index',
             'registers.index',
             'stock-locations.index',
-            'stock.reload',
             'stock.reload.history',
             'stock.movements',
             'stock.transfers',
@@ -131,6 +130,14 @@ class AdminPagesSmokeTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('stock.reload.adjust.form', ['product' => $ambiente['product']]))
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->get(route('stock-locations.stock', ['stockLocation' => $ambiente['location']]))
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->get(route('stock-locations.edit', ['stockLocation' => $ambiente['location']]))
             ->assertOk();
 
         $this->actingAs($admin)

@@ -113,6 +113,7 @@ class BalanceSheetBuilder
     {
         $balances = StockBalance::query()
             ->with(['product', 'location'])
+            ->inActiveLocations()
             ->where('quantity', '>', 0)
             ->get();
 
@@ -122,7 +123,7 @@ class BalanceSheetBuilder
         foreach ($balances as $stockBalance) {
             $product = $stockBalance->product;
             $location = $stockBalance->location;
-            if (! $product || ! $location) {
+            if (! $product || ! $location || ! $location->is_active) {
                 continue;
             }
 
@@ -161,6 +162,7 @@ class BalanceSheetBuilder
     {
         return StockMovement::query()
             ->stockReloads()
+            ->toActiveLocations()
             ->whereBetween('created_at', [$inicio, $fim])
             ->selectRaw('product_id, COALESCE(SUM(quantity), 0) as qtd, COALESCE(SUM(quantity * COALESCE(unit_cost, 0)), 0) as valor')
             ->groupBy('product_id')
@@ -200,6 +202,7 @@ class BalanceSheetBuilder
     private function stockPorProduto(): Collection
     {
         return StockBalance::query()
+            ->inActiveLocations()
             ->join('products', 'products.id', '=', 'stock_balances.product_id')
             ->selectRaw('stock_balances.product_id')
             ->selectRaw('COALESCE(SUM(stock_balances.quantity), 0) as qtd')

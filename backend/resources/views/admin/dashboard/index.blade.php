@@ -131,14 +131,6 @@
                 <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.stock_locations_desc') }}</p>
             </a>
         @endcan
-        @can('stock.reload')
-            <a href="{{ route('stock.reload') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
-                <i data-lucide="rotate-cw" class="mb-2 h-4 w-4 text-slate-500"></i>
-                <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.dashboard.shortcuts.operation') }}</p>
-                <p class="mt-1 text-sm font-semibold text-slate-900">{{ __('pages.dashboard.shortcuts.reload_stock') }}</p>
-                <p class="text-xs text-slate-500">{{ __('pages.dashboard.shortcuts.reload_stock_desc') }}</p>
-            </a>
-        @endcan
         @can('products.view')
             <a href="{{ route('products.index') }}" class="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[var(--gold)]">
                 <i data-lucide="box" class="mb-2 h-4 w-4 text-slate-500"></i>

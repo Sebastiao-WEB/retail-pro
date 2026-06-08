@@ -24,13 +24,8 @@ export function bindModalDismiss() {
         });
     });
 
-    document.querySelectorAll('.rp-admin-modal').forEach((overlay) => {
-        overlay.addEventListener('click', (event) => {
-            if (event.target === overlay) {
-                closeModal(overlay.id);
-            }
-        });
-    });
+    // Importante: não fechamos o modal ao clicar no backdrop/área branca.
+    // Isso garante um comportamento consistente em todas as páginas de admin.
 }
 
 export function showFieldErrors(form, errors = {}) {

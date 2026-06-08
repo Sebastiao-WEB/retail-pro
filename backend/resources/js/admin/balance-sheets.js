@@ -1,7 +1,9 @@
+import { createIcons, icons } from 'lucide';
 import { openModal, closeModal } from './modal.js';
 import { submitJson, fetchJson } from './form.js';
 import http from './http.js';
 import { route } from './routes.js';
+import { hidePreloader, showPreloader } from './preloader.js';
 import { escapeHtml, fillForm, reloadWithToast } from './utils.js';
 
 const CREATE_MODAL_ID = 'balance-create-modal';
@@ -11,6 +13,17 @@ const DETAIL_CONTENT_ID = 'balance-detail-content';
 const DETAIL_FORM_ID = 'balance-detail-form';
 
 let currentBalanceId = null;
+
+function refreshLucideIcons() {
+    createIcons({
+        icons,
+        attrs: {
+            width: 14,
+            height: 14,
+            'stroke-width': 2,
+        },
+    });
+}
 
 function renderKpi(label, value, sub = '') {
     return `
@@ -155,9 +168,15 @@ function renderBalanceDetail(container, balance) {
     ` : '';
 
     const actions = editable ? `
-        <button type="button" data-action="balance-recalculate" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Recalcular</button>
-        <button type="submit" form="${DETAIL_FORM_ID}" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Guardar</button>
-        <button type="button" data-action="balance-finalize" class="rounded-lg bg-[var(--gold)] px-3 py-2 text-xs font-semibold text-black">Finalizar</button>
+        <button type="button" data-action="balance-recalculate" title="Recalcular" aria-label="Recalcular balanço" class="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+            <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i><span>Recalcular</span>
+        </button>
+        <button type="submit" form="${DETAIL_FORM_ID}" title="Guardar" aria-label="Guardar balanço" class="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <i data-lucide="save" class="h-3.5 w-3.5"></i><span>Guardar</span>
+        </button>
+        <button type="button" data-action="balance-finalize" title="Finalizar" aria-label="Finalizar balanço" class="inline-flex h-8 items-center justify-center gap-1 rounded-lg bg-[var(--gold)] px-3 text-xs font-semibold text-black hover:brightness-95">
+            <i data-lucide="badge-check" class="h-3.5 w-3.5"></i><span>Finalizar</span>
+        </button>
     ` : '';
 
     container.innerHTML = `
@@ -170,7 +189,9 @@ function renderBalanceDetail(container, balance) {
                     · ${escapeHtml(balance.status)}
                 </p>
             </div>
-            <button type="button" data-action="balance-detail-close" class="text-slate-500 hover:text-slate-800">✕</button>
+            <button type="button" data-action="balance-detail-close" title="Fechar" aria-label="Fechar detalhe do balanço" class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800">
+                <i data-lucide="x" class="h-3.5 w-3.5"></i>
+            </button>
         </div>
         <div class="space-y-4 p-5">
             ${editFields}
@@ -186,9 +207,11 @@ function renderBalanceDetail(container, balance) {
             ${renderLocationGroups(balance.location_groups)}
         </div>
         <div class="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white px-5 py-3">
-            ${balance.pdf_url ? `<a href="${escapeHtml(balance.pdf_url)}" target="_blank" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">PDF</a>` : ''}
+            ${balance.pdf_url ? `<a href="${escapeHtml(balance.pdf_url)}" data-rp-page-nav title="PDF" aria-label="Gerar PDF do balanço" class="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100"><i data-lucide="file-text" class="h-3.5 w-3.5"></i><span>PDF</span></a>` : ''}
             ${actions}
-            <button type="button" data-action="balance-detail-close" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">Fechar</button>
+            <button type="button" data-action="balance-detail-close" title="Fechar" aria-label="Fechar detalhe do balanço" class="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-600 hover:bg-red-100">
+                <i data-lucide="x" class="h-3.5 w-3.5"></i><span>Fechar</span>
+            </button>
         </div>
     `;
 
@@ -196,6 +219,8 @@ function renderBalanceDetail(container, balance) {
     if (detailForm) {
         fillForm(detailForm, { titulo: balance.titulo, notas: balance.notas });
     }
+
+    refreshLucideIcons(container);
 }
 
 async function openBalanceDetail(id) {
@@ -212,6 +237,8 @@ async function openBalanceDetail(id) {
         renderBalanceDetail(container, balance);
     } catch (error) {
         container.innerHTML = `<p class="py-8 text-center text-sm text-red-600">${escapeHtml(error.message)}</p>`;
+    } finally {
+        hidePreloader();
     }
 }
 
@@ -270,6 +297,11 @@ export default function init() {
     });
 
     document.addEventListener('click', async (event) => {
+        const pageLink = event.target instanceof Element ? event.target.closest('a[href][data-rp-page-nav]') : null;
+        if (pageLink) {
+            showPreloader();
+        }
+
         const trigger = event.target.closest('[data-action]');
         if (!trigger) {
             return;
@@ -288,6 +320,7 @@ export default function init() {
         if (action === 'open-edit') {
             const id = trigger.dataset.id;
             if (id) {
+                showPreloader();
                 await openBalanceDetail(id);
             }
             return;

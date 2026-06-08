@@ -89,11 +89,6 @@
                         </a>
                     @endcan
                     @can('stock.reload')
-                        <a href="{{ route('stock.reload') }}"
-                           class="{{ request()->routeIs(['stock.reload', 'stock.reload.form', 'stock.reload.adjust.form']) ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
-                            <i data-lucide="rotate-cw" class="h-4 w-4"></i>
-                            <span>{{ __('app.menu.stock_reload') }}</span>
-                        </a>
                         <a href="{{ route('stock.reload.history') }}"
                            class="{{ request()->routeIs('stock.reload.history') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
                             <i data-lucide="history" class="h-4 w-4"></i>
@@ -120,7 +115,7 @@
                     <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('app.sections.system') }}</p>
                     @can('products.view')
                         <a href="{{ route('products.index') }}"
-                           class="{{ request()->routeIs('products.*') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
+                           class="{{ request()->routeIs(['products.*', 'stock.reload.form', 'stock.reload.adjust.form']) ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
                             <i data-lucide="box" class="h-4 w-4"></i>
                             <span>{{ __('app.menu.products') }}</span>
                         </a>

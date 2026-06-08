@@ -19,6 +19,11 @@ const routes = [
       { path: "seguranca", name: "seguranca", component: () => import("../views/seguranca/SegurancaView.vue") },
     ],
   },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    component: () => import("../views/errors/NotFoundView.vue"),
+  },
 ];
 
 const router = createRouter({
@@ -37,7 +42,7 @@ router.beforeEach((to) => {
   const modoApi = String(import.meta.env.VITE_API_MODE || "mock").toLowerCase() === "api";
   const token = localStorage.getItem("retailpro:token");
   const estaLogado = modoApi ? !!sessao?.utilizador && !!token : !!sessao?.utilizador;
-  if (to.name !== "login" && !estaLogado) return { name: "login" };
+  if (to.name !== "login" && to.name !== "not-found" && !estaLogado) return { name: "login" };
   if (to.name === "login" && estaLogado) return { name: "pos" };
   return true;
 });
