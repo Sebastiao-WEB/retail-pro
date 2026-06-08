@@ -107,6 +107,48 @@ class OperatorReportTest extends TestCase
             ->assertOk();
     }
 
+    public function test_detalhe_operador_abre_pagina_dedicada(): void
+    {
+        $register = Register::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'CX-DET',
+            'name' => 'Caixa Detalhe',
+            'is_active' => true,
+        ]);
+
+        $antonio = User::factory()->create(['role' => 'CASHIER', 'name' => 'António']);
+        $product = Product::query()->create([
+            'id' => (string) Str::uuid(),
+            'nome' => 'Produto Detalhe',
+            'codigo_barras' => '8888888888881',
+            'preco_compra' => 1000,
+            'preco_venda' => 1700,
+            'iva_tipo' => 'ISENTO',
+            'iva_valor' => 0,
+            'iva_percentual' => 0,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
+
+        $sale = $this->criarVenda($register, $antonio, 'António', 1700, $product);
+
+        $user = User::factory()->create(['role' => 'ADMIN']);
+        $user->assignRole('ADMIN');
+        Permission::findOrCreate('operator_reports.view', 'web');
+        $user->givePermissionTo('operator_reports.view');
+
+        $this->actingAs($user)
+            ->get(route('operator-reports.detail', [
+                'operador' => 'user:'.$antonio->id,
+                'periodo_inicio' => now()->startOfMonth()->toDateString(),
+                'periodo_fim' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertSee('António')
+            ->assertSee($sale->referencia)
+            ->assertDontSee('operator-detail-modal', false);
+    }
+
     public function test_exporta_pdf_do_relatorio(): void
     {
         $user = User::factory()->create(['role' => 'ADMIN']);

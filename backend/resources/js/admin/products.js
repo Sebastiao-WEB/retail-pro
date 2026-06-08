@@ -8,13 +8,21 @@ const FORM_ID = 'product-form';
 
 function toggleIvaFields(form) {
     const tipo = form.querySelector('[name="iva_tipo"]')?.value || 'ISENTO';
-    const percentWrap = form.querySelector('[data-iva-field="percentual"]');
-    const monetarioWrap = form.querySelector('[data-iva-field="monetario"]');
-    const exemptWrap = form.querySelector('[data-iva-field="isento"]');
 
-    percentWrap?.classList.toggle('hidden', tipo !== 'PERCENTUAL');
-    monetarioWrap?.classList.toggle('hidden', tipo !== 'MONETARIO');
-    exemptWrap?.classList.toggle('hidden', tipo !== 'ISENTO');
+    form.querySelectorAll('[data-iva-panel]').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.ivaPanel !== tipo);
+    });
+}
+
+function setFormTitle(form, mode) {
+    const title = document.getElementById('product-form-title');
+    if (!title) {
+        return;
+    }
+
+    title.textContent = mode === 'edit'
+        ? (title.dataset.editTitle || title.textContent)
+        : (title.dataset.createTitle || title.textContent);
 }
 
 function resetProductForm(form) {
@@ -30,26 +38,24 @@ function resetProductForm(form) {
     form.querySelector('[name="iva_percentual"]').value = '0';
     form.querySelector('[name="iva_valor"]').value = '0';
     form.dataset.editingId = '';
-    form.querySelector('[data-form-title]')?.classList.add('hidden');
-    form.querySelector('[data-form-title-create]')?.classList.remove('hidden');
-    form.querySelector('[data-stock-readonly]')?.classList.add('hidden');
-    form.querySelector('[data-stock-create]')?.classList.remove('hidden');
+    document.getElementById('product-stock-edit')?.classList.add('hidden');
+    document.getElementById('product-stock-create')?.classList.remove('hidden');
+    setFormTitle(form, 'create');
     toggleIvaFields(form);
 }
 
 function populateProductForm(form, product) {
     fillForm(form, product);
     form.dataset.editingId = product.id;
-    form.querySelector('[data-form-title]')?.classList.remove('hidden');
-    form.querySelector('[data-form-title-create]')?.classList.add('hidden');
-    form.querySelector('[data-stock-readonly]')?.classList.remove('hidden');
-    form.querySelector('[data-stock-create]')?.classList.add('hidden');
+    document.getElementById('product-stock-edit')?.classList.remove('hidden');
+    document.getElementById('product-stock-create')?.classList.add('hidden');
 
-    const stockNode = form.querySelector('[data-stock-value]');
+    const stockNode = document.getElementById('product-stock-value');
     if (stockNode) {
         stockNode.textContent = product.stock ?? '0';
     }
 
+    setFormTitle(form, 'edit');
     toggleIvaFields(form);
 }
 
@@ -65,13 +71,9 @@ export default function init() {
         event.preventDefault();
 
         const editingId = form.dataset.editingId;
-        const url = editingId
-            ? route('update', { product: editingId })
-            : route('store');
-
         submitJson(form, {
             method: editingId ? 'PUT' : 'POST',
-            url,
+            url: editingId ? route('update', { product: editingId }) : route('store'),
         });
     });
 
@@ -81,15 +83,13 @@ export default function init() {
             return;
         }
 
-        const action = trigger.dataset.action;
-
-        if (action === 'open-create') {
+        if (trigger.dataset.action === 'open-create') {
             resetProductForm(form);
             openModal(MODAL_ID);
             return;
         }
 
-        if (action === 'open-edit') {
+        if (trigger.dataset.action === 'open-edit') {
             const id = trigger.dataset.id;
             if (!id) {
                 return;
@@ -104,6 +104,5 @@ export default function init() {
                 window.retailToast?.(error.message, 'error');
             }
         }
-
     });
 }

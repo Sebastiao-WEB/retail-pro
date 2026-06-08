@@ -82,13 +82,22 @@
 
     <div>{{ $locations->links() }}</div>
 
-    <div id="stock-location-stock-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true"></div>
+    <div id="stock-location-stock-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
+        <div class="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl">
+            <div id="stock-location-stock-content"></div>
+        </div>
+    </div>
 
     @can('stock_locations.manage')
         <div id="stock-location-form-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
             <div class="w-full max-w-2xl rounded-xl bg-white shadow-xl">
                 <div class="border-b border-slate-200 px-5 py-3">
-                    <h3 id="stock-location-form-title" class="text-base font-semibold">{{ __('pages.stock_locations.new') }}</h3>
+                    <h3
+                        id="stock-location-form-title"
+                        class="text-base font-semibold"
+                        data-create-title="{{ __('pages.stock_locations.new') }}"
+                        data-edit-title="{{ __('pages.stock_locations.edit') }}"
+                    >{{ __('pages.stock_locations.new') }}</h3>
                 </div>
                 <form id="stock-location-form" class="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                     <input type="hidden" name="editing_id" id="stock-location-editing-id" value="">

@@ -114,7 +114,7 @@
                     <div>
                         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.quantity') }}</label>
                         <input name="quantity" type="number" step="0.01" class="rp-input">
-                        <p id="transfer-available-hint" class="mt-1 hidden text-xs"></p>
+                        <p id="transfer-available-hint" data-available-value class="mt-1 text-xs text-slate-500">—</p>
                         <p data-field-error="quantity" class="mt-1 hidden text-xs text-red-600"></p>
                     </div>
                     <div class="md:col-span-2">

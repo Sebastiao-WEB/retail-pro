@@ -49,16 +49,41 @@ class StockReloadWebController extends Controller
             'products' => $products,
             'reloadHistory' => $reloadHistory,
             'search' => $search,
-            'locations' => StockLocation::query()
-                ->where('is_active', true)
-                ->orderBy('is_saleable', 'desc')
-                ->orderBy('name')
-                ->get(['id', 'name', 'code', 'type']),
-            'defaultLocationId' => StockLocation::query()
-                ->where('is_active', true)
-                ->orderBy('is_saleable', 'desc')
-                ->orderBy('name')
-                ->value('id'),
+        ]);
+    }
+
+    public function reloadForm(Request $request, Product $product)
+    {
+        $this->authorizeAdmin('stock.reload');
+        abort_unless($product->is_active, 404);
+
+        $search = $request->string('search')->toString();
+
+        return view('admin.stock-reload.reload', [
+            'product' => $product,
+            'search' => $search,
+            'backUrl' => $this->indexUrl($search),
+            'locations' => $this->activeLocations(),
+            'defaultLocationId' => $this->defaultLocationId(),
+        ]);
+    }
+
+    public function adjustForm(Request $request, Product $product)
+    {
+        $this->authorizeAdmin('stock.reload');
+        abort_unless($product->is_active, 404);
+
+        $search = $request->string('search')->toString();
+        $defaultLocationId = $this->defaultLocationId();
+
+        return view('admin.stock-reload.adjust', [
+            'product' => $product,
+            'search' => $search,
+            'backUrl' => $this->indexUrl($search),
+            'locations' => $this->activeLocations(),
+            'defaultLocationId' => $defaultLocationId,
+            'initialBalance' => $this->balanceAtLocation($product->id, $defaultLocationId),
+            'balanceUrl' => route('stock.reload.balance'),
         ]);
     }
 
@@ -71,10 +96,10 @@ class StockReloadWebController extends Controller
             'to_location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
         ]);
 
-        $saldo = (float) (StockBalance::query()
-            ->where('location_id', $request->string('to_location_id'))
-            ->where('product_id', $request->string('product_id'))
-            ->value('quantity') ?? 0);
+        $saldo = $this->balanceAtLocation(
+            $request->string('product_id')->toString(),
+            $request->string('to_location_id')->toString(),
+        );
 
         return $this->jsonOk(['saldo' => $saldo]);
     }
@@ -101,10 +126,20 @@ class StockReloadWebController extends Controller
                 (float) ($dados['unitCost'] ?? 0),
             );
         } catch (ValidationException $exception) {
-            return $this->jsonFromValidation($exception);
+            if ($request->expectsJson()) {
+                return $this->jsonFromValidation($exception);
+            }
+
+            throw $exception;
         }
 
-        return $this->jsonOk(null, __('toasts.stock_adjusted'));
+        if ($request->expectsJson()) {
+            return $this->jsonOk(null, __('toasts.stock_adjusted'));
+        }
+
+        return redirect()
+            ->to($this->indexUrl($request->string('return_search')->toString()))
+            ->with('toast', ['type' => 'success', 'message' => __('toasts.stock_adjusted')]);
     }
 
     public function reload(Request $request)
@@ -121,7 +156,11 @@ class StockReloadWebController extends Controller
                 'to_location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
             ]);
         } catch (ValidationException $exception) {
-            return $this->jsonFromValidation($exception);
+            if ($request->expectsJson()) {
+                return $this->jsonFromValidation($exception);
+            }
+
+            throw $exception;
         }
 
         DB::transaction(function () use ($dados) {
@@ -180,6 +219,50 @@ class StockReloadWebController extends Controller
             $product->save();
         });
 
-        return $this->jsonOk(null, __('toasts.stock_reloaded'));
+        if ($request->expectsJson()) {
+            return $this->jsonOk(null, __('toasts.stock_reloaded'));
+        }
+
+        return redirect()
+            ->to($this->indexUrl($request->string('return_search')->toString()))
+            ->with('toast', ['type' => 'success', 'message' => __('toasts.stock_reloaded')]);
+    }
+
+    /** @return \Illuminate\Support\Collection<int, StockLocation> */
+    private function activeLocations()
+    {
+        return StockLocation::query()
+            ->where('is_active', true)
+            ->orderBy('is_saleable', 'desc')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'type']);
+    }
+
+    private function defaultLocationId(): ?string
+    {
+        return StockLocation::query()
+            ->where('is_active', true)
+            ->orderBy('is_saleable', 'desc')
+            ->orderBy('name')
+            ->value('id');
+    }
+
+    private function balanceAtLocation(string $productId, ?string $locationId): float
+    {
+        if ($locationId === null || $locationId === '') {
+            return 0.0;
+        }
+
+        return (float) (StockBalance::query()
+            ->where('location_id', $locationId)
+            ->where('product_id', $productId)
+            ->value('quantity') ?? 0);
+    }
+
+    private function indexUrl(string $search = ''): string
+    {
+        return route('stock.reload', array_filter([
+            'search' => $search !== '' ? $search : null,
+        ]));
     }
 }

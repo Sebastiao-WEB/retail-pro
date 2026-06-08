@@ -89,7 +89,12 @@
         <div id="register-form-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
             <div class="w-full max-w-lg rounded-xl bg-white shadow-xl">
                 <div class="border-b border-slate-200 px-5 py-3">
-                    <h3 id="register-form-title" class="text-base font-semibold">{{ __('pages.registers.new') }}</h3>
+                    <h3
+                        id="register-form-title"
+                        class="text-base font-semibold"
+                        data-create-title="{{ __('pages.registers.new') }}"
+                        data-edit-title="{{ __('pages.registers.edit') }}"
+                    >{{ __('pages.registers.new') }}</h3>
                 </div>
                 <form id="register-form" class="grid grid-cols-1 gap-3 p-5">
                     <input type="hidden" name="editing_id" id="register-editing-id" value="">

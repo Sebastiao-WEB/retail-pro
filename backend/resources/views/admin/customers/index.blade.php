@@ -84,7 +84,12 @@
         <div id="customer-form-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
             <div class="w-full max-w-2xl rounded-xl bg-white shadow-xl">
                 <div class="border-b border-slate-200 px-5 py-3">
-                    <h3 id="customer-form-title" class="text-base font-semibold text-slate-900">{{ __('pages.customers.new') }}</h3>
+                    <h3
+                        id="customer-form-title"
+                        class="text-base font-semibold text-slate-900"
+                        data-create-title="{{ __('pages.customers.new') }}"
+                        data-edit-title="{{ __('pages.customers.edit') }}"
+                    >{{ __('pages.customers.new') }}</h3>
                 </div>
                 <form id="customer-form" class="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
                     <input type="hidden" name="editing_id" id="customer-editing-id" value="">

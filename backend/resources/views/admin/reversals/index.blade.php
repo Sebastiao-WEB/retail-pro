@@ -22,7 +22,7 @@
         </a>
     </div>
 
-    <form method="GET" action="{{ route('reversals.index') }}" data-auto-submit class="rounded-lg border border-slate-200 bg-white p-4">
+    <form method="GET" action="{{ route('reversals.index') }}" data-auto-submit data-reversal-filters class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-5">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('pages.common.period_start') }}</label>
@@ -124,11 +124,11 @@
                             <td class="px-3 py-2">
                                 @if ($reversao->status === 'PENDING')
                                     <div class="flex items-center gap-2">
-                                        <button type="button" data-action="open-decision" data-id="{{ $reversao->id }}" data-status="APPROVED" class="rounded-md border border-emerald-200 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50">
+                                        <button type="button" data-action="open-decision" data-id="{{ $reversao->id }}" data-status="APPROVED" data-reference="{{ $reversao->sale?->referencia ?? $reversao->sale_id }}" class="rounded-md border border-emerald-200 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50">
                                             <i data-lucide="check" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
                                             {{ __('pages.common.approve') }}
                                         </button>
-                                        <button type="button" data-action="open-decision" data-id="{{ $reversao->id }}" data-status="REJECTED" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
+                                        <button type="button" data-action="open-decision" data-id="{{ $reversao->id }}" data-status="REJECTED" data-reference="{{ $reversao->sale?->referencia ?? $reversao->sale_id }}" class="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
                                             <i data-lucide="x" class="mr-1 inline-block h-3.5 w-3.5 align-[-2px]"></i>
                                             {{ __('pages.common.reject') }}
                                         </button>
@@ -162,7 +162,12 @@
         <div id="reversal-decision-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
             <div class="w-full max-w-lg rounded-xl bg-white shadow-xl">
                 <div class="border-b border-slate-200 px-5 py-3">
-                    <h3 id="reversal-decision-title" class="text-base font-semibold text-slate-900"></h3>
+                    <h3
+                        id="reversal-decision-title"
+                        class="text-base font-semibold text-slate-900"
+                        data-approve-title="{{ __('pages.reversals.approve_title') }}"
+                        data-reject-title="{{ __('pages.reversals.reject_title') }}"
+                    ></h3>
                 </div>
                 <form id="reversal-decision-form" class="p-5">
                     <input type="hidden" name="reversal_id" id="reversal-decision-id" value="">

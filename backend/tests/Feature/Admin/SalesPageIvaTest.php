@@ -72,5 +72,11 @@ class SalesPageIvaTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.itens.0.iva_percentual', '16,00')
             ->assertJsonPath('data.itens.0.iva_total', '16,00');
+
+        $this->actingAs($admin)
+            ->get(route('sales.detail', $sale))
+            ->assertOk()
+            ->assertSee('VD-TEST-IVA')
+            ->assertSee('16,00');
     }
 }

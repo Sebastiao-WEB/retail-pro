@@ -27,6 +27,7 @@ function fortifyFetch(url, options = {}) {
 
 export default function init() {
     const routes = getRoutes();
+    const pageRoot = document.querySelector('[data-routes]');
     const qrContainer = document.getElementById('two-factor-qr');
 
     if (qrContainer && routes.qrCode) {
@@ -37,7 +38,7 @@ export default function init() {
                 }
             })
             .catch(() => {
-                qrContainer.innerHTML = '<p class="text-sm text-red-600">Não foi possível carregar o código QR.</p>';
+                qrContainer.innerHTML = `<p class="text-sm text-red-600">${pageRoot?.dataset.qrFailed || ''}</p>`;
             });
     }
 
@@ -59,7 +60,7 @@ export default function init() {
                     recoveryList.appendChild(item);
                 });
             } catch {
-                window.retailToast?.('Não foi possível carregar os códigos de recuperação.', 'error');
+                window.retailToast?.(pageRoot?.dataset.recoveryFailed || '', 'error');
             } finally {
                 loadRecoveryButton.disabled = false;
             }
@@ -67,8 +68,8 @@ export default function init() {
     }
 
     document.querySelector('form[data-security-disable]')?.addEventListener('submit', (event) => {
-        const message = event.currentTarget.dataset.confirmMessage || 'Desactivar autenticação de dois factores?';
-        if (!window.confirm(message)) {
+        const message = event.currentTarget.dataset.confirmMessage || pageRoot?.dataset.disableConfirm || '';
+        if (message && !window.confirm(message)) {
             event.preventDefault();
         }
     });

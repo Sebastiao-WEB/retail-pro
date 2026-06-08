@@ -1,11 +1,19 @@
 @php
     $dashboard_index_blade_routes = [
-'index' => route('dashboard')
+        'index' => route('dashboard'),
+    ];
+
+    $dashboardChartData = [
+        'labelsVendas' => $labelsVendas,
+        'dadosVendas' => $dadosVendas,
+        'labelsPagamentos' => $labelsPagamentos,
+        'dadosPagamentos' => $dadosPagamentos,
+        'chartSalesLabel' => $chartSalesLabel,
     ];
 @endphp
 
 <x-layouts.desktop :title="__('pages.titles.dashboard')" admin-page="dashboard">
-<div class="space-y-6" data-routes='@json($dashboard_index_blade_routes)'>
+<div class="space-y-6" data-routes='@json($dashboard_index_blade_routes)' data-dashboard='@json($dashboardChartData)'>
     <form method="GET" action="{{ route('dashboard') }}" data-auto-submit class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
@@ -196,72 +204,4 @@
         </div>
     </section>
 </div>
-
-@push('scripts')
-<script>
-    function renderDashboardCharts() {
-        if (typeof window.Chart === 'undefined') return;
-
-        const labelsVendas = @js($labelsVendas);
-        const dadosVendas = @js($dadosVendas);
-        const labelsPagamentos = @js($labelsPagamentos);
-        const dadosPagamentos = @js($dadosPagamentos);
-        const chartSalesLabel = @js($chartSalesLabel);
-
-        if (window.retailChartVendas7Dias) {
-            window.retailChartVendas7Dias.destroy();
-            window.retailChartVendas7Dias = null;
-        }
-
-        if (window.retailChartPagamentos) {
-            window.retailChartPagamentos.destroy();
-            window.retailChartPagamentos = null;
-        }
-
-        const canvasVendas = document.getElementById('chartVendas7Dias');
-        if (canvasVendas) {
-            window.retailChartVendas7Dias = new window.Chart(canvasVendas, {
-                type: 'line',
-                data: {
-                    labels: labelsVendas,
-                    datasets: [{
-                        label: chartSalesLabel,
-                        data: dadosVendas,
-                        borderColor: '#d8b65a',
-                        backgroundColor: 'rgba(216, 182, 90, 0.18)',
-                        fill: true,
-                        tension: 0.28,
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                },
-            });
-        }
-
-        const canvasPagamentos = document.getElementById('chartPagamentos');
-        if (canvasPagamentos) {
-            window.retailChartPagamentos = new window.Chart(canvasPagamentos, {
-                type: 'doughnut',
-                data: {
-                    labels: labelsPagamentos,
-                    datasets: [{
-                        data: dadosPagamentos,
-                        backgroundColor: ['#0f172a', '#1e293b', '#334155', '#d8b65a', '#475569'],
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } },
-                },
-            });
-        }
-    }
-
-    window.addEventListener('load', renderDashboardCharts);
-</script>
-@endpush
 </x-layouts.desktop>

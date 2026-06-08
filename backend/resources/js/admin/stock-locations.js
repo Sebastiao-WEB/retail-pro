@@ -2,13 +2,13 @@ import { openModal, closeModal } from './modal.js';
 import { submitJson, fetchJson } from './form.js';
 import http from './http.js';
 import { route } from './routes.js';
-import { escapeHtml, fillForm, reloadWithToast } from './utils.js';
+import { escapeHtml, fillForm, reloadWithToast, setFormTitle } from './utils.js';
 
 const FORM_MODAL_ID = 'stock-location-form-modal';
 const STOCK_MODAL_ID = 'stock-location-stock-modal';
 const DELETE_MODAL_ID = 'stock-location-delete-modal';
 const FORM_ID = 'stock-location-form';
-const DELETE_FORM_ID = 'stock-location-delete-form';
+const DELETE_ID_INPUT = 'stock-location-delete-id';
 const STOCK_CONTENT_ID = 'stock-location-stock-content';
 
 function resetLocationForm(form) {
@@ -17,15 +17,13 @@ function resetLocationForm(form) {
     form.querySelector('[name="is_saleable"]').checked = true;
     form.querySelector('[name="type"]').value = 'STORE_FLOOR';
     form.dataset.editingId = '';
-    form.querySelector('[data-form-title]')?.classList.add('hidden');
-    form.querySelector('[data-form-title-create]')?.classList.remove('hidden');
+    setFormTitle('stock-location-form-title', 'create');
 }
 
 function populateLocationForm(form, location) {
     fillForm(form, location);
     form.dataset.editingId = location.id;
-    form.querySelector('[data-form-title]')?.classList.remove('hidden');
-    form.querySelector('[data-form-title-create]')?.classList.add('hidden');
+    setFormTitle('stock-location-form-title', 'edit');
 }
 
 function renderStockDetail(container, stock) {
@@ -79,7 +77,7 @@ function renderStockDetail(container, stock) {
 
 export default function init() {
     const form = document.getElementById(FORM_ID);
-    const deleteForm = document.getElementById(DELETE_FORM_ID);
+    const deleteIdInput = document.getElementById(DELETE_ID_INPUT);
     const stockContent = document.getElementById(STOCK_CONTENT_ID);
 
     form?.addEventListener('submit', (event) => {
@@ -90,23 +88,6 @@ export default function init() {
             method: editingId ? 'PUT' : 'POST',
             url: editingId ? route('update', { stockLocation: editingId }) : route('store'),
         });
-    });
-
-    deleteForm?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        const locationId = deleteForm.dataset.locationId;
-        if (!locationId) {
-            return;
-        }
-
-        try {
-            const response = await http.delete(route('destroy', { stockLocation: locationId }));
-            closeModal(DELETE_MODAL_ID);
-            reloadWithToast(response.data?.message);
-        } catch (error) {
-            window.retailToast?.(error.message, 'error');
-        }
     });
 
     document.addEventListener('click', async (event) => {
@@ -158,19 +139,35 @@ export default function init() {
             return;
         }
 
-        if (action === 'confirm-delete' && deleteForm) {
+        if (action === 'stock-location-stock-close') {
+            closeModal(STOCK_MODAL_ID);
+            return;
+        }
+
+        if (action === 'confirm-delete' && deleteIdInput) {
             const id = trigger.dataset.id;
             if (!id) {
                 return;
             }
 
-            deleteForm.dataset.locationId = id;
+            deleteIdInput.value = id;
             openModal(DELETE_MODAL_ID);
             return;
         }
 
-        if (action === 'delete-stock-location' && deleteForm) {
-            deleteForm.requestSubmit();
+        if (action === 'delete-stock-location' && deleteIdInput) {
+            const locationId = deleteIdInput.value;
+            if (!locationId) {
+                return;
+            }
+
+            try {
+                const response = await http.delete(route('destroy', { stockLocation: locationId }));
+                closeModal(DELETE_MODAL_ID);
+                reloadWithToast(response.data?.message);
+            } catch (error) {
+                window.retailToast?.(error.message, 'error');
+            }
         }
     });
 }

@@ -58,6 +58,17 @@ export function setCheckboxGroup(form, name, values = []) {
     });
 }
 
+export function setFormTitle(titleId, mode) {
+    const title = document.getElementById(titleId);
+    if (!title) {
+        return;
+    }
+
+    title.textContent = mode === 'edit'
+        ? (title.dataset.editTitle || title.textContent)
+        : (title.dataset.createTitle || title.textContent);
+}
+
 export function formatMoney(value, suffix = ' MT') {
     const text = typeof value === 'string' ? value : Number(value || 0).toLocaleString('pt-PT', {
         minimumFractionDigits: 2,

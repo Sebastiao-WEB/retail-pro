@@ -33,9 +33,24 @@ export function routeUrl(template, params = {}) {
         url = url.replaceAll(`{${key}}`, encodeURIComponent(value ?? ''));
     }
 
-    const id = params.id ?? Object.values(params).find((value) => value !== undefined && value !== '');
+    const id = params.id
+        ?? params.user
+        ?? params.customer
+        ?? params.product
+        ?? params.register
+        ?? params.stockLocation
+        ?? params.balanceSheet
+        ?? params.sale
+        ?? params.cashSession
+        ?? params.reversalRequest
+        ?? Object.values(params).find((value) => value !== undefined && value !== '');
+
     if (id !== undefined && id !== '') {
         url = url.replaceAll('__ID__', encodeURIComponent(String(id)));
+    }
+
+    if (params.role !== undefined && params.role !== '') {
+        url = url.replaceAll('__ROLE__', encodeURIComponent(String(params.role)));
     }
 
     return url;

@@ -1,15 +1,12 @@
 @php
-    $cash_sessions_active_blade_routes = [
-'index' => route('cash-sessions.active'),
-        'show' => route('cash-sessions.show', ['cashSession' => '__ID__']),
-    ];
+    $listaFiltros = array_filter([
+        'search' => $search,
+        'registerFilter' => $registerFilter,
+    ], fn ($value) => $value !== '' && $value !== null);
 @endphp
 
 <x-layouts.desktop :title="__('pages.titles.cash_sessions_active')" admin-page="cash-sessions-active">
-<div
-    class="space-y-4"
-    data-routes='@json($cash_sessions_active_blade_routes)'
->
+<div class="space-y-4">
     <div class="rounded-lg border border-slate-200 bg-white p-4">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('pages.cash_sessions.active_title') }}</p>
         <p class="text-sm text-slate-500">{{ __('pages.cash_sessions.active_subtitle') }}</p>
@@ -46,7 +43,7 @@
                         <td class="px-3 py-2">{{ number_format((float) $sessao->opening_balance, 2, ',', '.') }} MT</td>
                         <td class="px-3 py-2"><span class="font-semibold text-emerald-600">{{ __('pages.common.status_open') }}</span></td>
                         <td class="px-3 py-2">
-                            <button type="button" data-action="open-detail" data-id="{{ $sessao->id }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('app.details') }}</button>
+                            <a href="{{ route('cash-sessions.detail', array_merge(['cashSession' => $sessao, 'from' => 'active'], $listaFiltros)) }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('app.details') }}</a>
                         </td>
                     </tr>
                 @empty
@@ -59,7 +56,5 @@
     </div>
 
     <div>{{ $sessoes->links() }}</div>
-
-    <div id="cash-session-detail-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true"></div>
 </div>
 </x-layouts.desktop>

@@ -1,4 +1,4 @@
-import { openModal, closeModal } from './modal.js';
+import { openModal } from './modal.js';
 import { submitJson } from './form.js';
 import { route } from './routes.js';
 
@@ -31,7 +31,7 @@ export default function init() {
     form?.addEventListener('submit', (event) => {
         event.preventDefault();
 
-        const reversalId = form.dataset.reversalId;
+        const reversalId = document.getElementById('reversal-decision-id')?.value;
         if (!reversalId) {
             return;
         }
@@ -74,23 +74,29 @@ export default function init() {
                 return;
             }
 
-            form.dataset.reversalId = id;
-            form.querySelector('[name="decisionStatus"]').value = status;
+            const idInput = document.getElementById('reversal-decision-id');
+            const statusInput = document.getElementById('reversal-decision-status');
+            const title = document.getElementById('reversal-decision-title');
 
-            const label = form.querySelector('[data-decision-reference]');
-            if (label) {
-                label.textContent = reference;
+            if (idInput) {
+                idInput.value = id;
             }
 
-            const title = form.querySelector('[data-decision-title]');
+            if (statusInput) {
+                statusInput.value = status;
+            }
+
             if (title) {
-                title.textContent = status === 'APPROVED' ? 'Aprovar reversão' : 'Rejeitar reversão';
+                const approveTitle = title.dataset.approveTitle || 'Aprovar reversão';
+                const rejectTitle = title.dataset.rejectTitle || 'Rejeitar reversão';
+
+                title.textContent = reference
+                    ? `${status === 'APPROVED' ? approveTitle : rejectTitle} — ${reference}`
+                    : (status === 'APPROVED' ? approveTitle : rejectTitle);
             }
 
             form.querySelector('[name="decisionReason"]').value = '';
             openModal(MODAL_ID);
-            return;
         }
-
     });
 }

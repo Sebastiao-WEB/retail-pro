@@ -13,7 +13,7 @@
 <div
     class="space-y-4"
     data-routes='@json($balance_sheets_index_blade_routes)'
-    data-default-form="@js($defaultForm)"
+    data-default-form='@json($defaultForm)'
 >
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <div>
@@ -127,6 +127,11 @@
         </div>
     @endcan
 
-    <div id="balance-detail-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true"></div>
+    <div id="balance-detail-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
+        <div class="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-white shadow-xl">
+            <div id="balance-detail-content"></div>
+            <form id="balance-detail-form" class="hidden"></form>
+        </div>
+    </div>
 </div>
 </x-layouts.desktop>

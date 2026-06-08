@@ -107,4 +107,26 @@ class StockAdjustmentTest extends TestCase
         $this->assertNotNull($movement);
         $this->assertSame('Correção recarga', $movement->note);
     }
+
+    public function test_paginas_recarga_e_ajuste_abrem_para_produto(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['stock.reload', 'products.view']);
+
+        $produto = $ambiente['product'];
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload.form', ['product' => $produto, 'search' => 'teste']))
+            ->assertOk()
+            ->assertSee($produto->nome)
+            ->assertDontSee('stock-reload-modal', false);
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload.adjust.form', ['product' => $produto, 'search' => 'teste']))
+            ->assertOk()
+            ->assertSee($produto->nome)
+            ->assertDontSee('stock-adjust-modal', false);
+    }
 }

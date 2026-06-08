@@ -2,31 +2,29 @@ import { openModal, closeModal } from './modal.js';
 import { submitJson, fetchJson } from './form.js';
 import http from './http.js';
 import { route } from './routes.js';
-import { fillForm, reloadWithToast } from './utils.js';
+import { fillForm, reloadWithToast, setFormTitle } from './utils.js';
 
 const FORM_MODAL_ID = 'register-form-modal';
 const DELETE_MODAL_ID = 'register-delete-modal';
 const FORM_ID = 'register-form';
-const DELETE_FORM_ID = 'register-delete-form';
+const DELETE_ID_INPUT = 'register-delete-id';
 
 function resetRegisterForm(form) {
     form.reset();
     form.querySelector('[name="is_active"]').checked = true;
     form.dataset.editingId = '';
-    form.querySelector('[data-form-title]')?.classList.add('hidden');
-    form.querySelector('[data-form-title-create]')?.classList.remove('hidden');
+    setFormTitle('register-form-title', 'create');
 }
 
 function populateRegisterForm(form, register) {
     fillForm(form, register);
     form.dataset.editingId = register.id;
-    form.querySelector('[data-form-title]')?.classList.remove('hidden');
-    form.querySelector('[data-form-title-create]')?.classList.add('hidden');
+    setFormTitle('register-form-title', 'edit');
 }
 
 export default function init() {
     const form = document.getElementById(FORM_ID);
-    const deleteForm = document.getElementById(DELETE_FORM_ID);
+    const deleteIdInput = document.getElementById(DELETE_ID_INPUT);
 
     form?.addEventListener('submit', (event) => {
         event.preventDefault();
@@ -36,23 +34,6 @@ export default function init() {
             method: editingId ? 'PUT' : 'POST',
             url: editingId ? route('update', { register: editingId }) : route('store'),
         });
-    });
-
-    deleteForm?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        const registerId = deleteForm.dataset.registerId;
-        if (!registerId) {
-            return;
-        }
-
-        try {
-            const response = await http.delete(route('destroy', { register: registerId }));
-            closeModal(DELETE_MODAL_ID);
-            reloadWithToast(response.data?.message);
-        } catch (error) {
-            window.retailToast?.(error.message, 'error');
-        }
     });
 
     document.addEventListener('click', async (event) => {
@@ -86,19 +67,30 @@ export default function init() {
             return;
         }
 
-        if (action === 'confirm-delete') {
+        if (action === 'confirm-delete' && deleteIdInput) {
             const id = trigger.dataset.id;
-            if (!id || !deleteForm) {
+            if (!id) {
                 return;
             }
 
-            deleteForm.dataset.registerId = id;
+            deleteIdInput.value = id;
             openModal(DELETE_MODAL_ID);
             return;
         }
 
-        if (action === 'delete-register' && deleteForm) {
-            deleteForm.requestSubmit();
+        if (action === 'delete-register' && deleteIdInput) {
+            const registerId = deleteIdInput.value;
+            if (!registerId) {
+                return;
+            }
+
+            try {
+                const response = await http.delete(route('destroy', { register: registerId }));
+                closeModal(DELETE_MODAL_ID);
+                reloadWithToast(response.data?.message);
+            } catch (error) {
+                window.retailToast?.(error.message, 'error');
+            }
         }
     });
 }

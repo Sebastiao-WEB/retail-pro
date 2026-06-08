@@ -157,7 +157,11 @@
                         <p class="mb-2 text-[11px] text-slate-500">{{ __('pages.users.registers_hint') }}</p>
                         <div id="user-registers-list" class="max-h-36 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
                             @forelse ($registers as $register)
-                                <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 px-2 py-1.5">
+                                <div
+                                    class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 px-2 py-1.5"
+                                    data-register-row
+                                    data-location-id="{{ $register->sourceLocation?->id }}"
+                                >
                                     <label class="flex flex-1 items-center gap-2 text-sm text-slate-700">
                                         <input type="checkbox" name="register_ids[]" value="{{ $register->id }}" class="h-4 w-4 accent-amber-500">
                                         <span>{{ $register->code }} — {{ $register->name }}</span>

@@ -1,11 +1,19 @@
 @php
     $security_index_blade_routes = [
-'index' => route('security.settings')
+        'index' => route('security.settings'),
+        'qrCode' => route('two-factor.qr-code'),
+        'recoveryCodes' => route('two-factor.recovery-codes'),
     ];
 @endphp
 
 <x-layouts.desktop :title="__('auth.security.title') . ' | RetailPro'" admin-page="security">
-<div class="space-y-4" data-routes='@json($security_index_blade_routes)'>
+<div
+    class="space-y-4"
+    data-routes='@json($security_index_blade_routes)'
+    data-qr-failed="{{ __('auth.security.qr_failed') }}"
+    data-recovery-failed="{{ __('auth.security.recovery_failed') }}"
+    data-disable-confirm="{{ __('auth.security.disable_confirm') }}"
+>
     <div class="rounded-lg border border-slate-200 bg-white p-4">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('auth.security.title') }}</p>
         <p class="text-sm text-slate-500">{{ __('auth.security.subtitle') }}</p>
@@ -73,7 +81,7 @@
                     </div>
                 </div>
 
-                <form method="POST" action="{{ route('two-factor.disable') }}" onsubmit="return confirm(@js(__('auth.security.disable_confirm')))">
+                <form method="POST" action="{{ route('two-factor.disable') }}" data-security-disable data-confirm-message="{{ __('auth.security.disable_confirm') }}">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100">
@@ -94,69 +102,4 @@
         @endif
     </div>
 </div>
-
-@push('scripts')
-<script>
-    const csrf = @js(csrf_token());
-
-    async function fortifyFetch(url, options = {}) {
-        const response = await fetch(url, {
-            credentials: 'same-origin',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': csrf,
-                ...(options.headers || {}),
-            },
-            ...options,
-        });
-
-        if (!response.ok) {
-            throw new Error('request_failed');
-        }
-
-        if (response.status === 204) {
-            return null;
-        }
-
-        return response.json();
-    }
-
-    const qrContainer = document.getElementById('two-factor-qr');
-    if (qrContainer) {
-        fortifyFetch(@js(route('two-factor.qr-code')))
-            .then((data) => {
-                if (data?.svg) {
-                    qrContainer.innerHTML = data.svg;
-                }
-            })
-            .catch(() => {
-                qrContainer.innerHTML = '<p class="text-sm text-red-600">' + @js(__('auth.security.qr_failed')) + '</p>';
-            });
-    }
-
-    const loadRecoveryButton = document.getElementById('load-recovery-codes');
-    const recoveryList = document.getElementById('recovery-codes-list');
-
-    if (loadRecoveryButton && recoveryList) {
-        loadRecoveryButton.addEventListener('click', async () => {
-            loadRecoveryButton.disabled = true;
-            try {
-                const codes = await fortifyFetch(@js(route('two-factor.recovery-codes')));
-                recoveryList.innerHTML = '';
-                (codes || []).forEach((code) => {
-                    const item = document.createElement('li');
-                    item.className = 'rounded border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700';
-                    item.textContent = code;
-                    recoveryList.appendChild(item);
-                });
-            } catch {
-                window.retailToast?.(@js(__('auth.security.recovery_failed')), 'error');
-            } finally {
-                loadRecoveryButton.disabled = false;
-            }
-        });
-    }
-</script>
-@endpush
 </x-layouts.desktop>

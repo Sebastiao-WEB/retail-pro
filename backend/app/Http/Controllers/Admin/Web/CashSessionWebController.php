@@ -54,6 +54,30 @@ class CashSessionWebController extends Controller
         ]);
     }
 
+    public function detail(Request $request, CashSession $cashSession)
+    {
+        $this->authorizeAdmin('cash_sessions.view');
+
+        $detalhe = CashSession::query()
+            ->with(['register', 'user'])
+            ->findOrFail($cashSession->id);
+
+        $listaFiltros = $request->only(['search', 'registerFilter']);
+        $from = $request->string('from')->toString();
+        $backUrl = $from === 'closed'
+            ? route('cash-sessions.closed', $listaFiltros)
+            : route('cash-sessions.active', $listaFiltros);
+
+        $snapshot = is_array($detalhe->report_snapshot) ? $detalhe->report_snapshot : [];
+
+        return view('admin.cash-sessions.detail', [
+            'session' => $detalhe,
+            'snapshot' => $snapshot,
+            'backUrl' => $backUrl,
+            'isClosed' => $detalhe->status === 'CLOSED',
+        ]);
+    }
+
     public function show(CashSession $cashSession)
     {
         $this->authorizeAdmin('cash_sessions.view');
@@ -88,6 +112,8 @@ class CashSessionWebController extends Controller
      */
     private function serializeSession(CashSession $session): array
     {
+        $snapshot = is_array($session->report_snapshot) ? $session->report_snapshot : [];
+
         return [
             'id' => $session->id,
             'status' => $session->status,
@@ -96,11 +122,11 @@ class CashSessionWebController extends Controller
             'operator' => $session->user?->name ?? '—',
             'opened_at' => optional($session->opened_at)->format('d/m/Y H:i'),
             'closed_at' => optional($session->closed_at)->format('d/m/Y H:i'),
-            'opening_float' => number_format((float) $session->opening_float, 2, ',', '.'),
-            'closing_cash' => number_format((float) ($session->closing_cash ?? 0), 2, ',', '.'),
-            'expected_cash' => number_format((float) ($session->expected_cash ?? 0), 2, ',', '.'),
-            'difference' => number_format((float) ($session->difference ?? 0), 2, ',', '.'),
-            'total_sales' => number_format((float) ($session->total_sales ?? 0), 2, ',', '.'),
+            'opening_float' => number_format((float) $session->opening_balance, 2, ',', '.'),
+            'closing_cash' => number_format((float) ($session->closing_balance ?? 0), 2, ',', '.'),
+            'expected_cash' => number_format((float) ($snapshot['dinheiroEsperado'] ?? $snapshot['expected_cash'] ?? 0), 2, ',', '.'),
+            'difference' => number_format((float) ($session->difference_amount ?? 0), 2, ',', '.'),
+            'total_sales' => number_format((float) ($snapshot['totalVendido'] ?? 0), 2, ',', '.'),
             'note' => (string) ($session->note ?? ''),
         ];
     }

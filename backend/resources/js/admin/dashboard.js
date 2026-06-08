@@ -1,5 +1,18 @@
+function parseDashboardData() {
+    const root = document.querySelector('[data-dashboard]');
+    if (!root?.dataset.dashboard) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(root.dataset.dashboard);
+    } catch {
+        return null;
+    }
+}
+
 export default function init() {
-    const data = window.rpDashboardData;
+    const data = parseDashboardData();
     if (!data || typeof window.Chart === 'undefined') {
         return;
     }

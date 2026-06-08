@@ -21,7 +21,7 @@
         </a>
     </div>
 
-    <form method="GET" action="{{ route('operator-reports.index') }}" data-auto-submit class="rounded-lg border border-slate-200 bg-white p-4">
+    <form method="GET" action="{{ route('operator-reports.index') }}" data-auto-submit data-operator-filters class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div>
                 <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('pages.common.period_start') }}</label>
@@ -90,7 +90,7 @@
                         <td class="px-3 py-2 text-right">{{ $operador['num_vendas'] }}</td>
                         <td class="px-3 py-2">
                             <a
-                                href="{{ route('operator-reports.index', array_merge(request()->query(), ['operador' => $operador['chave']])) }}"
+                                href="{{ route('operator-reports.detail', array_merge(request()->only(['periodo_inicio', 'periodo_fim', 'registerFilter']), ['operador' => $operador['chave']])) }}"
                                 class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"
                             >
                                 {{ __('pages.common.view_details') }}
@@ -105,76 +105,5 @@
             </tbody>
         </table>
     </div>
-
-    @if ($operadorSelecionado)
-        <div id="operator-detail-modal" class="rp-admin-modal fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4">
-            <div class="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-white shadow-xl">
-                <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
-                    <div>
-                        <h3 class="text-base font-semibold">{{ $operadorSelecionado['nome'] }}</h3>
-                        <p class="text-xs text-slate-500">
-                            {{ __('pages.operator_reports.operator_sales_summary', [
-                                'sales' => number_format($operadorSelecionado['total_vendas'], 2, ',', '.'),
-                                'profit' => number_format($operadorSelecionado['total_lucro'], 2, ',', '.'),
-                                'count' => __('pages.common.sales_count', ['count' => $operadorSelecionado['num_vendas']]),
-                            ]) }}
-                        </p>
-                    </div>
-                    <a href="{{ route('operator-reports.index', request()->except('operador')) }}" class="text-slate-500 hover:text-slate-800">✕</a>
-                </div>
-
-                <div class="space-y-4 p-5">
-                    @foreach ($operadorSelecionado['vendas'] as $venda)
-                        <div class="overflow-hidden rounded-lg border border-slate-200">
-                            <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-4 py-2 text-xs">
-                                <div>
-                                    <span class="font-semibold">{{ $venda['referencia'] }}</span>
-                                    <span class="text-slate-500">· {{ optional($venda['data'])->format('d/m/Y H:i') }}</span>
-                                </div>
-                                <div class="text-right">
-                                    <span class="font-semibold">{{ number_format($venda['total'], 2, ',', '.') }} MT</span>
-                                    <span class="text-emerald-700">· {{ __('pages.common.profit') }} {{ number_format($venda['lucro'], 2, ',', '.') }} MT</span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 border-b border-slate-100 px-4 py-2 text-[11px] text-slate-600 md:grid-cols-4">
-                                <span><strong>{{ __('app.fields.client') }}:</strong> {{ $venda['cliente'] }}</span>
-                                <span><strong>{{ __('app.fields.register') }}:</strong> {{ $venda['caixa'] ?? '—' }}</span>
-                                <span><strong>{{ __('app.fields.payment') }}:</strong> {{ \App\Support\Translations::paymentMethod($venda['metodo_pagamento']) }}</span>
-                                <span><strong>{{ __('pages.common.cost') }}:</strong> {{ number_format($venda['custo'], 2, ',', '.') }} MT</span>
-                            </div>
-                            <table class="min-w-full text-xs">
-                                <thead class="bg-slate-900 text-left uppercase tracking-wide text-white">
-                                    <tr>
-                                        <th class="px-3 py-2">{{ __('app.fields.product') }}</th>
-                                        <th class="px-3 py-2">{{ __('pages.common.barcode_short') }}</th>
-                                        <th class="px-3 py-2 text-right">{{ __('pages.common.qty_short') }}</th>
-                                        <th class="px-3 py-2 text-right">{{ __('pages.common.sale_price_short') }}</th>
-                                        <th class="px-3 py-2 text-right">{{ __('pages.common.cost_short') }}</th>
-                                        <th class="px-3 py-2 text-right">{{ __('pages.common.profit') }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($venda['itens'] as $item)
-                                        <tr class="border-t border-slate-100">
-                                            <td class="px-3 py-2">{{ $item['nome'] }}</td>
-                                            <td class="px-3 py-2 font-mono text-[11px]">{{ $item['codigo_barras'] ?? '—' }}</td>
-                                            <td class="px-3 py-2 text-right">{{ number_format($item['quantidade'], 0, ',', '.') }}</td>
-                                            <td class="px-3 py-2 text-right">{{ number_format($item['subtotal'], 2, ',', '.') }}</td>
-                                            <td class="px-3 py-2 text-right">{{ number_format($item['custo_total'], 2, ',', '.') }}</td>
-                                            <td class="px-3 py-2 text-right text-emerald-700">{{ number_format($item['lucro'], 2, ',', '.') }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="sticky bottom-0 flex justify-end border-t border-slate-200 bg-white px-5 py-3">
-                    <a href="{{ route('operator-reports.index', request()->except('operador')) }}" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{{ __('app.close') }}</a>
-                </div>
-            </div>
-        </div>
-    @endif
 </div>
 </x-layouts.desktop>

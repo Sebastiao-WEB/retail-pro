@@ -43,6 +43,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:sales.view')->group(function () {
         Route::get('/vendas', [SalesWebController::class, 'index'])->name('sales.index');
         Route::get('/vendas/export/csv', [SalesWebController::class, 'exportCsv'])->middleware('permission:sales.export')->name('sales.export');
+        Route::get('/vendas/{sale}/detalhes', [SalesWebController::class, 'detail'])->name('sales.detail');
         Route::get('/vendas/{sale}', [SalesWebController::class, 'show'])->name('sales.show');
     });
 
@@ -57,11 +58,13 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/relatorio-operadores', [OperatorReportWebController::class, 'index'])->middleware('permission:operator_reports.view')->name('operator-reports.index');
+    Route::get('/relatorio-operadores/detalhes', [OperatorReportWebController::class, 'detail'])->middleware('permission:operator_reports.view')->name('operator-reports.detail');
     Route::get('/relatorio-operadores/pdf', OperatorReportPdfController::class)->middleware('permission:operator_reports.view')->name('operator-reports.pdf');
 
     Route::middleware('permission:cash_sessions.view')->group(function () {
         Route::get('/sessoes-caixa-activas', [CashSessionWebController::class, 'activeIndex'])->name('cash-sessions.active');
         Route::get('/historico-fechos-caixa', [CashSessionWebController::class, 'closedIndex'])->name('cash-sessions.closed');
+        Route::get('/sessoes-caixa/{cashSession}/detalhes', [CashSessionWebController::class, 'detail'])->name('cash-sessions.detail');
         Route::get('/sessoes-caixa/{cashSession}', [CashSessionWebController::class, 'show'])->name('cash-sessions.show');
     });
 
@@ -90,6 +93,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:stock.reload')->group(function () {
         Route::get('/recarregar-stock', [StockReloadWebController::class, 'index'])->name('stock.reload');
+        Route::get('/recarregar-stock/{product}/recarregar', [StockReloadWebController::class, 'reloadForm'])->name('stock.reload.form');
+        Route::get('/recarregar-stock/{product}/ajustar', [StockReloadWebController::class, 'adjustForm'])->name('stock.reload.adjust.form');
         Route::post('/recarregar-stock/reload', [StockReloadWebController::class, 'reload'])->name('stock.reload.apply');
         Route::post('/recarregar-stock/adjust', [StockReloadWebController::class, 'adjust'])->name('stock.reload.adjust');
         Route::get('/recarregar-stock/saldo', [StockReloadWebController::class, 'balance'])->name('stock.reload.balance');

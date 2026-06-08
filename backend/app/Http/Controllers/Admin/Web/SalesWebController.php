@@ -35,6 +35,29 @@ class SalesWebController extends Controller
         ]);
     }
 
+    public function detail(Request $request, Sale $sale)
+    {
+        $this->authorizeAdmin('sales.view');
+
+        $detalhe = Sale::query()
+            ->with(['itens.product', 'register', 'cashSession', 'user'])
+            ->findOrFail($sale->id);
+
+        return view('admin.sales.detail', [
+            'sale' => $detalhe,
+            'backUrl' => route('sales.index', $request->only([
+                'search',
+                'registerFilter',
+                'estadoFilter',
+                'pagamentoFilter',
+                'dateFrom',
+                'dateTo',
+            ])),
+            'isCash' => strcasecmp($detalhe->metodo_pagamento, 'Dinheiro') === 0,
+            'totalIva' => (float) $detalhe->itens->sum(fn ($item) => $item->ivaTotalLinha()),
+        ]);
+    }
+
     public function show(Sale $sale)
     {
         $this->authorizeAdmin('sales.view');

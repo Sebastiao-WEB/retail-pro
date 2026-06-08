@@ -4,11 +4,11 @@ import http from './http.js';
 import { route } from './routes.js';
 import { escapeHtml, fillForm, reloadWithToast } from './utils.js';
 
-const CREATE_MODAL_ID = 'balance-sheet-create-modal';
-const DETAIL_MODAL_ID = 'balance-sheet-detail-modal';
-const CREATE_FORM_ID = 'balance-sheet-create-form';
-const DETAIL_CONTENT_ID = 'balance-sheet-detail-content';
-const DETAIL_FORM_ID = 'balance-sheet-detail-form';
+const CREATE_MODAL_ID = 'balance-create-modal';
+const DETAIL_MODAL_ID = 'balance-detail-modal';
+const CREATE_FORM_ID = 'balance-create-form';
+const DETAIL_CONTENT_ID = 'balance-detail-content';
+const DETAIL_FORM_ID = 'balance-detail-form';
 
 let currentBalanceId = null;
 
@@ -225,7 +225,11 @@ export default function init() {
     const createForm = document.getElementById(CREATE_FORM_ID);
     const detailForm = document.getElementById(DETAIL_FORM_ID);
 
-    const defaults = window.rpBalanceSheetDefaults;
+    const defaultsRoot = document.querySelector('[data-default-form]');
+    const defaults = defaultsRoot?.dataset.defaultForm
+        ? JSON.parse(defaultsRoot.dataset.defaultForm)
+        : null;
+
     if (createForm && defaults) {
         fillForm(createForm, defaults);
     }
@@ -278,11 +282,6 @@ export default function init() {
                 fillForm(createForm, defaults);
             }
             openModal(CREATE_MODAL_ID);
-            return;
-        }
-
-        if (action === 'balance-create-cancel') {
-            closeModal(CREATE_MODAL_ID);
             return;
         }
 

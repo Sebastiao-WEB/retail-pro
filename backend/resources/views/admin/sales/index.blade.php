@@ -1,9 +1,16 @@
 @php
     $sales_index_blade_routes = [
-'index' => route('sales.index'),
-        'show' => route('sales.show', ['sale' => '__ID__']),
+        'index' => route('sales.index'),
         'export' => route('sales.export'),
     ];
+    $listaFiltros = array_filter([
+        'search' => $search,
+        'registerFilter' => $registerFilter,
+        'estadoFilter' => $estadoFilter,
+        'pagamentoFilter' => $pagamentoFilter,
+        'dateFrom' => $dateFrom,
+        'dateTo' => $dateTo,
+    ], fn ($value) => $value !== '' && $value !== null);
 @endphp
 
 <x-layouts.desktop :title="__('pages.titles.sales')" admin-page="sales">
@@ -100,7 +107,7 @@
                         <td class="px-3 py-2">{{ number_format((float) $venda->total, 2, ',', '.') }} MT</td>
                         <td class="px-3 py-2">{{ optional($venda->data)->format('d/m/Y H:i') }}</td>
                         <td class="px-3 py-2">
-                            <button type="button" data-action="open-detail" data-id="{{ $venda->id }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('app.details') }}</button>
+                            <a href="{{ route('sales.detail', array_merge(['sale' => $venda], $listaFiltros)) }}" class="rounded-md border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50">{{ __('app.details') }}</a>
                         </td>
                     </tr>
                 @empty
@@ -113,7 +120,5 @@
     </div>
 
     <div>{{ $vendas->links() }}</div>
-
-    <div id="sale-detail-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true"></div>
 </div>
 </x-layouts.desktop>
