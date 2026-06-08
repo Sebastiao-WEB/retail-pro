@@ -1,5 +1,5 @@
 @php
-    $itens = $stock['itens'] ?? [];
+    $totalItens = count($stock['itens'] ?? []);
     $totalQtd = (float) ($stock['total_qtd'] ?? 0);
     $totalValorCompra = (float) ($stock['total_valor_compra'] ?? 0);
     $totalValorVenda = (float) ($stock['total_valor_venda'] ?? 0);
@@ -31,7 +31,7 @@
     <div class="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-white p-5 text-sm md:grid-cols-4">
         <div>
             <p class="text-xs text-slate-500">{{ __('pages.common.products_count') }}</p>
-            <p class="font-semibold">{{ count($itens) }}</p>
+            <p class="font-semibold">{{ $totalItens }}</p>
         </div>
         <div>
             <p class="text-xs text-slate-500">{{ __('pages.common.total_qty') }}</p>
@@ -75,5 +75,7 @@
             </tbody>
         </table>
     </div>
+
+    <div>{{ $itens->links() }}</div>
 </div>
 </x-layouts.desktop>

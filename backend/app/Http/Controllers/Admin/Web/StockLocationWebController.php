@@ -9,6 +9,7 @@ use App\Models\Register;
 use App\Models\StockLocation;
 use App\Services\StockByLocationService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 
 class StockLocationWebController extends Controller
@@ -83,10 +84,24 @@ class StockLocationWebController extends Controller
         }
 
         $search = $request->string('search')->toString();
+        $itens = collect($stockDetalhe['itens'] ?? []);
+        $page = max(1, $request->integer('page', 1));
+
+        $itensPaginated = new LengthAwarePaginator(
+            $itens->forPage($page, 20)->values()->all(),
+            $itens->count(),
+            20,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->except('page'),
+            ],
+        );
 
         return view('admin.stock-locations.stock', [
             'location' => $stockLocation,
             'stock' => $stockDetalhe,
+            'itens' => $itensPaginated,
             'backUrl' => route('stock-locations.index', array_filter([
                 'search' => $search !== '' ? $search : null,
             ])),
