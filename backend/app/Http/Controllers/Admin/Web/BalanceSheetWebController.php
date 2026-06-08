@@ -43,15 +43,28 @@ class BalanceSheetWebController extends Controller
         ]);
     }
 
-    public function show(BalanceSheet $balanceSheet)
+    public function show(Request $request, BalanceSheet $balanceSheet)
     {
         $this->authorizeAdmin('balance_sheets.view');
 
         $balance = BalanceSheet::query()
-            ->with(['lines.product', 'locationLines'])
+            ->with(['lines.product', 'locationLines', 'preparedBy'])
             ->findOrFail($balanceSheet->id);
 
-        return $this->jsonOk($this->serializeBalanceSheet($balance));
+        if ($request->expectsJson()) {
+            return $this->jsonOk($this->serializeBalanceSheet($balance));
+        }
+
+        $search = $request->string('search')->toString();
+
+        return view('admin.balance-sheets.show', [
+            'balance' => $balance,
+            'search' => $search,
+            'canManage' => auth()->user()?->can('balance_sheets.manage') ?? false,
+            'backUrl' => route('balance-sheets.index', array_filter([
+                'search' => $search !== '' ? $search : null,
+            ])),
+        ]);
     }
 
     public function store(Request $request, BalanceSheetBuilder $builder)

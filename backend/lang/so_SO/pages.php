@@ -6,6 +6,7 @@ return [
         'products' => 'Alaabta | RetailPro',
         'products_edit' => 'Wax ka beddel alaabta | RetailPro',
         'customers' => 'Macaamiisha | RetailPro',
+        'customers_edit' => 'Wax ka beddel macmiilka | RetailPro',
         'users' => 'Isticmaalayaasha | RetailPro',
         'users_edit' => 'Wax ka beddel isticmaalaha | RetailPro',
         'registers' => 'Sanduuqyada | RetailPro',
@@ -16,6 +17,8 @@ return [
         'roles' => 'Doorkaha & Ogolaanshaha | RetailPro',
         'reversals' => 'Dib u celinta | RetailPro',
         'balance_sheets' => 'Dheelitirka xiritaanka | RetailPro',
+        'balance_sheets_show' => 'Faahfaahinta dheelitirka | RetailPro',
+        'balance_sheets_show' => 'Faahfaahinta dheelitirka | RetailPro',
         'operator_reports' => 'Warbixinta hawlgalayaasha | RetailPro',
         'operator_reports_detail' => 'Faahfaahinta hawlgalaha | RetailPro',
         'cash_sessions_active' => 'Fadhiyada sanduuqa firfircoon | RetailPro',
@@ -265,6 +268,7 @@ return [
         'search_placeholder' => 'Raadi magaca, telefoonka, email ama NUIT...',
         'no_customers' => 'Macmiil lama diiwaangelin.',
         'confirm_disable_message' => 'Ma rabtaa inaad joojiso macmiilkan?',
+        'confirm_disable_target' => 'Macmiilka la doortay',
     ],
     'registers' => [
         'title' => 'Diiwaangelinta sanduuqyada',
@@ -368,6 +372,8 @@ return [
         'create_subtitle' => 'Qeex xilliga ay xarunta furanayd.',
         'search_placeholder' => 'Raadi tixraaca ama cinwaanka...',
         'no_balances' => 'Dheelitir lama diiwaangelin.',
+        'show_title' => 'Faahfaahinta dheelitirka',
+        'no_lines' => 'Dhaqdhaqaaq ma jiro xilligan.',
     ],
     'operator_reports' => [
         'title' => 'Warbixinta hawlgalayaasha',

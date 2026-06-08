@@ -8,6 +8,7 @@ use App\Models\Register;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\User;
+use App\Services\BalanceSheetBuilder;
 use App\Support\PermissionCatalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -125,6 +126,10 @@ class AdminPagesSmokeTest extends TestCase
             ->assertOk();
 
         $this->actingAs($admin)
+            ->get(route('customers.edit', ['customer' => $ambiente['customer']]))
+            ->assertOk();
+
+        $this->actingAs($admin)
             ->get(route('stock.reload.form', ['product' => $ambiente['product']]))
             ->assertOk();
 
@@ -138,6 +143,17 @@ class AdminPagesSmokeTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('stock-locations.edit', ['stockLocation' => $ambiente['location']]))
+            ->assertOk();
+
+        $balance = app(BalanceSheetBuilder::class)->create([
+            'titulo' => 'Balanço Smoke',
+            'data_referencia' => now()->toDateString(),
+            'periodo_inicio' => now()->startOfMonth()->toDateString(),
+            'periodo_fim' => now()->toDateString(),
+        ], $admin->id);
+
+        $this->actingAs($admin)
+            ->get(route('balance-sheets.show', ['balanceSheet' => $balance]))
             ->assertOk();
 
         $this->actingAs($admin)

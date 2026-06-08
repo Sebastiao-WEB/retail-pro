@@ -40,6 +40,21 @@ class CustomerWebController extends Controller
         ]);
     }
 
+    public function edit(Request $request, Customer $customer)
+    {
+        $this->authorizeAdmin('customers.manage');
+
+        $search = $request->string('search')->toString();
+
+        return view('admin.customers.edit', [
+            'customer' => $customer,
+            'search' => $search,
+            'backUrl' => route('customers.index', array_filter([
+                'search' => $search !== '' ? $search : null,
+            ])),
+        ]);
+    }
+
     public function show(Customer $customer)
     {
         $this->authorizeAdmin('customers.manage');
@@ -69,10 +84,22 @@ class CustomerWebController extends Controller
             $payload = $this->validatedPayload($request);
             $customer->update($payload);
         } catch (ValidationException $exception) {
-            return $this->jsonFromValidation($exception);
+            if ($request->expectsJson()) {
+                return $this->jsonFromValidation($exception);
+            }
+
+            throw $exception;
         }
 
-        return $this->jsonOk($this->serializeCustomer($customer->fresh()), __('toasts.customer_updated'));
+        if ($request->expectsJson()) {
+            return $this->jsonOk($this->serializeCustomer($customer->fresh()), __('toasts.customer_updated'));
+        }
+
+        return redirect()
+            ->route('customers.index', array_filter([
+                'search' => $request->string('return_search')->toString() ?: null,
+            ]))
+            ->with('toast', ['type' => 'success', 'message' => __('toasts.customer_updated')]);
     }
 
     public function destroy(Customer $customer)
@@ -89,13 +116,17 @@ class CustomerWebController extends Controller
      */
     private function validatedPayload(Request $request): array
     {
-        return $request->validate([
+        $payload = $request->validate([
             'nome' => ['required', 'string', 'max:255'],
             'telefone' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'nuit' => ['nullable', 'string', 'max:255'],
-            'is_active' => ['boolean'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
+
+        $payload['is_active'] = $request->boolean('is_active', true);
+
+        return $payload;
     }
 
     /**

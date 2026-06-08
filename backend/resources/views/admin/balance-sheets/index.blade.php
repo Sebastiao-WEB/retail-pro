@@ -68,16 +68,15 @@
                         </td>
                         <td class="px-3 py-2">
                             <div class="flex flex-wrap items-center gap-1">
-                                <button
-                                    type="button"
-                                    data-action="open-edit"
-                                    data-id="{{ $balance->id }}"
+                                <a
+                                    href="{{ route('balance-sheets.show', ['balanceSheet' => $balance, 'search' => $search]) }}"
+                                    data-rp-page-nav
                                     title="{{ __('pages.common.view') }}"
                                     aria-label="{{ __('pages.common.view') }}: {{ $balance->referencia }}"
                                     class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                                 >
                                     <i data-lucide="eye" class="h-3.5 w-3.5"></i>
-                                </button>
+                                </a>
                                 <a
                                     href="{{ route('balance-sheets.pdf', $balance) }}"
                                     data-rp-page-nav
@@ -147,12 +146,5 @@
             </div>
         </div>
     @endcan
-
-    <div id="balance-detail-modal" class="rp-admin-modal hidden fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4" aria-hidden="true">
-        <div class="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-xl bg-white shadow-xl">
-            <div id="balance-detail-content"></div>
-            <form id="balance-detail-form" class="hidden"></form>
-        </div>
-    </div>
 </div>
 </x-layouts.desktop>

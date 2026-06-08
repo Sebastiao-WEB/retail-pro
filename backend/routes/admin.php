@@ -35,6 +35,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:customers.view')->group(function () {
         Route::get('/clientes', [CustomerWebController::class, 'index'])->name('customers.index');
+        Route::get('/clientes/{customer}/editar', [CustomerWebController::class, 'edit'])->middleware('permission:customers.manage')->name('customers.edit');
         Route::get('/clientes/{customer}', [CustomerWebController::class, 'show'])->middleware('permission:customers.manage')->name('customers.show');
         Route::post('/clientes', [CustomerWebController::class, 'store'])->middleware('permission:customers.manage')->name('customers.store');
         Route::put('/clientes/{customer}', [CustomerWebController::class, 'update'])->middleware('permission:customers.manage')->name('customers.update');

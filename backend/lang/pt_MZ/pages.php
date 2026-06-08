@@ -6,6 +6,7 @@ return [
         'products' => 'Produtos | RetailPro',
         'products_edit' => 'Editar produto | RetailPro',
         'customers' => 'Clientes | RetailPro',
+        'customers_edit' => 'Editar cliente | RetailPro',
         'users' => 'Utilizadores e Gerentes | RetailPro',
         'users_edit' => 'Editar utilizador | RetailPro',
         'registers' => 'Caixas | RetailPro',
@@ -16,6 +17,7 @@ return [
         'roles' => 'Roles e Permissões | RetailPro',
         'reversals' => 'Reversões | RetailPro',
         'balance_sheets' => 'Balanço de Fecho | RetailPro',
+        'balance_sheets_show' => 'Detalhe do balanço | RetailPro',
         'operator_reports' => 'Relatório por Operador | RetailPro',
         'operator_reports_detail' => 'Detalhe do operador | RetailPro',
         'cash_sessions_active' => 'Sessões de caixa activas | RetailPro',
@@ -268,6 +270,7 @@ return [
         'search_placeholder' => 'Pesquisar por nome, telefone, email ou NUIT...',
         'no_customers' => 'Sem clientes registados.',
         'confirm_disable_message' => 'Deseja desativar este cliente?',
+        'confirm_disable_target' => 'Cliente seleccionado',
     ],
     'registers' => [
         'title' => 'Cadastro de caixas',
@@ -371,6 +374,8 @@ return [
         'create_subtitle' => 'Define o período em que o estabelecimento esteve aberto.',
         'search_placeholder' => 'Pesquisar por referência ou título...',
         'no_balances' => 'Nenhum balanço registado.',
+        'show_title' => 'Detalhe do balanço',
+        'no_lines' => 'Sem movimentos no período.',
     ],
     'operator_reports' => [
         'title' => 'Relatório por operador',

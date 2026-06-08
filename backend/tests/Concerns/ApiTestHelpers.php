@@ -46,7 +46,7 @@ trait ApiTestHelpers
             'is_active' => true,
         ]);
 
-        Customer::query()->create([
+        $customer = Customer::query()->create([
             'id' => (string) Str::uuid(),
             'nome' => 'Cliente Geral',
             'telefone' => '840000000',
@@ -73,7 +73,7 @@ trait ApiTestHelpers
             'quantity' => 100,
         ]);
 
-        return compact('register', 'location', 'user', 'product');
+        return compact('register', 'location', 'user', 'customer', 'product');
     }
 
     protected function loginApi(User $user, ?string $registerCode = null): string
