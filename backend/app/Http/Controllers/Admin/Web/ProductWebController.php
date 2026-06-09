@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Web\Concerns\AuthorizesAdminWeb;
 use App\Http\Controllers\Admin\Web\Concerns\RespondsAsJson;
 use App\Models\Product;
+use App\Support\ProductStockDisplay;
 use App\Support\ProductValidation;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,8 @@ class ProductWebController extends Controller
         $search = $request->string('search')->toString();
 
         $produtos = Product::query()
+            ->withSum(['stockBalances as stock_activo' => fn ($q) => $q->inActiveLocations()], 'quantity')
+            ->withCount('stockBalances as total_saldos')
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($inner) use ($search) {
                     $inner->where('nome', 'like', "%{$search}%")
@@ -49,6 +52,7 @@ class ProductWebController extends Controller
 
         return view('admin.products.edit', [
             'product' => $product,
+            'stockExibido' => ProductStockDisplay::stockParaExibicao($product),
             'search' => $search,
             'backUrl' => route('products.index', array_filter([
                 'search' => $search !== '' ? $search : null,
@@ -187,7 +191,7 @@ class ProductWebController extends Controller
             'iva_tipo' => (string) ($product->iva_tipo ?? 'ISENTO'),
             'iva_percentual' => (string) $product->iva_percentual,
             'iva_valor' => (string) $product->iva_valor,
-            'stock' => (string) $product->stock,
+            'stock' => (string) ProductStockDisplay::stockParaExibicao($product),
             'is_active' => (bool) $product->is_active,
         ];
     }

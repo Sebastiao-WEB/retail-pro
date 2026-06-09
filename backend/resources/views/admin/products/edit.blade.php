@@ -113,7 +113,7 @@
         <div class="md:col-span-2">
             <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.stock') }}</label>
             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                <span class="font-semibold text-slate-800">{{ number_format((float) $product->stock, 2, ',', '.') }}</span>
+                <span class="font-semibold text-slate-800">{{ number_format((float) $stockExibido, 2, ',', '.') }}</span>
                 <span class="text-slate-500"> — {{ __('pages.products.stock_readonly') }}</span>
             </div>
         </div>

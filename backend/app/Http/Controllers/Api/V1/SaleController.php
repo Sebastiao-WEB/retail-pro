@@ -284,10 +284,7 @@ class SaleController extends Controller
                     continue;
                 }
 
-                $produto->stock = (float) StockBalance::query()
-                    ->where('product_id', $produtoId)
-                    ->sum('quantity');
-                $produto->save();
+                ProductStockDisplay::sincronizarStockGlobal($produtoId);
             }
 
             return $sale;

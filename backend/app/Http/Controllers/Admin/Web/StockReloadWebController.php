@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Web\Concerns\AuthorizesAdminWeb;
 use App\Http\Controllers\Admin\Web\Concerns\RespondsAsJson;
 use App\Models\Product;
+use App\Support\ProductStockDisplay;
 use App\Models\Purchase;
 use App\Models\StockBalance;
 use App\Models\StockLocation;
@@ -212,9 +213,7 @@ class StockReloadWebController extends Controller
                 'performed_by' => auth()->id(),
             ]);
 
-            $product->stock = (float) StockBalance::query()
-                ->where('product_id', $product->id)
-                ->sum('quantity');
+            ProductStockDisplay::sincronizarStockGlobal($product->id);
             $product->preco_compra = $custoUnitario;
             $product->save();
         });

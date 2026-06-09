@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\Web\Concerns\RespondsAsJson;
 use App\Models\Register;
 use App\Models\StockLocation;
 use App\Services\StockByLocationService;
+use App\Support\ProductStockDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
@@ -129,9 +130,14 @@ class StockLocationWebController extends Controller
         $this->authorizeAdmin('stock_locations.manage');
 
         try {
+            $estavaActiva = $stockLocation->is_active;
             [$payload, $registerIds] = $this->validatedPayload($request, $stockLocation->id);
             $stockLocation->update($payload);
             $stockLocation->registers()->sync($registerIds);
+
+            if ($estavaActiva && ! $stockLocation->is_active) {
+                ProductStockDisplay::sincronizarStockGlobalDosProdutosDaLocalizacao($stockLocation->id);
+            }
         } catch (ValidationException $exception) {
             if ($request->expectsJson()) {
                 return $this->jsonFromValidation($exception);
@@ -158,6 +164,7 @@ class StockLocationWebController extends Controller
         $this->authorizeAdmin('stock_locations.manage');
 
         $stockLocation->update(['is_active' => false]);
+        ProductStockDisplay::sincronizarStockGlobalDosProdutosDaLocalizacao($stockLocation->id);
 
         return $this->jsonOk(null, __('toasts.location_disabled'));
     }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\StockBalance;
+use App\Support\ProductStockDisplay;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
 use Illuminate\Support\Collection;
@@ -212,11 +213,7 @@ class OrphanStockBalanceMigrationService
 
     public function recalcularStockGlobal(string $productId): void
     {
-        $sum = (float) StockBalance::query()
-            ->where('product_id', $productId)
-            ->sum('quantity');
-
-        Product::query()->whereKey($productId)->update(['stock' => $sum]);
+        ProductStockDisplay::sincronizarStockGlobal($productId);
     }
 
     /** @return list<array{sale_id: string, referencia: string, product_name: string, quantity: float, data: string}> */

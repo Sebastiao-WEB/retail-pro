@@ -38,4 +38,9 @@ class Product extends Model
         'stock' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    public function stockBalances()
+    {
+        return $this->hasMany(StockBalance::class, 'product_id');
+    }
 }

@@ -75,9 +75,7 @@ class StockController extends Controller
                 'performed_by' => auth('api')->id(),
             ]);
 
-            $product->stock = (float) StockBalance::query()
-                ->where('product_id', $product->id)
-                ->sum('quantity');
+            ProductStockDisplay::sincronizarStockGlobal($product->id);
             $product->preco_compra = $unitCost;
             $product->save();
 

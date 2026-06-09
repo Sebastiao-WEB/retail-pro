@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Admin\Web\Concerns\AuthorizesAdminWeb;
 use App\Http\Controllers\Admin\Web\Concerns\RespondsAsJson;
 use App\Models\Product;
+use App\Support\ProductStockDisplay;
 use App\Models\StockBalance;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
@@ -134,10 +135,8 @@ class StockTransferWebController extends Controller
                     'performed_by' => auth()->id(),
                 ]);
 
-                $product->stock = (float) StockBalance::query()
-                    ->where('product_id', $product->id)
-                    ->sum('quantity');
-                $product->save();
+                ProductStockDisplay::sincronizarStockGlobal($product->id);
+                $product->refresh();
             });
         } catch (ValidationException $exception) {
             return $this->jsonFromValidation($exception);

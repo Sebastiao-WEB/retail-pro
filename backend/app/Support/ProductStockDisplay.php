@@ -13,6 +13,45 @@ use Illuminate\Support\Str;
  */
 final class ProductStockDisplay
 {
+    public static function somaStockLocaisActivos(string $productId): float
+    {
+        return (float) StockBalance::query()
+            ->where('product_id', $productId)
+            ->inActiveLocations()
+            ->sum('quantity');
+    }
+
+    public static function sincronizarStockGlobal(string $productId): void
+    {
+        Product::query()->whereKey($productId)->update([
+            'stock' => self::somaStockLocaisActivos($productId),
+        ]);
+    }
+
+    public static function sincronizarStockGlobalDosProdutosDaLocalizacao(string $locationId): void
+    {
+        StockBalance::query()
+            ->where('location_id', $locationId)
+            ->distinct()
+            ->pluck('product_id')
+            ->each(fn (string $productId) => self::sincronizarStockGlobal($productId));
+    }
+
+    public static function stockParaExibicao(Product $product): float
+    {
+        $temSaldos = StockBalance::query()->where('product_id', $product->id)->exists();
+
+        if (! $temSaldos) {
+            return (float) $product->stock;
+        }
+
+        if (isset($product->stock_activo)) {
+            return (float) ($product->stock_activo ?? 0);
+        }
+
+        return self::somaStockLocaisActivos($product->id);
+    }
+
     /**
      * @param  Collection<string, float>|array<string, float>  $saldoLocalPorProduto  quantity por product_id no local pedido
      */

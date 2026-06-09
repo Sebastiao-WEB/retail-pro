@@ -3,7 +3,10 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Product;
+use App\Models\StockBalance;
+use App\Models\StockLocation;
 use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -41,6 +44,41 @@ class ProductsPageTest extends TestCase
             ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.category').'</th>', false)
             ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.sale_unit').'</th>', false)
             ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.iva').'</th>', false);
+    }
+
+    public function test_listagem_produtos_nao_conta_stock_de_localizacao_inactiva(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.view']);
+
+        $produto = $ambiente['product'];
+        $localActivo = $ambiente['location'];
+
+        $localInactivo = StockLocation::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'LOC-OFF',
+            'name' => 'Armazém Inactivo',
+            'type' => 'WAREHOUSE',
+            'is_saleable' => false,
+            'is_active' => false,
+        ]);
+
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $localInactivo->id,
+            'product_id' => $produto->id,
+            'quantity' => 50,
+        ]);
+
+        $produto->update(['stock' => 150]);
+
+        $this->actingAs($admin)
+            ->get(route('products.index'))
+            ->assertOk()
+            ->assertSee('100,00')
+            ->assertDontSee('150,00');
     }
 
     public function test_pagina_produtos_mostra_acoes_stock_com_permissao(): void

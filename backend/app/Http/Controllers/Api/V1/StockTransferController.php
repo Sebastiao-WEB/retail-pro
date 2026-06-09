@@ -8,6 +8,7 @@ use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
 use App\Models\StockTransferItem;
+use App\Support\ProductStockDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -114,10 +115,8 @@ class StockTransferController extends Controller
                 'performed_by' => auth('api')->id(),
             ]);
 
-            $produto->stock = (float) StockBalance::query()
-                ->where('product_id', $produto->id)
-                ->sum('quantity');
-            $produto->save();
+            ProductStockDisplay::sincronizarStockGlobal($produto->id);
+            $produto->refresh();
 
             return $transfer;
         });

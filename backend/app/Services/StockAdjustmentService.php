@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Support\ProductStockDisplay;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -85,10 +86,8 @@ class StockAdjustmentService
                 'performed_by' => $performedBy,
             ]);
 
-            $product->stock = (float) StockBalance::query()
-                ->where('product_id', $productId)
-                ->sum('quantity');
-            $product->save();
+            ProductStockDisplay::sincronizarStockGlobal($productId);
+            $product->refresh();
 
             return $movement;
         });

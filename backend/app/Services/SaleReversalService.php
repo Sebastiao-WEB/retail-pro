@@ -7,6 +7,7 @@ use App\Models\Sale;
 use App\Models\SaleReversalRequest;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Support\ProductStockDisplay;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -129,10 +130,7 @@ class SaleReversalService
                 continue;
             }
 
-            $produto->stock = (float) StockBalance::query()
-                ->where('product_id', $produtoId)
-                ->sum('quantity');
-            $produto->save();
+            ProductStockDisplay::sincronizarStockGlobal($produtoId);
         }
     }
 }

@@ -54,7 +54,7 @@
                                 <span class="text-xs text-slate-500">/ kg</span>
                             @endif
                         </td>
-                        <td class="px-3 py-2">{{ number_format((float) $produto->stock, 2, ',', '.') }}</td>
+                        <td class="px-3 py-2">{{ number_format(\App\Support\ProductStockDisplay::stockParaExibicao($produto), 2, ',', '.') }}</td>
                         <td class="px-3 py-2">
                             <span class="{{ $produto->is_active ? 'text-emerald-600' : 'text-red-600' }}">
                                 {{ $produto->is_active ? __('app.active') : __('app.inactive') }}
