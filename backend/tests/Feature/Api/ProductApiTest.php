@@ -25,14 +25,14 @@ class ProductApiTest extends TestCase
 
         $respostaGlobal = $this->getJson('/api/v1/products', $this->authHeaders($token));
         $respostaGlobal->assertOk();
-        $this->assertSame(100.0, (float) collect($respostaGlobal->json('data'))->firstWhere('id', $produto->id)['stock']);
+        $this->assertSame(42.0, (float) collect($respostaGlobal->json('data'))->firstWhere('id', $produto->id)['stock']);
 
         $respostaLocal = $this->getJson(
             '/api/v1/products?source_location_id='.$ambiente['location']->id,
             $this->authHeaders($token)
         );
         $respostaLocal->assertOk();
-        $this->assertSame(100.0, (float) collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['stock']);
+        $this->assertSame(42.0, (float) collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['stock']);
         $this->assertSame('UN', collect($respostaLocal->json('data'))->firstWhere('id', $produto->id)['unidadeVenda']);
     }
 

@@ -26,6 +26,7 @@ class StockByLocationService
     {
         $balances = StockBalance::query()
             ->with(['product', 'location'])
+            ->inActiveLocations()
             ->where('quantity', '>', 0)
             ->get()
             ->groupBy('product_id');
@@ -66,6 +67,10 @@ class StockByLocationService
 
     public function quantidadeDisponivel(string $locationId, string $productId): float
     {
+        if (! \App\Support\ProductStockDisplay::localizacaoEstaActiva($locationId)) {
+            return 0.0;
+        }
+
         return (float) (StockBalance::query()
             ->where('location_id', $locationId)
             ->where('product_id', $productId)
@@ -93,7 +98,11 @@ class StockByLocationService
 
     public function stockGlobalDoProduto(string $productId): float
     {
-        return (float) (Product::query()->whereKey($productId)->value('stock') ?? 0);
+        $product = Product::query()->find($productId);
+
+        return $product
+            ? \App\Support\ProductStockDisplay::stockParaExibicao($product)
+            : 0.0;
     }
 
     /** @param Collection<int, StockBalance> $balances */

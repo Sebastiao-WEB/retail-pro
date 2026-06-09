@@ -7,6 +7,7 @@ use App\Models\StockBalance;
 use App\Models\StockLocation;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Support\ProductStockDisplay;
 use App\Support\StoreFloorLocationResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -131,9 +132,7 @@ class ConsolidateStoreFloorStockService
             }
 
             foreach (array_unique($productIds) as $productId) {
-                Product::query()->whereKey($productId)->update([
-                    'stock' => StockBalance::query()->where('product_id', $productId)->sum('quantity'),
-                ]);
+                ProductStockDisplay::sincronizarStockGlobal($productId);
             }
 
             StockLocation::query()

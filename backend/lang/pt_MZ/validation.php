@@ -120,4 +120,5 @@ return [
         'selectedUserRole' => 'perfil',
         'nuit' => 'NUIT',
     ],
+    'stock_location_inactive' => 'A localização de stock seleccionada está inactiva.',
 ];

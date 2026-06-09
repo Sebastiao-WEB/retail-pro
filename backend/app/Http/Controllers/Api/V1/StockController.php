@@ -26,6 +26,8 @@ class StockController extends Controller
             'to_location_id' => ['required', 'uuid', 'exists:stock_locations,id'],
         ]);
 
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['to_location_id'], 'to_location_id');
+
         $result = DB::transaction(function () use ($dados) {
             $product = Product::query()->findOrFail($dados['product_id']);
             $quantity = (float) $dados['quantity'];
@@ -79,7 +81,7 @@ class StockController extends Controller
             $product->preco_compra = $unitCost;
             $product->save();
 
-            return ['product' => $product, 'balance' => $balance];
+            return ['product' => $product->fresh(), 'balance' => $balance];
         });
 
         return response()->json([
@@ -88,7 +90,7 @@ class StockController extends Controller
                 'product_id' => $result['product']->id,
                 'location_id' => $result['balance']->location_id,
                 'novo_stock_local' => (float) $result['balance']->quantity,
-                'novo_stock_global' => (float) $result['product']->stock,
+                'novo_stock_global' => ProductStockDisplay::stockParaExibicao($result['product']),
             ],
         ]);
     }
@@ -100,16 +102,30 @@ class StockController extends Controller
             'product_id' => ['required', 'uuid', 'exists:products,id'],
         ]);
 
+        if (! ProductStockDisplay::localizacaoEstaActiva($dados['location_id'])) {
+            return response()->json([
+                'data' => [
+                    'location_id' => $dados['location_id'],
+                    'product_id' => $dados['product_id'],
+                    'quantity' => 0.0,
+                ],
+            ]);
+        }
+
         $balance = StockBalance::query()
             ->where('location_id', $dados['location_id'])
             ->where('product_id', $dados['product_id'])
             ->first();
 
+        $produto = Product::query()->find($dados['product_id']);
+
         return response()->json([
             'data' => [
                 'location_id' => $dados['location_id'],
                 'product_id' => $dados['product_id'],
-                'quantity' => (float) ($balance?->quantity ?? 0),
+                'quantity' => $produto
+                    ? ProductStockDisplay::quantidadeParaVenda($produto, $dados['location_id'], $balance)
+                    : 0.0,
             ],
         ]);
     }
@@ -138,13 +154,17 @@ class StockController extends Controller
             ], 422);
         }
 
-        $balances = StockBalance::query()
-            ->where('location_id', $dados['location_id'])
-            ->whereIn('product_id', $productIds)
-            ->get(['product_id', 'quantity', 'updated_at']);
+        $localActiva = ProductStockDisplay::localizacaoEstaActiva($dados['location_id']);
+
+        $balances = $localActiva
+            ? StockBalance::query()
+                ->where('location_id', $dados['location_id'])
+                ->whereIn('product_id', $productIds)
+                ->get(['product_id', 'quantity', 'updated_at'])
+            : collect();
 
         $porProduto = $balances->keyBy('product_id');
-        $produtos = Product::query()->whereIn('id', $productIds)->get(['id', 'stock']);
+        $produtos = Product::query()->whereIn('id', $productIds)->get();
 
         $data = [];
         foreach ($productIds as $productId) {
@@ -171,6 +191,8 @@ class StockController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
             'unit_cost' => ['nullable', 'numeric', 'gte:0'],
         ]);
+
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['location_id']);
 
         $movement = $stockAdjustmentService->aplicar(
             $dados['product_id'],

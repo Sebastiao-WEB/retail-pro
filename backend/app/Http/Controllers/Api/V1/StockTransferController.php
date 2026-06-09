@@ -54,6 +54,9 @@ class StockTransferController extends Controller
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['from_location_id'], 'from_location_id');
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['to_location_id'], 'to_location_id');
+
         $payload = DB::transaction(function () use ($dados) {
             $produto = Product::query()->findOrFail($dados['product_id']);
             $quantidade = (float) $dados['quantity'];

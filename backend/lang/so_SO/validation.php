@@ -120,4 +120,5 @@ return [
         'selectedUserRole' => 'doorka',
         'nuit' => 'NUIT',
     ],
+    'stock_location_inactive' => 'Goobta kaydka la doortay ma aha mid firfircoon.',
 ];

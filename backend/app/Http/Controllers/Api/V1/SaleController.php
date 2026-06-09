@@ -153,6 +153,10 @@ class SaleController extends Controller
                 ]);
             }
 
+            if ($itensComProduto->isNotEmpty() && $locationId) {
+                ProductStockDisplay::exigirLocalizacaoActiva($locationId, 'source_location_id');
+            }
+
             $saldosPorProduto = [];
             foreach ($itensComProduto as $index => $item) {
                 $produtoId = $item['produtoId'];

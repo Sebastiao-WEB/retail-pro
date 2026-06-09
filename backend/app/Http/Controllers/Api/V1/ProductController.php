@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Support\ProductStockDisplay;
 use App\Support\ProductValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -233,7 +234,7 @@ class ProductController extends Controller
             'ivaTipo' => $produto->iva_tipo,
             'ivaValor' => (float) $produto->iva_valor,
             'ivaPercentual' => (float) $produto->iva_percentual,
-            'stock' => (float) $produto->stock,
+            'stock' => ProductStockDisplay::stockParaExibicao($produto),
             'isActive' => (bool) $produto->is_active,
         ];
     }

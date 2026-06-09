@@ -74,6 +74,9 @@ class StockTransferWebController extends Controller
         }
 
         try {
+            ProductStockDisplay::exigirLocalizacaoActiva($dados['from_location_id'], 'from_location_id');
+            ProductStockDisplay::exigirLocalizacaoActiva($dados['to_location_id'], 'to_location_id');
+
             DB::transaction(function () use ($dados) {
                 $product = Product::query()->findOrFail($dados['product_id']);
                 $quantidade = (float) $dados['quantity'];

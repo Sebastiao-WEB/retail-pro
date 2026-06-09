@@ -32,6 +32,7 @@ class StockAdjustmentService
         }
 
         return DB::transaction(function () use ($productId, $locationId, $delta, $note, $performedBy, $unitCost) {
+            ProductStockDisplay::exigirLocalizacaoActiva($locationId);
             $product = Product::query()->lockForUpdate()->findOrFail($productId);
 
             $balance = StockBalance::query()

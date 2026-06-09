@@ -89,9 +89,8 @@ class SaleApiTest extends TestCase
         $produto->update(['stock' => 25]);
 
         StockBalance::query()
-            ->where('location_id', $ambiente['location']->id)
             ->where('product_id', $produto->id)
-            ->update(['quantity' => 0]);
+            ->delete();
 
         $resposta = $this->postJson('/api/v1/sales', [
             'cliente' => 'Cliente Geral',
@@ -128,15 +127,11 @@ class SaleApiTest extends TestCase
         $produto = $ambiente['product'];
         $produto->update(['stock' => 20]);
 
-        $balance = StockBalance::query()
-            ->where('location_id', $ambiente['location']->id)
+        StockBalance::query()
             ->where('product_id', $produto->id)
-            ->first();
+            ->delete();
 
-        $balance->update(['quantity' => 0]);
-        $balance->refresh();
-
-        $versaoActual = (string) optional($balance->updated_at)->toJSON();
+        $versaoActual = '';
 
         $resposta = $this->postJson('/api/v1/sales', [
             'cliente' => 'Cliente Geral',
@@ -161,7 +156,12 @@ class SaleApiTest extends TestCase
 
         $resposta->assertCreated();
 
-        $balance->refresh();
+        $balance = StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->first();
+
+        $this->assertNotNull($balance);
         $this->assertSame(19.0, (float) $balance->quantity);
     }
 

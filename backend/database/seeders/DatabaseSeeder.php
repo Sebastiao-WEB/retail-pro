@@ -153,9 +153,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $product->update([
-            'stock' => StockBalance::query()->where('product_id', $product->id)->sum('quantity'),
-        ]);
+        \App\Support\ProductStockDisplay::sincronizarStockGlobal($product->id);
 
         StockLocation::query()->firstOrCreate([
             'code' => 'LOC-ARM-CENTRAL',

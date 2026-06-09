@@ -164,6 +164,8 @@ class StockReloadWebController extends Controller
             throw $exception;
         }
 
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['to_location_id'], 'to_location_id');
+
         DB::transaction(function () use ($dados) {
             $product = Product::query()->findOrFail($dados['productId']);
             $quantidade = (float) $dados['quantity'];
@@ -248,7 +250,7 @@ class StockReloadWebController extends Controller
 
     private function balanceAtLocation(string $productId, ?string $locationId): float
     {
-        if ($locationId === null || $locationId === '') {
+        if ($locationId === null || $locationId === '' || ! ProductStockDisplay::localizacaoEstaActiva($locationId)) {
             return 0.0;
         }
 
