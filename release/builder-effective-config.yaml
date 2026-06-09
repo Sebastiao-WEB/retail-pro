@@ -1,0 +1,38 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.retailpro.pos
+productName: RetailPro POS
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - build/icon.png
+      - package.json
+extraResources:
+  - from: build/icon.png
+    to: icon.png
+asarUnpack:
+  - electron/imprimirRawWindows.ps1
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: build/icon.png
+  category: Office
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  installerLanguages:
+    - pt-PT
+    - en-US
+  language: '2070'
+electronVersion: 41.7.1
