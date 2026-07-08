@@ -93,6 +93,7 @@
     "posSection": "POS",
     "pointOfSale": "Goobta iibka",
     "cashRegister": "Sanduuqa",
+    "tables": "Miisaska",
     "shiftStatus": "Xaaladda wareegga",
     "shiftOpen": "Wareeg furan",
     "shiftClosed": "Wareeg xiran",
@@ -127,6 +128,10 @@
       "seguranca": {
         "title": "Amniga",
         "subtitle": "Xaqiijinta laba-tallaabo ee koontada"
+      },
+      "mesas": {
+        "title": "Miisaska",
+        "subtitle": "Dalabyada bar iyo makhaayadda"
       }
     },
     "backend": {
@@ -536,6 +541,65 @@
     "reversalInvalidSaleId": "Iibkan ma laha aqoonsi sax ah serverka. Isku-dubarid ka hor intaadan codsan celinta.",
     "reversalInProgress": "Codsiga celinta ayaa socda. Fadlan sug.",
     "httpError": "Khalad HTTP {status}"
+  },
+  "mesas": {
+    "title": "Miisaska",
+    "subtitle": "Maamul dalabyada miiska",
+    "tables": "Miisaska la heli karo",
+    "emptyTables": "Weli miisas ma jiraan. Abuur miiska ugu horreeya oo leh koodh gaar ah.",
+    "selectTable": "Dooro miis si aad u furto ama u maamusho dalabka.",
+    "addProducts": "Ku dar alaab",
+    "searchPlaceholder": "Raadi alaab...",
+    "emptyOrder": "Wax isticmaal ah laguma diiwaangelin miiskan.",
+    "total": "Wadarta",
+    "status": {
+      "free": "Bannaan",
+      "occupied": "La qabsaday"
+    },
+    "columns": {
+      "item": "Shay",
+      "qty": "Tirada",
+      "total": "Wadarta"
+    },
+    "actions": {
+      "newTable": "Miis cusub",
+      "open": "Fur miiska",
+      "create": "Abuur miis",
+      "print": "Daabac xisaab",
+      "transfer": "Wareeji",
+      "pay": "Bixi miiska",
+      "confirmPay": "Xaqiiji bixinta"
+    },
+    "modals": {
+      "openTitle": "Fur miiska",
+      "createTitle": "Abuur miis",
+      "transferTitle": "Wareeji isticmaalka",
+      "payTitle": "Bixi miiska",
+      "description": "Sharaxaad (ikhtiyaari)",
+      "descriptionPlaceholder": "Tusaale: Dhalasho, ballan...",
+      "code": "Koodh gaar ah",
+      "name": "Magac (ikhtiyaari)",
+      "destination": "Miiska loo wareejinayo",
+      "selectDestination": "Dooro miiska...",
+      "items": "Shayada la wareejinayo"
+    },
+    "receipt": {
+      "title": "Xisaabta Miiska"
+    },
+    "toast": {
+      "opened": "Miiska si guul leh ayaa loo furay.",
+      "openFailed": "Lama furi karin miiska.",
+      "tableCreated": "Miiska si guul leh ayaa loo abuuray.",
+      "tableCreateFailed": "Lama abuuri karin miiska.",
+      "addItemFailed": "Lama dari karin alaabta.",
+      "transferred": "Isticmaalka si guul leh ayaa loo wareejiyay.",
+      "transferFailed": "Lama wareejin karin isticmaalka.",
+      "printed": "Xisaabta waa la daabacay.",
+      "paid": "Miiska waa la bixiyay oo la xiray.",
+      "paidOffline": "Miiska waa la bixiyay maxalliga. Iibka waa la isku-dubaridi doonaa marka xiriirku soo noqdo.",
+      "payFailed": "Lama dhammayn karin bixinta.",
+      "shiftRequired": "Fur wareegga sanduuqa ka hor intaadan bixin miiska."
+    }
   },
   "desktopWindow": {
     "minimize": "Yaree daaqada",

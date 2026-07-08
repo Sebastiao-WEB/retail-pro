@@ -105,7 +105,7 @@ export function montarPayloadTalao(venda, configuracao, opcoes = {}) {
   const descontoAplicado = obterDescontoAplicado({ ...venda, subtotal, total });
 
   return {
-    titulo: opcoes.segundaVia ? t("pos.receipt.secondCopyTitle") : t("pos.receipt.saleTitle"),
+    titulo: opcoes.titulo || (opcoes.segundaVia ? t("pos.receipt.secondCopyTitle") : t("pos.receipt.saleTitle")),
     segundaVia: !!opcoes.segundaVia,
     detalharIva: !!opcoes.detalharIva,
     larguraTalao: opcoes.larguraTalao || configuracao?.larguraTalao || "80mm",

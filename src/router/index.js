@@ -13,6 +13,7 @@ const routes = [
     redirect: "/pos",
     children: [
       { path: "pos", name: "pos", component: () => import("../views/pos/PosView.vue") },
+      { path: "mesas", name: "mesas", component: () => import("../views/mesas/MesasView.vue") },
       { path: "historico-vendas", name: "historico-vendas", component: () => import("../views/historico/HistoricoVendasView.vue") },
       { path: "historico-fechos", name: "historico-fechos", component: () => import("../views/historico/HistoricoFechosView.vue") },
       { path: "configuracoes", name: "configuracoes", component: () => import("../views/configuracoes/ConfiguracoesView.vue") },

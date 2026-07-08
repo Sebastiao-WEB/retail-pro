@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { intlLocale } from "../services/localeStorage.js";
 import SeletorIdioma from "./SeletorIdioma.vue";
-import { Clock3, Cog, LayoutGrid, Receipt, Shield, ShoppingCart, UserRound } from "lucide-vue-next";
+import { Clock3, Cog, LayoutGrid, Receipt, Shield, ShoppingCart, UserRound, UtensilsCrossed } from "lucide-vue-next";
 import logoRetailPro from "../assets/rp.png";
 
 const { t, locale } = useI18n();
@@ -39,10 +39,16 @@ const nomeOperador = computed(() => sessaoStore.utilizador || t("common.operator
 const caixaOperador = computed(() => sessaoStore.caixaAtribuido || t("common.noRegister"));
 const posItens = computed(() => [
   { nome: t("sidebar.pointOfSale"), rota: { path: "/pos", query: { secao: "venda" } }, icon: ShoppingCart, secao: "venda" },
+  { nome: t("sidebar.tables"), rota: "/mesas", icon: UtensilsCrossed, secao: "mesas" },
   { nome: t("sidebar.cashRegister"), rota: { path: "/pos", query: { secao: "caixa" } }, icon: LayoutGrid, secao: "caixa" },
 ]);
 
 function classeItemPos(secao) {
+  if (secao === "mesas") {
+    return route.path === "/mesas"
+      ? "mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition"
+      : "mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white";
+  }
   const rotaAtualPos = route.path === "/pos";
   const secaoAtual = route.query?.secao === "caixa" ? "caixa" : "venda";
   const ativo = rotaAtualPos && secaoAtual === secao;

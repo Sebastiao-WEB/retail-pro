@@ -93,6 +93,7 @@
     "posSection": "POS",
     "pointOfSale": "Ponto de venda",
     "cashRegister": "Caixa",
+    "tables": "Mesas",
     "shiftStatus": "Estado do turno",
     "shiftOpen": "Turno aberto",
     "shiftClosed": "Turno fechado",
@@ -127,6 +128,10 @@
       "seguranca": {
         "title": "Segurança",
         "subtitle": "Autenticação de dois factores da conta"
+      },
+      "mesas": {
+        "title": "Mesas",
+        "subtitle": "Comandas de bar e restaurante"
       }
     },
     "backend": {
@@ -536,6 +541,65 @@
     "reversalInvalidSaleId": "Esta venda ainda não tem identificador válido no servidor. Sincronize-a antes de solicitar reversão.",
     "reversalInProgress": "Pedido de reversão em curso. Aguarde um momento.",
     "httpError": "Erro HTTP {status}"
+  },
+  "mesas": {
+    "title": "Mesas",
+    "subtitle": "Gerir comandas por mesa",
+    "tables": "Mesas disponíveis",
+    "emptyTables": "Ainda não existem mesas. Crie a primeira mesa com um código único.",
+    "selectTable": "Seleccione uma mesa para abrir ou gerir a comanda.",
+    "addProducts": "Adicionar produtos",
+    "searchPlaceholder": "Pesquisar produto...",
+    "emptyOrder": "Nenhum consumo registado nesta mesa.",
+    "total": "Total",
+    "status": {
+      "free": "Livre",
+      "occupied": "Ocupada"
+    },
+    "columns": {
+      "item": "Item",
+      "qty": "Qtd",
+      "total": "Total"
+    },
+    "actions": {
+      "newTable": "Nova mesa",
+      "open": "Abrir mesa",
+      "create": "Criar mesa",
+      "print": "Imprimir conta",
+      "transfer": "Transferir",
+      "pay": "Pagar mesa",
+      "confirmPay": "Confirmar pagamento"
+    },
+    "modals": {
+      "openTitle": "Abrir mesa",
+      "createTitle": "Criar mesa",
+      "transferTitle": "Transferir consumos",
+      "payTitle": "Pagar mesa",
+      "description": "Descrição (opcional)",
+      "descriptionPlaceholder": "Ex: Aniversário, reserva João...",
+      "code": "Código único",
+      "name": "Nome (opcional)",
+      "destination": "Mesa de destino",
+      "selectDestination": "Seleccione a mesa...",
+      "items": "Itens a transferir"
+    },
+    "receipt": {
+      "title": "Conta da Mesa"
+    },
+    "toast": {
+      "opened": "Mesa aberta com sucesso.",
+      "openFailed": "Não foi possível abrir a mesa.",
+      "tableCreated": "Mesa criada com sucesso.",
+      "tableCreateFailed": "Não foi possível criar a mesa.",
+      "addItemFailed": "Não foi possível adicionar o produto.",
+      "transferred": "Consumos transferidos com sucesso.",
+      "transferFailed": "Não foi possível transferir os consumos.",
+      "printed": "Conta impressa.",
+      "paid": "Mesa paga e fechada com sucesso.",
+      "paidOffline": "Mesa paga localmente. A venda será sincronizada quando houver ligação.",
+      "payFailed": "Não foi possível concluir o pagamento.",
+      "shiftRequired": "Abra o turno de caixa antes de pagar a mesa."
+    }
   },
   "desktopWindow": {
     "minimize": "Minimizar janela",
