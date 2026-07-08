@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { mesasApi, temApiConfigurada } from "../api";
+import { mesasApi, temApiConfigurada, ApiError } from "../api";
 import { isErroRedeOuIndisponivel } from "../services/offline/networkError";
 import { useSessaoStore } from "./useSessaoStore";
 import { resolverIvaPercentualExibicao } from "../utils/ivaItem.js";
@@ -20,6 +20,12 @@ function gerarIdLocal() {
 
 function calcularSubtotal(quantidade, precoVenda) {
   return Number((quantidade * precoVenda).toFixed(2));
+}
+
+/** Backend remoto ainda sem módulo Mesas (404) ou indisponível — usa apenas localStorage. */
+function ignorarErroSyncMesas(erro) {
+  if (isErroRedeOuIndisponivel(erro)) return true;
+  return erro instanceof ApiError && erro.status === 404;
 }
 
 function carregarEstado() {
@@ -168,7 +174,7 @@ export const useMesaStore = defineStore("mesas", {
         this.pedidos = pedidosMap;
         this.actualizarOcupacaoMesas();
       } catch (erro) {
-        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+        if (!ignorarErroSyncMesas(erro)) throw erro;
         this.actualizarOcupacaoMesas();
       } finally {
         this.aCarregar = false;
@@ -206,7 +212,7 @@ export const useMesaStore = defineStore("mesas", {
             Object.assign(nova, mapearMesaRemota(resposta.data));
           }
         } catch (erro) {
-          if (!isErroRedeOuIndisponivel(erro)) throw erro;
+          if (!ignorarErroSyncMesas(erro)) throw erro;
         }
       }
 
@@ -403,7 +409,7 @@ export const useMesaStore = defineStore("mesas", {
             cashSessionId: sessaoStore.cashSessionId,
           });
         } catch (erroAbertura) {
-          if (!isErroRedeOuIndisponivel(erroAbertura)) {
+          if (!ignorarErroSyncMesas(erroAbertura)) {
             const mensagem = String(erroAbertura?.message || "");
             if (!mensagem.includes("comanda aberta")) throw erroAbertura;
           }
@@ -431,7 +437,7 @@ export const useMesaStore = defineStore("mesas", {
         this.salvar();
         return remoto;
       } catch (erro) {
-        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+        if (!ignorarErroSyncMesas(erro)) throw erro;
       }
     },
     async removerItemRemoto(pedidoId, itemId) {
@@ -439,7 +445,7 @@ export const useMesaStore = defineStore("mesas", {
       try {
         await mesasApi.removerItem(pedidoId, itemId);
       } catch (erro) {
-        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+        if (!ignorarErroSyncMesas(erro)) throw erro;
       }
     },
     async transferirRemoto(pedidoOrigem, paraMesaId, itemIds) {
@@ -450,17 +456,21 @@ export const useMesaStore = defineStore("mesas", {
           itemIds,
         });
       } catch (erro) {
-        if (!isErroRedeOuIndisponivel(erro)) throw erro;
-        await mesasApi.sincronizarPedidos({
-          registerId: useSessaoStore().registerId,
-          cashSessionId: useSessaoStore().cashSessionId,
-          pedidos: Object.values(this.pedidos).map((pedido) => ({
-            id: pedido.id,
-            diningTableId: pedido.mesaId,
-            description: pedido.descricao,
-            itens: pedido.itens,
-          })),
-        });
+        if (!ignorarErroSyncMesas(erro)) throw erro;
+        try {
+          await mesasApi.sincronizarPedidos({
+            registerId: useSessaoStore().registerId,
+            cashSessionId: useSessaoStore().cashSessionId,
+            pedidos: Object.values(this.pedidos).map((pedido) => ({
+              id: pedido.id,
+              diningTableId: pedido.mesaId,
+              description: pedido.descricao,
+              itens: pedido.itens,
+            })),
+          });
+        } catch {
+          // Backend sem módulo Mesas — mantém estado local.
+        }
       }
     },
     async fecharPedidoRemoto(pedidoId, saleId = null) {
@@ -468,7 +478,7 @@ export const useMesaStore = defineStore("mesas", {
       try {
         await mesasApi.fecharPedido(pedidoId, { saleId });
       } catch (erro) {
-        if (!isErroRedeOuIndisponivel(erro)) throw erro;
+        if (!ignorarErroSyncMesas(erro)) throw erro;
       }
     },
   },
