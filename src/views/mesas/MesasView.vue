@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
@@ -11,7 +11,7 @@ import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
 import { temApiConfigurada } from "../../api";
 import { temCatalogoOffline } from "../../services/offline/catalogCache";
-import { isErroRedeOuIndisponivel, redeDisponivel } from "../../services/offline/networkError";
+import { redeDisponivel } from "../../services/offline/networkError";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao, abrirGavetaPosVenda } from "../../services/talaoImpressao";
 import { intlLocale } from "../../services/localeStorage.js";
@@ -74,16 +74,16 @@ function formatarMoeda(valor) {
 }
 
 function classeMesa(mesa) {
-  const ocupada = !!mesaStore.pedidos[mesa.id];
+  const ocupada = !!mesa.ocupada;
   const seleccionada = mesaStore.mesaSeleccionadaId === mesa.id;
   if (seleccionada) {
     return ocupada
-      ? "border-[var(--gold)] bg-[color:rgba(216,182,90,0.18)]"
-      : "border-cyan-400 bg-cyan-950/30";
+      ? "border-[var(--gold)] bg-[color:rgba(216,182,90,0.14)]"
+      : "border-cyan-500 bg-cyan-50";
   }
   return ocupada
-    ? "border-amber-500/60 bg-amber-950/20 hover:border-amber-400"
-    : "border-[var(--border)] bg-[var(--panel)] hover:border-slate-500";
+    ? "border-amber-400 bg-amber-50 hover:border-amber-500"
+    : "border-[var(--border)] bg-[var(--panel)] hover:border-slate-400";
 }
 
 function seleccionarMesa(mesa) {
@@ -92,7 +92,8 @@ function seleccionarMesa(mesa) {
 
 function abrirModalAbertura() {
   if (!mesaSeleccionada.value) return;
-  if (pedidoSeleccionado.value) return;
+  mesaStore.reconciliarPedidosComMesas();
+  if (mesaStore.obterPedidoDaMesa(mesaSeleccionada.value.id)) return;
   descricaoAbertura.value = "";
   modalAbrirMesa.value = true;
 }
@@ -290,24 +291,28 @@ async function confirmarPagamento() {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   sessaoStore.hidratar();
-  try {
-    await mesaStore.carregarMesas();
-  } catch (erro) {
-    if (!isErroRedeOuIndisponivel(erro)) {
-      mostrarToastSwal(erro?.message || t("common.syncFailed"), "error");
-    }
-  }
+  mesaStore.hidratarLocal();
+  mesaStore.agendarSincronizacaoMesas();
+  window.addEventListener("retailpro:pos-sync-background", aoSyncBackground);
 });
+
+onUnmounted(() => {
+  window.removeEventListener("retailpro:pos-sync-background", aoSyncBackground);
+});
+
+function aoSyncBackground() {
+  mesaStore.agendarSincronizacaoMesas(0);
+}
 </script>
 
 <template>
   <div class="flex h-full min-h-0 flex-col gap-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">{{ t("mesas.title") }}</h2>
-        <p class="text-sm text-slate-400">{{ t("mesas.subtitle") }}</p>
+        <h2 class="text-lg font-semibold text-slate-900">{{ t("mesas.title") }}</h2>
+        <p class="text-sm text-slate-600">{{ t("mesas.subtitle") }}</p>
       </div>
       <BotaoBase variante="secundario" @click="modalCriarMesa = true">
         <Plus :size="16" />
@@ -332,11 +337,11 @@ onMounted(async () => {
           >
             <div class="flex items-center gap-2">
               <UtensilsCrossed :size="16" class="text-[var(--gold)]" />
-              <span class="font-semibold text-slate-100">{{ mesa.codigo }}</span>
+              <span class="font-semibold text-slate-900">{{ mesa.codigo }}</span>
             </div>
-            <p v-if="mesa.nome" class="mt-1 truncate text-xs text-slate-400">{{ mesa.nome }}</p>
-            <p class="mt-2 text-[11px] font-medium" :class="mesaStore.pedidos[mesa.id] ? 'text-amber-300' : 'text-emerald-300'">
-              {{ mesaStore.pedidos[mesa.id] ? t("mesas.status.occupied") : t("mesas.status.free") }}
+            <p v-if="mesa.nome" class="mt-1 truncate text-xs text-slate-600">{{ mesa.nome }}</p>
+            <p class="mt-2 text-[11px] font-medium" :class="mesa.ocupada ? 'text-amber-700' : 'text-emerald-700'">
+              {{ mesa.ocupada ? t("mesas.status.occupied") : t("mesas.status.free") }}
             </p>
           </button>
         </div>
@@ -344,7 +349,7 @@ onMounted(async () => {
 
       <section class="flex min-h-0 flex-col rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4">
         <template v-if="!mesaSeleccionada">
-          <div class="flex flex-1 items-center justify-center text-center text-slate-400">
+          <div class="flex flex-1 items-center justify-center text-center text-slate-500">
             <div>
               <UtensilsCrossed :size="40" class="mx-auto mb-3 opacity-40" />
               <p>{{ t("mesas.selectTable") }}</p>
@@ -355,9 +360,9 @@ onMounted(async () => {
         <template v-else>
           <div class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] pb-4">
             <div>
-              <h3 class="text-xl font-bold text-slate-100">{{ mesaSeleccionada.codigo }}</h3>
-              <p v-if="mesaSeleccionada.nome" class="text-sm text-slate-400">{{ mesaSeleccionada.nome }}</p>
-              <p v-if="pedidoSeleccionado?.descricao" class="mt-1 text-sm text-slate-300">{{ pedidoSeleccionado.descricao }}</p>
+              <h3 class="text-xl font-bold text-slate-900">{{ mesaSeleccionada.codigo }}</h3>
+              <p v-if="mesaSeleccionada.nome" class="text-sm text-slate-600">{{ mesaSeleccionada.nome }}</p>
+              <p v-if="pedidoSeleccionado?.descricao" class="mt-1 text-sm text-slate-700">{{ pedidoSeleccionado.descricao }}</p>
             </div>
             <div class="flex flex-wrap gap-2">
               <BotaoBase v-if="!pedidoSeleccionado" @click="abrirModalAbertura">{{ t("mesas.actions.open") }}</BotaoBase>
@@ -383,7 +388,7 @@ onMounted(async () => {
                 <input
                   v-model="pesquisa"
                   type="text"
-                  class="w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] py-2 pl-9 pr-3 text-sm text-slate-100 outline-none focus:border-[var(--gold)]"
+                  class="rp-input py-2 pl-9"
                   :placeholder="t('mesas.searchPlaceholder')"
                 />
               </div>
@@ -395,7 +400,7 @@ onMounted(async () => {
                   class="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2 text-left text-sm hover:border-[var(--gold)]"
                   @click="adicionarProduto(produto)"
                 >
-                  <span class="truncate text-slate-200">{{ produto.nome }}</span>
+                  <span class="truncate text-slate-800">{{ produto.nome }}</span>
                   <span class="ml-2 shrink-0 text-[var(--gold)]">{{ formatarMoeda(produto.precoVendaComIva ?? produto.precoVenda) }}</span>
                 </button>
               </div>
@@ -416,11 +421,11 @@ onMounted(async () => {
                     <td colspan="4" class="px-3 py-6 text-center text-slate-500">{{ t("mesas.emptyOrder") }}</td>
                   </tr>
                   <tr v-for="item in pedidoSeleccionado.itens" :key="item.id" class="border-t border-[var(--border)]">
-                    <td class="px-3 py-2 text-slate-200">{{ item.nome }}</td>
-                    <td class="px-3 py-2 text-right text-slate-300">{{ item.quantidade }}</td>
+                    <td class="px-3 py-2 text-slate-800">{{ item.nome }}</td>
+                    <td class="px-3 py-2 text-right text-slate-700">{{ item.quantidade }}</td>
                     <td class="px-3 py-2 text-right font-medium text-[var(--gold)]">{{ formatarMoeda(item.subtotal) }}</td>
                     <td class="px-3 py-2 text-right">
-                      <button type="button" class="text-red-400 hover:text-red-300" @click="removerItem(item.id)">
+                      <button type="button" class="text-red-600 hover:text-red-700" @click="removerItem(item.id)">
                         <Trash2 :size="15" />
                       </button>
                     </td>
@@ -430,7 +435,7 @@ onMounted(async () => {
             </div>
 
             <div class="mt-4 flex items-center justify-between rounded-lg bg-[var(--panel-muted)] px-4 py-3">
-              <span class="text-sm text-slate-400">{{ t("mesas.total") }}</span>
+              <span class="text-sm text-slate-600">{{ t("mesas.total") }}</span>
               <span class="text-2xl font-bold text-[var(--gold)]">{{ formatarMoeda(totalPedido) }} MT</span>
             </div>
           </template>
@@ -440,12 +445,12 @@ onMounted(async () => {
 
     <ModalBase v-model:aberto="modalAbrirMesa" :titulo="t('mesas.modals.openTitle')">
       <div class="space-y-4">
-        <label class="block text-sm text-slate-300">
+        <label class="rp-label">
           {{ t("mesas.modals.description") }}
           <input
             v-model="descricaoAbertura"
             type="text"
-            class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-slate-100"
+            class="rp-input"
             :placeholder="t('mesas.modals.descriptionPlaceholder')"
           />
         </label>
@@ -458,13 +463,13 @@ onMounted(async () => {
 
     <ModalBase v-model:aberto="modalCriarMesa" :titulo="t('mesas.modals.createTitle')">
       <div class="space-y-4">
-        <label class="block text-sm text-slate-300">
+        <label class="rp-label">
           {{ t("mesas.modals.code") }}
-          <input v-model="codigoNovaMesa" type="text" class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 uppercase text-slate-100" />
+          <input v-model="codigoNovaMesa" type="text" class="rp-input uppercase" />
         </label>
-        <label class="block text-sm text-slate-300">
+        <label class="rp-label">
           {{ t("mesas.modals.name") }}
-          <input v-model="nomeNovaMesa" type="text" class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-slate-100" />
+          <input v-model="nomeNovaMesa" type="text" class="rp-input" />
         </label>
         <div class="flex justify-end gap-2">
           <BotaoBase variante="secundario" @click="modalCriarMesa = false">{{ t("common.cancel") }}</BotaoBase>
@@ -478,9 +483,9 @@ onMounted(async () => {
 
     <ModalBase v-model:aberto="modalTransferir" :titulo="t('mesas.modals.transferTitle')">
       <div class="space-y-4">
-        <label class="block text-sm text-slate-300">
+        <label class="rp-label">
           {{ t("mesas.modals.destination") }}
-          <select v-model="mesaDestinoTransferencia" class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-slate-100">
+          <select v-model="mesaDestinoTransferencia" class="rp-select">
             <option value="">{{ t("mesas.modals.selectDestination") }}</option>
             <option v-for="mesa in mesasDestinoTransferencia" :key="mesa.id" :value="mesa.id">
               {{ mesa.codigo }} {{ mesa.nome ? `- ${mesa.nome}` : "" }}
@@ -488,16 +493,16 @@ onMounted(async () => {
           </select>
         </label>
         <div>
-          <p class="mb-2 text-sm text-slate-300">{{ t("mesas.modals.items") }}</p>
+          <p class="mb-2 text-sm font-medium text-slate-700">{{ t("mesas.modals.items") }}</p>
           <div class="max-h-48 space-y-1 overflow-auto rounded-lg border border-[var(--border)] p-2">
             <label
               v-for="item in pedidoSeleccionado?.itens || []"
               :key="item.id"
-              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-[var(--panel-muted)]"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-slate-50"
             >
               <input type="checkbox" :checked="itensSeleccionadosTransferencia.includes(item.id)" @change="alternarItemTransferencia(item.id)" />
-              <span class="flex-1 text-sm text-slate-200">{{ item.nome }}</span>
-              <span class="text-xs text-slate-400">x{{ item.quantidade }}</span>
+              <span class="flex-1 text-sm text-slate-800">{{ item.nome }}</span>
+              <span class="text-xs text-slate-500">x{{ item.quantidade }}</span>
             </label>
           </div>
         </div>
@@ -513,26 +518,26 @@ onMounted(async () => {
     <ModalBase v-model:aberto="modalPagar" :titulo="t('mesas.modals.payTitle')">
       <div class="space-y-4">
         <div class="rounded-lg bg-[var(--panel-muted)] px-4 py-3 text-center">
-          <p class="text-sm text-slate-400">{{ t("mesas.total") }}</p>
+          <p class="text-sm text-slate-600">{{ t("mesas.total") }}</p>
           <p class="text-3xl font-bold text-[var(--gold)]">{{ formatarMoeda(totalPedido) }} MT</p>
         </div>
-        <label class="block text-sm text-slate-300">
+        <label class="rp-label">
           {{ t("common.payment") }}
-          <select v-model="metodoPagamento" class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-slate-100">
+          <select v-model="metodoPagamento" class="rp-select">
             <option value="Dinheiro">{{ t("pos.payment.cash") }}</option>
             <option value="Transferência">{{ t("pos.payment.transfer") }}</option>
           </select>
         </label>
         <div v-if="metodoPagamento === 'Dinheiro'" class="grid grid-cols-2 gap-2">
-          <label class="text-sm text-slate-300">
+          <label class="rp-label">
             {{ t("pos.receipt.labels.amountPaid") }}
-            <input v-model="valorPagoInteiro" type="number" min="0" class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-slate-100" />
+            <input v-model="valorPagoInteiro" type="number" min="0" class="rp-input" />
           </label>
-          <label class="text-sm text-slate-300">
+          <label class="rp-label">
             Cêntimos
-            <input v-model="valorPagoDecimal" type="number" min="0" max="99" class="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-slate-100" />
+            <input v-model="valorPagoDecimal" type="number" min="0" max="99" class="rp-input" />
           </label>
-          <p class="col-span-2 text-sm text-slate-400">{{ t("pos.receipt.labels.change") }}: <span class="font-semibold text-emerald-300">{{ formatarMoeda(troco) }} MT</span></p>
+          <p class="col-span-2 text-sm text-slate-600">{{ t("pos.receipt.labels.change") }}: <span class="font-semibold text-emerald-700">{{ formatarMoeda(troco) }} MT</span></p>
         </div>
         <div class="flex justify-end gap-2">
           <BotaoBase variante="secundario" @click="modalPagar = false">{{ t("common.cancel") }}</BotaoBase>
