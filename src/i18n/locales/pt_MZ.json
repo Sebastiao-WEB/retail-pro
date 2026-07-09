@@ -555,7 +555,7 @@
     "total": "Total",
     "status": {
       "free": "Livre",
-      "occupied": "Ocupada"
+      "occupied": "Ocupado"
     },
     "columns": {
       "item": "Item",
