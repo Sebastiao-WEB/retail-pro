@@ -104,15 +104,24 @@ function seleccionarMesa(mesa) {
 
 function abrirModalAbertura() {
   if (!mesaSeleccionada.value) return;
+  mesaStore.deduplicarMesasEstado();
   mesaStore.reconciliarPedidosComMesas();
-  if (mesaStore.obterPedidoDaMesa(mesaSeleccionada.value.id)) return;
+  const mesa = mesaStore.mesaSeleccionada;
+  if (!mesa) return;
+  if (mesaStore.obterPedidoDaMesa(mesa.id)) return;
   descricaoAbertura.value = "";
   modalAbrirMesa.value = true;
 }
 
 function confirmarAberturaMesa() {
   try {
-    mesaStore.abrirPedido(mesaSeleccionada.value.id, descricaoAbertura.value);
+    mesaStore.deduplicarMesasEstado();
+    const mesa = mesaStore.mesaSeleccionada;
+    if (!mesa) {
+      mostrarToastSwal(t("mesas.toast.openFailed"), "error");
+      return;
+    }
+    mesaStore.abrirPedido(mesa.id, descricaoAbertura.value);
     modalAbrirMesa.value = false;
     mostrarToastSwal(t("mesas.toast.opened"), "success");
   } catch (erro) {
@@ -123,14 +132,18 @@ function confirmarAberturaMesa() {
 async function criarMesa() {
   processando.value = true;
   try {
-    await mesaStore.criarMesa({
+    const resultado = await mesaStore.criarMesa({
       codigo: codigoNovaMesa.value,
       nome: nomeNovaMesa.value,
     });
     codigoNovaMesa.value = "";
     nomeNovaMesa.value = "";
     modalCriarMesa.value = false;
-    mostrarToastSwal(t("mesas.toast.tableCreated"), "success");
+    if (resultado.jaExistia) {
+      mostrarToastSwal(t("mesas.toast.tableAlreadyExists"), "info");
+    } else {
+      mostrarToastSwal(t("mesas.toast.tableCreated"), "success");
+    }
   } catch (erro) {
     mostrarToastSwal(erro?.message || t("mesas.toast.tableCreateFailed"), "error");
   } finally {

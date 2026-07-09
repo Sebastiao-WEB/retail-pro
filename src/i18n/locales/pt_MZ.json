@@ -594,6 +594,7 @@
       "opened": "Mesa aberta com sucesso.",
       "openFailed": "Não foi possível abrir a mesa.",
       "tableCreated": "Mesa criada com sucesso.",
+      "tableAlreadyExists": "Esta mesa já existe. Foi seleccionada — pode abrir a comanda.",
       "tableCreateFailed": "Não foi possível criar a mesa.",
       "addItemFailed": "Não foi possível adicionar o produto.",
       "invalidQuantity": "Indique uma quantidade válida.",

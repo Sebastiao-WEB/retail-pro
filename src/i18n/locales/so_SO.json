@@ -594,6 +594,7 @@
       "opened": "Miiska si guul leh ayaa loo furay.",
       "openFailed": "Lama furi karin miiska.",
       "tableCreated": "Miiska si guul leh ayaa loo abuuray.",
+      "tableAlreadyExists": "Miiskan hore ayuu u jiray. Waa la doortay — waad furi kartaa amarka.",
       "tableCreateFailed": "Lama abuuri karin miiska.",
       "addItemFailed": "Lama dari karin alaabta.",
       "invalidQuantity": "Geli tirada saxda ah.",

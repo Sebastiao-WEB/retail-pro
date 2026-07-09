@@ -51,17 +51,39 @@ function normalizarCodigoMesa(codigo) {
   return String(codigo || "").trim().toUpperCase();
 }
 
+function mesaTemIdRemoto(id) {
+  const valor = String(id || "");
+  return valor.length > 0 && !valor.startsWith("local-");
+}
+
+function escolherMesaPreferida(atual, candidata) {
+  if (!atual) return candidata;
+  if (!candidata) return atual;
+
+  if (atual.pendenteSync && !candidata.pendenteSync) return candidata;
+  if (!atual.pendenteSync && candidata.pendenteSync) return atual;
+
+  const atualRemota = mesaTemIdRemoto(atual.id);
+  const candidataRemota = mesaTemIdRemoto(candidata.id);
+  if (!atualRemota && candidataRemota) return candidata;
+  if (atualRemota && !candidataRemota) return atual;
+
+  return atual;
+}
+
 function mesclarMesasSemDuplicar(locais, remotas) {
   const resultado = new Map();
 
   for (const mesa of remotas) {
-    resultado.set(normalizarCodigoMesa(mesa.codigo), { ...mesa, pendenteSync: false });
+    const codigo = normalizarCodigoMesa(mesa.codigo);
+    if (!codigo) continue;
+    resultado.set(codigo, escolherMesaPreferida(resultado.get(codigo), { ...mesa, pendenteSync: false }));
   }
 
   for (const mesa of locais) {
     const codigo = normalizarCodigoMesa(mesa.codigo);
-    if (resultado.has(codigo)) continue;
-    resultado.set(codigo, mesa);
+    if (!codigo) continue;
+    resultado.set(codigo, escolherMesaPreferida(resultado.get(codigo), mesa));
   }
 
   return [...resultado.values()];
@@ -155,11 +177,28 @@ export const useMesaStore = defineStore("mesas", {
     },
     hidratarLocal() {
       const estado = carregarEstado();
-      this.mesas = mesclarMesasSemDuplicar(estado.mesas, []);
+      this.mesas = estado.mesas;
       this.pedidos = estado.pedidos;
       this.fechosPendentes = estado.fechosPendentes;
+      this.deduplicarMesasEstado();
       this.reconciliarPedidosComMesas();
       this.actualizarOcupacaoMesas();
+    },
+    deduplicarMesasEstado() {
+      const idsAntigos = new Map(this.mesas.map((mesa) => [mesa.id, mesa]));
+      const mesasUnicas = mesclarMesasSemDuplicar(this.mesas, []);
+      const idsNovos = new Set(mesasUnicas.map((mesa) => mesa.id));
+
+      for (const [idAntigo, mesa] of idsAntigos) {
+        if (idsNovos.has(idAntigo)) continue;
+        const codigo = normalizarCodigoMesa(mesa.codigo);
+        const substituta = mesasUnicas.find((item) => normalizarCodigoMesa(item.codigo) === codigo);
+        if (substituta) {
+          this.remapearPedidosParaMesa(idAntigo, substituta.id);
+        }
+      }
+
+      this.mesas = mesasUnicas;
     },
     agendarSincronizacaoMesas(delayMs = 2500) {
       if (!temApiConfigurada() || apiMesasIndisponivel) return;
@@ -317,7 +356,7 @@ export const useMesaStore = defineStore("mesas", {
           mesa.pendenteSync = false;
         } catch (erro) {
           if (erro instanceof ApiError && erro.status === 422) {
-            mesa.pendenteSync = false;
+            await this.adoptarMesaRemotaPorCodigo(mesa, sessaoStore);
             continue;
           }
           if (ignorarErroSyncMesas(erro)) return;
@@ -365,6 +404,47 @@ export const useMesaStore = defineStore("mesas", {
       }
       this.fechosPendentes = restantes;
     },
+    async adoptarMesaRemotaPorCodigo(mesaLocal, sessaoStore) {
+      const codigo = normalizarCodigoMesa(mesaLocal.codigo);
+      if (!codigo) {
+        mesaLocal.pendenteSync = false;
+        return;
+      }
+
+      try {
+        const resposta = await mesasApi.listarMesas({ registerId: sessaoStore.registerId });
+        const remotas = Array.isArray(resposta?.data) ? resposta.data : [];
+        const remota = remotas.find((item) => normalizarCodigoMesa(item.code) === codigo);
+        if (!remota) {
+          mesaLocal.pendenteSync = false;
+          return;
+        }
+
+        const mapeada = mapearMesaRemota(remota);
+        if (mapeada.id !== mesaLocal.id) {
+          this.remapearPedidosParaMesa(mesaLocal.id, mapeada.id);
+        }
+
+        const indice = this.mesas.findIndex((item) => item.id === mesaLocal.id);
+        if (indice >= 0) {
+          this.mesas[indice] = mapeada;
+        } else {
+          const duplicada = this.mesas.findIndex(
+            (item) => normalizarCodigoMesa(item.codigo) === codigo && item.id !== mapeada.id
+          );
+          if (duplicada >= 0) {
+            this.remapearPedidosParaMesa(this.mesas[duplicada].id, mapeada.id);
+            this.mesas.splice(duplicada, 1);
+          }
+          this.mesas.push(mapeada);
+        }
+
+        this.deduplicarMesasEstado();
+        mesaLocal.pendenteSync = false;
+      } catch {
+        mesaLocal.pendenteSync = false;
+      }
+    },
     async receberEstadoRemoto(sessaoStore) {
       const resposta = await mesasApi.listarMesas({ registerId: sessaoStore.registerId });
       const mesasRemotas = Array.isArray(resposta?.data) ? resposta.data : [];
@@ -390,6 +470,7 @@ export const useMesaStore = defineStore("mesas", {
       });
 
       this.mesas = mesclarMesasSemDuplicar(locaisPendentes, remotasNormalizadas);
+      this.deduplicarMesasEstado();
 
       const pedidosResposta = await mesasApi.listarPedidos({
         registerId: sessaoStore.registerId,
@@ -412,10 +493,22 @@ export const useMesaStore = defineStore("mesas", {
       this.actualizarOcupacaoMesas();
     },
     async criarMesa({ codigo, nome = "", descricao = "" }) {
+      this.deduplicarMesasEstado();
+
       const codigoNormalizado = normalizarCodigoMesa(codigo);
       if (!codigoNormalizado) throw new Error("Código da mesa é obrigatório.");
-      if (this.mesas.some((mesa) => normalizarCodigoMesa(mesa.codigo) === codigoNormalizado)) {
-        throw new Error("Já existe uma mesa com este código.");
+
+      const existente = this.mesas.find(
+        (mesa) => normalizarCodigoMesa(mesa.codigo) === codigoNormalizado
+      );
+      if (existente) {
+        const nomeNormalizado = String(nome || "").trim();
+        const descricaoNormalizada = String(descricao || "").trim();
+        if (nomeNormalizado) existente.nome = nomeNormalizado;
+        if (descricaoNormalizada) existente.descricao = descricaoNormalizada;
+        this.mesaSeleccionadaId = existente.id;
+        this.salvar();
+        return { ...existente, jaExistia: true };
       }
 
       const sessaoStore = useSessaoStore();
@@ -432,13 +525,19 @@ export const useMesaStore = defineStore("mesas", {
       };
 
       this.mesas.push(nova);
-      this.mesas = mesclarMesasSemDuplicar(this.mesas, []);
+      this.deduplicarMesasEstado();
+      this.mesaSeleccionadaId = nova.id;
       this.salvar();
       this.agendarSincronizacaoMesas();
-      return nova;
+      return { ...nova, jaExistia: false };
     },
     abrirPedido(mesaId, descricao = "") {
+      this.deduplicarMesasEstado();
       this.reconciliarPedidosComMesas();
+
+      const mesa = this.mesas.find((item) => item.id === mesaId);
+      if (!mesa) throw new Error("Mesa não encontrada.");
+      mesaId = mesa.id;
 
       const existente = this.obterPedidoDaMesa(mesaId);
       if (existente) {
@@ -456,9 +555,6 @@ export const useMesaStore = defineStore("mesas", {
         }
         return this.obterPedidoDaMesa(mesaId);
       }
-
-      const mesa = this.mesas.find((item) => item.id === mesaId);
-      if (!mesa) throw new Error("Mesa não encontrada.");
 
       const pedido = {
         id: gerarIdLocal(),
