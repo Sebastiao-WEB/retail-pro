@@ -121,7 +121,9 @@ function mapearEstadoMesa(mesa, pedido) {
   return {
     ...mesa,
     comandaAberta: !!pedido,
-    ocupada: mesaTemConsumo(pedido),
+    // "Ocupada" deve representar comanda aberta (pedido existe), não apenas ter itens.
+    // Assim o card muda instantaneamente ao abrir mesa, mesmo antes de adicionar produtos.
+    ocupada: !!pedido,
     pedidoAbertoId: pedido?.id || null,
   };
 }
