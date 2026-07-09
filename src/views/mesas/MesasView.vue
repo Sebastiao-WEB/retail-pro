@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import BotaoBase from "../../components/BotaoBase.vue";
@@ -15,6 +15,14 @@ import { redeDisponivel } from "../../services/offline/networkError";
 import { mostrarToastSwal } from "../../services/toast";
 import { enviarTalaoParaImpressao, abrirGavetaPosVenda } from "../../services/talaoImpressao";
 import { intlLocale } from "../../services/localeStorage.js";
+import {
+  formatarQuantidadeExibicao,
+  normalizarQuantidadeVenda,
+  parseQuantidadeTexto,
+  quantidadeMinima,
+  UNIDADE_VENDA_KG,
+  vendidoPorPeso,
+} from "../../utils/produtoQuantidade";
 import {
   ArrowRightLeft,
   Check,
@@ -41,6 +49,10 @@ const modalAbrirMesa = ref(false);
 const modalCriarMesa = ref(false);
 const modalTransferir = ref(false);
 const modalPagar = ref(false);
+const modalQuantidade = ref(false);
+const produtoPendente = ref(null);
+const quantidadeInput = ref("");
+const inputQuantidadeRef = ref(null);
 const descricaoAbertura = ref("");
 const codigoNovaMesa = ref("");
 const nomeNovaMesa = ref("");
@@ -143,15 +155,59 @@ watch(pesquisa, (termo) => {
   }, 250);
 });
 
-function adicionarProduto(produto) {
+function adicionarProdutoComQuantidade(produto, quantidade) {
   if (!pedidoSeleccionado.value) return;
+  const quantidadeNormalizada =
+    normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
+  if (!quantidadeNormalizada) {
+    mostrarToastSwal(t("mesas.toast.invalidQuantity"), "error");
+    return;
+  }
   try {
-    mesaStore.adicionarProduto(mesaStore.mesaSeleccionadaId, produto, 1);
+    mesaStore.adicionarProduto(mesaStore.mesaSeleccionadaId, produto, quantidadeNormalizada);
     pesquisa.value = "";
     produtoStore.limparPesquisa();
   } catch (erro) {
     mostrarToastSwal(erro?.message || t("mesas.toast.addItemFailed"), "error");
   }
+}
+
+async function solicitarAdicaoProduto(produto) {
+  if (!pedidoSeleccionado.value) return;
+  produtoPendente.value = produto;
+  const minimo = quantidadeMinima(produto.unidadeVenda);
+  quantidadeInput.value = vendidoPorPeso(produto) ? "" : String(minimo);
+  modalQuantidade.value = true;
+  await nextTick();
+  inputQuantidadeRef.value?.focus();
+}
+
+function fecharModalQuantidade() {
+  modalQuantidade.value = false;
+  produtoPendente.value = null;
+  quantidadeInput.value = "";
+}
+
+function confirmarQuantidadeProduto() {
+  const produto = produtoPendente.value;
+  if (!produto) return;
+
+  const unidade = vendidoPorPeso(produto) ? UNIDADE_VENDA_KG : produto.unidadeVenda;
+  const quantidade = parseQuantidadeTexto(quantidadeInput.value, unidade);
+  if (!quantidade) {
+    mostrarToastSwal(
+      vendidoPorPeso(produto) ? t("pos.weightModal.invalidKg") : t("mesas.toast.invalidQuantity"),
+      "error"
+    );
+    return;
+  }
+
+  fecharModalQuantidade();
+  adicionarProdutoComQuantidade(produto, quantidade);
+}
+
+function formatarQuantidadeItem(item) {
+  return formatarQuantidadeExibicao(item.quantidade, item.unidadeVenda, intlLocale(locale.value));
 }
 
 function removerItem(itemId) {
@@ -398,7 +454,7 @@ function aoSyncBackground() {
                   :key="produto.id"
                   type="button"
                   class="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2 text-left text-sm hover:border-[var(--gold)]"
-                  @click="adicionarProduto(produto)"
+                  @click="solicitarAdicaoProduto(produto)"
                 >
                   <span class="truncate text-slate-800">{{ produto.nome }}</span>
                   <span class="ml-2 shrink-0 text-[var(--gold)]">{{ formatarMoeda(produto.precoVendaComIva ?? produto.precoVenda) }}</span>
@@ -422,7 +478,7 @@ function aoSyncBackground() {
                   </tr>
                   <tr v-for="item in pedidoSeleccionado.itens" :key="item.id" class="border-t border-[var(--border)]">
                     <td class="px-3 py-2 text-slate-800">{{ item.nome }}</td>
-                    <td class="px-3 py-2 text-right text-slate-700">{{ item.quantidade }}</td>
+                    <td class="px-3 py-2 text-right text-slate-700">{{ formatarQuantidadeItem(item) }}</td>
                     <td class="px-3 py-2 text-right font-medium text-[var(--gold)]">{{ formatarMoeda(item.subtotal) }}</td>
                     <td class="px-3 py-2 text-right">
                       <button type="button" class="text-red-600 hover:text-red-700" @click="removerItem(item.id)">
@@ -546,6 +602,38 @@ function aoSyncBackground() {
             <Check v-else :size="16" />
             {{ t("mesas.actions.confirmPay") }}
           </BotaoBase>
+        </div>
+      </div>
+    </ModalBase>
+
+    <ModalBase
+      v-model:aberto="modalQuantidade"
+      :titulo="produtoPendente && vendidoPorPeso(produtoPendente) ? t('pos.weightModal.title') : t('mesas.modals.quantityTitle')"
+      @fechar="fecharModalQuantidade"
+    >
+      <div v-if="produtoPendente" class="space-y-4">
+        <p class="text-sm font-semibold text-slate-800">{{ produtoPendente.nome }}</p>
+        <p class="text-xs text-slate-600">
+          {{ formatarMoeda(produtoPendente.precoVendaComIva ?? produtoPendente.precoVenda) }} MT
+        </p>
+        <label class="rp-label">
+          {{ vendidoPorPeso(produtoPendente) ? t("pos.weightModal.kgLabel") : t("mesas.modals.quantityLabel") }}
+          <input
+            ref="inputQuantidadeRef"
+            v-model="quantidadeInput"
+            type="number"
+            :min="vendidoPorPeso(produtoPendente) ? 0.001 : 1"
+            :step="vendidoPorPeso(produtoPendente) ? 0.001 : 1"
+            :inputmode="vendidoPorPeso(produtoPendente) ? 'decimal' : 'numeric'"
+            class="rp-input"
+            :placeholder="vendidoPorPeso(produtoPendente) ? t('pos.weightModal.kgPlaceholder') : t('mesas.modals.quantityPlaceholder')"
+            @keydown.enter.prevent="confirmarQuantidadeProduto"
+          />
+        </label>
+        <p v-if="vendidoPorPeso(produtoPendente)" class="text-xs text-slate-500">{{ t("pos.weightModal.hint") }}</p>
+        <div class="flex justify-end gap-2">
+          <BotaoBase variante="secundario" @click="fecharModalQuantidade">{{ t("common.cancel") }}</BotaoBase>
+          <BotaoBase @click="confirmarQuantidadeProduto">{{ t("mesas.modals.confirmAdd") }}</BotaoBase>
         </div>
       </div>
     </ModalBase>

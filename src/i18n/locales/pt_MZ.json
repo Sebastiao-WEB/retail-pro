@@ -581,7 +581,11 @@
       "name": "Nome (opcional)",
       "destination": "Mesa de destino",
       "selectDestination": "Seleccione a mesa...",
-      "items": "Itens a transferir"
+      "items": "Itens a transferir",
+      "quantityTitle": "Quantidade",
+      "quantityLabel": "Quantidade",
+      "quantityPlaceholder": "Ex: 2",
+      "confirmAdd": "Adicionar à mesa"
     },
     "receipt": {
       "title": "Conta da Mesa"
@@ -592,6 +596,7 @@
       "tableCreated": "Mesa criada com sucesso.",
       "tableCreateFailed": "Não foi possível criar a mesa.",
       "addItemFailed": "Não foi possível adicionar o produto.",
+      "invalidQuantity": "Indique uma quantidade válida.",
       "transferred": "Consumos transferidos com sucesso.",
       "transferFailed": "Não foi possível transferir os consumos.",
       "printed": "Conta impressa.",
