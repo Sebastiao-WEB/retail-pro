@@ -65,6 +65,7 @@ const valorPagoInteiro = ref("0");
 const valorPagoDecimal = ref("00");
 const processando = ref(false);
 const imprimindo = ref(false);
+const transferindo = ref(false);
 
 const resultadosPesquisa = computed(() => produtoStore.resultadosPesquisa.slice(0, 12));
 
@@ -252,22 +253,50 @@ function alternarItemTransferencia(itemId) {
 }
 
 function confirmarTransferencia() {
-  try {
-    const pedido = pedidoSeleccionado.value;
-    if (!pedido?.itens?.length) {
-      mostrarToastSwal(t("mesas.toast.transferFailed"), "error");
-      return;
-    }
+  if (transferindo.value) return;
 
+  const pedido = pedidoSeleccionado.value;
+  const itensIds = [...itensSeleccionadosTransferencia.value];
+  const destinoId = mesaDestinoTransferencia.value;
+
+  if (!pedido?.itens?.length || !destinoId || !itensIds.length) {
+    mostrarToastSwal(t("mesas.toast.transferFailed"), "error");
+    return;
+  }
+
+  const itensAntes = pedido.itens.filter((item) => itensIds.includes(item.id));
+  if (!itensAntes.length) {
+    mostrarToastSwal(t("mesas.toast.transferFailed"), "error");
+    return;
+  }
+
+  transferindo.value = true;
+  try {
     mesaStore.transferirItens({
       deMesaId: pedido.mesaId || mesaStore.mesaSeleccionadaId,
-      paraMesaId: mesaDestinoTransferencia.value,
-      itemIds: itensSeleccionadosTransferencia.value,
+      paraMesaId: destinoId,
+      itemIds: itensIds,
     });
     modalTransferir.value = false;
     mostrarToastSwal(t("mesas.toast.transferred"), "success");
   } catch (erro) {
-    mostrarToastSwal(erro?.message || t("mesas.toast.transferFailed"), "error");
+    const pedidoDestino = mesaStore.obterPedidoDaMesa(destinoId);
+    const transferiu = itensAntes.every((item) =>
+      pedidoDestino?.itens?.some(
+        (linha) =>
+          linha.produtoId === item.produtoId &&
+          Number(linha.quantidade || 0) >= Number(item.quantidade || 0)
+      )
+    );
+
+    if (transferiu) {
+      modalTransferir.value = false;
+      mostrarToastSwal(t("mesas.toast.transferred"), "success");
+    } else {
+      mostrarToastSwal(erro?.message || t("mesas.toast.transferFailed"), "error");
+    }
+  } finally {
+    transferindo.value = false;
   }
 }
 
@@ -646,7 +675,11 @@ function aoSyncBackground() {
         </div>
         <div class="flex justify-end gap-2">
           <BotaoBase variante="secundario" @click="modalTransferir = false">{{ t("common.cancel") }}</BotaoBase>
-          <BotaoBase :disabled="!mesaDestinoTransferencia || !itensSeleccionadosTransferencia.length" @click="confirmarTransferencia">
+          <BotaoBase
+            :disabled="!mesaDestinoTransferencia || !itensSeleccionadosTransferencia.length || transferindo"
+            @click="confirmarTransferencia"
+          >
+            <LoaderCircle v-if="transferindo" :size="16" class="animate-spin" />
             {{ t("mesas.actions.transfer") }}
           </BotaoBase>
         </div>

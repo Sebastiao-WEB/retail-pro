@@ -690,20 +690,35 @@ export const useMesaStore = defineStore("mesas", {
         throw new Error("Seleccione uma mesa de destino diferente.");
       }
 
-      const pedidoOrigem = this.obterPedidoDaMesa(mesaOrigemId);
-      if (!pedidoOrigem) throw new Error("A mesa de origem não tem comanda aberta.");
+      const pedidoOrigemActual = this.obterPedidoDaMesa(mesaOrigemId);
+      if (!pedidoOrigemActual) throw new Error("A mesa de origem não tem comanda aberta.");
 
       const mesaDestino = this.mesas.find((mesa) => mesa.id === mesaDestinoId);
       if (!mesaDestino) throw new Error("Mesa de destino não encontrada.");
 
-      let pedidoDestino = this.obterPedidoDaMesa(mesaDestinoId);
-      if (!pedidoDestino) {
-        pedidoDestino = this.abrirPedido(mesaDestinoId, `Transferência de ${pedidoOrigem.mesaCodigo}`);
-      }
-
-      const ids = itemIds.length ? itemIds : pedidoOrigem.itens.map((item) => item.id);
-      const itensTransferir = pedidoOrigem.itens.filter((item) => ids.includes(item.id));
+      const ids = itemIds.length ? itemIds : pedidoOrigemActual.itens.map((item) => item.id);
+      const itensTransferir = pedidoOrigemActual.itens.filter((item) => ids.includes(item.id));
       if (!itensTransferir.length) throw new Error("Nenhum item seleccionado.");
+
+      const pedidoOrigem = {
+        ...pedidoOrigemActual,
+        itens: pedidoOrigemActual.itens.filter((item) => !ids.includes(item.id)),
+        pendenteSync: true,
+      };
+
+      const pedidoDestinoActual = this.obterPedidoDaMesa(mesaDestinoId);
+      const pedidoDestino = pedidoDestinoActual
+        ? { ...pedidoDestinoActual, itens: [...pedidoDestinoActual.itens], pendenteSync: true }
+        : {
+            id: gerarIdLocal(),
+            mesaId: mesaDestinoId,
+            mesaCodigo: mesaDestino.codigo,
+            descricao: `Transferência de ${pedidoOrigemActual.mesaCodigo}`,
+            itens: [],
+            abertoEm: new Date().toISOString(),
+            status: "OPEN",
+            pendenteSync: true,
+          };
 
       for (const item of itensTransferir) {
         const existente = pedidoDestino.itens.find((linha) => linha.produtoId === item.produtoId);
@@ -715,26 +730,28 @@ export const useMesaStore = defineStore("mesas", {
         }
       }
 
-      pedidoOrigem.itens = pedidoOrigem.itens.filter((item) => !ids.includes(item.id));
-      pedidoOrigem.pendenteSync = true;
-      pedidoDestino.pendenteSync = true;
+      const pedidosActualizados = { ...this.pedidos, [pedidoDestino.mesaId]: pedidoDestino };
 
-      const pedidosActualizados = {
-        ...this.pedidos,
-        [pedidoDestino.mesaId]: { ...pedidoDestino },
-      };
+      const chavesOrigem = new Set(
+        [mesaOrigemId, pedidoOrigemActual.mesaId].filter(Boolean)
+      );
 
       if (!pedidoOrigem.itens.length) {
-        delete pedidosActualizados[pedidoOrigem.mesaId];
-        if (pedidoOrigem.id && temApiConfigurada()) {
+        for (const chave of chavesOrigem) {
+          delete pedidosActualizados[chave];
+        }
+        if (pedidoOrigemActual.id && temApiConfigurada()) {
           this.fechosPendentes.push({
-            pedidoId: pedidoOrigem.id,
+            pedidoId: pedidoOrigemActual.id,
             saleId: null,
             criadoEm: new Date().toISOString(),
           });
         }
       } else {
-        pedidosActualizados[pedidoOrigem.mesaId] = { ...pedidoOrigem };
+        pedidosActualizados[mesaOrigemId] = { ...pedidoOrigem, mesaId: mesaOrigemId };
+        for (const chave of chavesOrigem) {
+          if (chave !== mesaOrigemId) delete pedidosActualizados[chave];
+        }
       }
 
       this.pedidos = pedidosActualizados;
