@@ -759,18 +759,15 @@ export const useMesaStore = defineStore("mesas", {
       };
 
       const pedidoDestinoActual = this.obterPedidoDaMesa(mesaDestinoId);
-      const pedidoDestino = pedidoDestinoActual
-        ? { ...pedidoDestinoActual, itens: [...pedidoDestinoActual.itens], pendenteSync: true }
-        : {
-            id: gerarIdLocal(),
-            mesaId: mesaDestinoId,
-            mesaCodigo: mesaDestino.codigo,
-            descricao: `Transferência de ${pedidoOrigemActual.mesaCodigo}`,
-            itens: [],
-            abertoEm: new Date().toISOString(),
-            status: "OPEN",
-            pendenteSync: true,
-          };
+      if (!pedidoDestinoActual) {
+        throw new Error("A mesa de destino não está aberta. Abra a mesa antes de transferir consumos.");
+      }
+
+      const pedidoDestino = {
+        ...pedidoDestinoActual,
+        itens: [...pedidoDestinoActual.itens],
+        pendenteSync: true,
+      };
 
       for (const item of itensTransferir) {
         const existente = pedidoDestino.itens.find((linha) => linha.produtoId === item.produtoId);
@@ -808,8 +805,12 @@ export const useMesaStore = defineStore("mesas", {
       }
 
       this.pedidos = pedidosActualizados;
-      this.reconciliarPedidosComMesas();
-      this.actualizarOcupacaoMesas();
+      try {
+        this.reconciliarPedidosComMesas();
+        this.actualizarOcupacaoMesas();
+      } catch {
+        this.salvar();
+      }
       this.agendarSincronizacaoMesas();
     },
     fecharPedidoLocal(mesaId, saleId = null) {

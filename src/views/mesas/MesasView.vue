@@ -79,7 +79,9 @@ const valorPagoNumerico = computed(() => {
 const troco = computed(() => Math.max(0, valorPagoNumerico.value - totalPedido.value));
 
 const mesasDestinoTransferencia = computed(() =>
-  mesasOrdenadas.value.filter((mesa) => mesa.id !== mesaStore.mesaSeleccionadaId)
+  mesasOrdenadas.value.filter(
+    (mesa) => mesa.id !== mesaStore.mesaSeleccionadaId && mesa.ocupada
+  )
 );
 
 const pedidoTemConsumo = computed(() => (pedidoSeleccionado.value?.itens?.length || 0) > 0);
@@ -240,6 +242,10 @@ function removerItem(itemId) {
 
 function abrirModalTransferir() {
   if (!pedidoSeleccionado.value?.itens?.length) return;
+  if (!mesasDestinoTransferencia.value.length) {
+    mostrarToastSwal(t("mesas.modals.noOccupiedDestination"), "warning");
+    return;
+  }
   mesaDestinoTransferencia.value = "";
   itensSeleccionadosTransferencia.value = pedidoSeleccionado.value.itens.map((item) => item.id);
   quantidadesTransferencia.value = Object.fromEntries(
@@ -301,6 +307,12 @@ function confirmarTransferencia() {
     return;
   }
 
+  const mesaDestino = mesasDestinoTransferencia.value.find((mesa) => mesa.id === destinoId);
+  if (!mesaDestino?.ocupada) {
+    mostrarToastSwal(t("mesas.toast.transferDestinationClosed"), "error");
+    return;
+  }
+
   let itensTransferencia = [];
   try {
     itensTransferencia = montarItensTransferencia();
@@ -324,20 +336,7 @@ function confirmarTransferencia() {
     modalTransferir.value = false;
     mostrarToastSwal(t("mesas.toast.transferred"), "success");
   } catch (erro) {
-    const pedidoDestino = mesaStore.obterPedidoDaMesa(destinoId);
-    const transferiu = itensTransferencia.every(({ itemId, quantidade }) => {
-      const item = pedido.itens.find((linha) => linha.id === itemId);
-      if (!item) return false;
-      const linhaDestino = pedidoDestino?.itens?.find((linha) => linha.produtoId === item.produtoId);
-      return Number(linhaDestino?.quantidade || 0) >= Number(quantidade || 0);
-    });
-
-    if (transferiu) {
-      modalTransferir.value = false;
-      mostrarToastSwal(t("mesas.toast.transferred"), "success");
-    } else {
-      mostrarToastSwal(erro?.message || t("mesas.toast.transferFailed"), "error");
-    }
+    mostrarToastSwal(erro?.message || t("mesas.toast.transferFailed"), "error");
   } finally {
     transferindo.value = false;
   }
@@ -702,41 +701,40 @@ function aoSyncBackground() {
             </option>
           </select>
         </label>
+        <p v-if="!mesasDestinoTransferencia.length" class="text-sm text-amber-700">
+          {{ t("mesas.modals.noOccupiedDestination") }}
+        </p>
         <div>
           <p class="mb-2 text-sm font-medium text-slate-700">{{ t("mesas.modals.items") }}</p>
-          <div class="max-h-56 space-y-2 overflow-auto rounded-lg border border-[var(--border)] p-2">
-            <div
+          <div class="max-h-56 space-y-1 overflow-auto rounded-lg border border-[var(--border)] p-2">
+            <label
               v-for="item in pedidoSeleccionado?.itens || []"
               :key="item.id"
-              class="rounded px-2 py-2 hover:bg-slate-50"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50"
             >
-              <label class="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  :checked="itensSeleccionadosTransferencia.includes(item.id)"
-                  @change="alternarItemTransferencia(item.id)"
-                />
-                <span class="min-w-0 flex-1 truncate text-sm text-slate-800">{{ item.nome }}</span>
-                <span class="shrink-0 text-xs text-slate-500">
-                  {{ t("mesas.modals.available") }}: {{ formatarQuantidadeItem(item) }}
-                </span>
-              </label>
-              <div v-if="itensSeleccionadosTransferencia.includes(item.id)" class="mt-2 pl-6">
-                <label class="rp-label">
-                  {{ t("mesas.modals.transferQuantity") }}
-                  <input
-                    v-model="quantidadesTransferencia[item.id]"
-                    type="number"
-                    class="rp-input py-1 text-right"
-                    :min="quantidadeMinima(item.unidadeVenda)"
-                    :max="item.quantidade"
-                    :step="vendidoPorPeso(item) ? 0.001 : 1"
-                    :inputmode="vendidoPorPeso(item) ? 'decimal' : 'numeric'"
-                    :placeholder="formatarQuantidadeItem(item)"
-                  />
-                </label>
-              </div>
-            </div>
+              <input
+                type="checkbox"
+                class="shrink-0"
+                :checked="itensSeleccionadosTransferencia.includes(item.id)"
+                @change="alternarItemTransferencia(item.id)"
+              />
+              <span class="min-w-0 flex-1 truncate text-sm text-slate-800">{{ item.nome }}</span>
+              <span class="shrink-0 text-[11px] text-slate-500">
+                / {{ formatarQuantidadeItem(item) }}
+              </span>
+              <input
+                v-if="itensSeleccionadosTransferencia.includes(item.id)"
+                v-model="quantidadesTransferencia[item.id]"
+                type="number"
+                class="h-8 w-10 shrink-0 rounded-md border border-[var(--border)] bg-white px-1 text-center text-sm text-slate-800 focus:border-[#c8ab5b] focus:outline-none focus:ring-2 focus:ring-[rgba(216,182,90,0.18)]"
+                :min="quantidadeMinima(item.unidadeVenda)"
+                :max="item.quantidade"
+                :step="vendidoPorPeso(item) ? 0.001 : 1"
+                :inputmode="vendidoPorPeso(item) ? 'decimal' : 'numeric'"
+                :title="t('mesas.modals.transferQuantity')"
+                @click.stop
+              />
+            </label>
           </div>
         </div>
         <div class="flex justify-end gap-2">
