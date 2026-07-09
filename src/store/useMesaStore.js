@@ -4,6 +4,12 @@ import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/ne
 import { useSessaoStore } from "./useSessaoStore";
 import { resolverIvaPercentualExibicao } from "../utils/ivaItem.js";
 import {
+  agregarQuantidadesTransferencia,
+  calcularSubtotalMesa,
+  chaveItemMesa,
+  consolidarItensPedido,
+} from "../utils/mesaItens";
+import {
   normalizarQuantidadeVenda,
   normalizarUnidadeVenda,
   quantidadeMinima,
@@ -23,7 +29,7 @@ function gerarIdLocal() {
 }
 
 function calcularSubtotal(quantidade, precoVenda) {
-  return Number((quantidade * precoVenda).toFixed(2));
+  return calcularSubtotalMesa(quantidade, precoVenda);
 }
 
 /** Backend remoto ainda sem módulo Mesas (404) ou indisponível — usa apenas localStorage. */
@@ -107,6 +113,19 @@ function obterPedidoDaMesaNoEstado(pedidos, mesas, mesaId) {
   );
 }
 
+function mesaTemConsumo(pedido) {
+  return !!pedido && (pedido.itens?.length || 0) > 0;
+}
+
+function mapearEstadoMesa(mesa, pedido) {
+  return {
+    ...mesa,
+    comandaAberta: !!pedido,
+    ocupada: mesaTemConsumo(pedido),
+    pedidoAbertoId: pedido?.id || null,
+  };
+}
+
 function resolverMesaIdCanonico(mesas, mesaId, pedidos = {}) {
   if (!mesaId) return null;
   if (mesas.some((mesa) => mesa.id === mesaId)) return mesaId;
@@ -177,11 +196,7 @@ export const useMesaStore = defineStore("mesas", {
       const mesa = state.mesas.find((item) => item.id === state.mesaSeleccionadaId) || null;
       if (!mesa) return null;
       const pedido = obterPedidoDaMesaNoEstado(state.pedidos, state.mesas, mesa.id);
-      return {
-        ...mesa,
-        ocupada: !!pedido,
-        pedidoAbertoId: pedido?.id || null,
-      };
+      return mapearEstadoMesa(mesa, pedido);
     },
     pedidoSeleccionado(state) {
       const mesaId = state.mesaSeleccionadaId;
@@ -193,11 +208,7 @@ export const useMesaStore = defineStore("mesas", {
         .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)))
         .map((mesa) => {
           const pedido = obterPedidoDaMesaNoEstado(state.pedidos, state.mesas, mesa.id);
-          return {
-            ...mesa,
-            ocupada: !!pedido,
-            pedidoAbertoId: pedido?.id || null,
-          };
+          return mapearEstadoMesa(mesa, pedido);
         });
     },
     subtotalPedido() {
@@ -209,10 +220,10 @@ export const useMesaStore = defineStore("mesas", {
       return this.subtotalPedido;
     },
     mesasLivres() {
-      return this.mesasOrdenadas.filter((mesa) => !this.obterPedidoDaMesa(mesa.id));
+      return this.mesasOrdenadas.filter((mesa) => !mesa.ocupada);
     },
     mesasOcupadas() {
-      return this.mesasOrdenadas.filter((mesa) => !!this.obterPedidoDaMesa(mesa.id));
+      return this.mesasOrdenadas.filter((mesa) => mesa.ocupada);
     },
   },
   actions: {
@@ -311,6 +322,15 @@ export const useMesaStore = defineStore("mesas", {
             : actual;
       }
 
+      for (const chave of Object.keys(pedidosNormalizados)) {
+        const pedido = pedidosNormalizados[chave];
+        if (!pedido?.itens?.length) continue;
+        pedidosNormalizados[chave] = {
+          ...pedido,
+          itens: consolidarItensPedido(pedido.itens),
+        };
+      }
+
       this.pedidos = pedidosNormalizados;
     },
     remapearPedidosParaMesa(mesaIdAntigo, mesaIdNovo) {
@@ -332,11 +352,7 @@ export const useMesaStore = defineStore("mesas", {
     actualizarOcupacaoMesas() {
       this.mesas = this.mesas.map((mesa) => {
         const pedido = this.obterPedidoDaMesa(mesa.id);
-        return {
-          ...mesa,
-          ocupada: !!pedido,
-          pedidoAbertoId: pedido?.id || null,
-        };
+        return mapearEstadoMesa(mesa, pedido);
       });
       this.salvar();
     },
@@ -635,6 +651,14 @@ export const useMesaStore = defineStore("mesas", {
       const quantidadeNormalizada =
         normalizarQuantidadeVenda(quantidade, unidadeVenda) ?? quantidadeMinima(unidadeVenda);
 
+      const quantidadeActual = Number(
+        pedido.itens.find((item) => item.produtoId === produto.id)?.quantidade || 0
+      );
+      const stock = Number(produto.stock);
+      if (Number.isFinite(stock) && quantidadeActual + quantidadeNormalizada > stock + 0.0001) {
+        throw new Error(`Stock insuficiente para "${produto.nome}".`);
+      }
+
       const itemExistente = pedido.itens.find((item) => item.produtoId === produto.id);
       if (itemExistente) {
         const novaQuantidade = normalizarQuantidadeVenda(
@@ -660,17 +684,23 @@ export const useMesaStore = defineStore("mesas", {
         });
       }
 
+      pedido.itens = consolidarItensPedido(pedido.itens);
       pedido.pendenteSync = true;
       this.pedidos = { ...this.pedidos, [mesaIdReal]: { ...pedido } };
       this.reconciliarPedidosComMesas();
       this.salvar();
       this.agendarSincronizacaoMesas();
     },
-    removerItem(mesaId, itemId) {
+    removerItem(mesaId, itemId, produtoId = null) {
       const pedido = this.obterPedidoDaMesa(mesaId);
       if (!pedido) return;
 
-      pedido.itens = pedido.itens.filter((item) => item.id !== itemId);
+      if (produtoId) {
+        pedido.itens = pedido.itens.filter((item) => item.produtoId !== produtoId);
+      } else {
+        pedido.itens = pedido.itens.filter((item) => item.id !== itemId);
+      }
+      pedido.itens = consolidarItensPedido(pedido.itens);
       pedido.pendenteSync = true;
       this.pedidos = { ...this.pedidos, [pedido.mesaId]: { ...pedido } };
       this.reconciliarPedidosComMesas();
@@ -696,34 +726,52 @@ export const useMesaStore = defineStore("mesas", {
       const mesaDestino = this.mesas.find((mesa) => mesa.id === mesaDestinoId);
       if (!mesaDestino) throw new Error("Mesa de destino não encontrada.");
 
-      const pedidosPorQuantidade = (itens || [])
-        .map((entrada) => ({
+      const itensOrigem = consolidarItensPedido(pedidoOrigemActual.itens);
+
+      const pedidosPorQuantidade = agregarQuantidadesTransferencia(
+        (itens || []).map((entrada) => ({
+          produtoId: entrada.produtoId || null,
           itemId: entrada.itemId || entrada.id,
           quantidade: Number(entrada.quantidade || 0),
-        }))
-        .filter((entrada) => entrada.itemId && entrada.quantidade > 0);
+        })),
+        itensOrigem
+      );
 
       const pedidosCompletos =
         pedidosPorQuantidade.length > 0
           ? pedidosPorQuantidade
-          : (itemIds.length ? itemIds : pedidoOrigemActual.itens.map((item) => item.id)).map((itemId) => {
-              const item = pedidoOrigemActual.itens.find((linha) => linha.id === itemId);
-              return item ? { itemId, quantidade: Number(item.quantidade || 0) } : null;
-            }).filter(Boolean);
+          : agregarQuantidadesTransferencia(
+              (itemIds.length ? itemIds : itensOrigem.map((item) => item.id)).map((itemId) => {
+                const item = itensOrigem.find((linha) => linha.id === itemId);
+                return item
+                  ? { produtoId: item.produtoId, itemId, quantidade: Number(item.quantidade || 0) }
+                  : null;
+              }).filter(Boolean),
+              itensOrigem
+            );
 
       if (!pedidosCompletos.length) throw new Error("Nenhum item seleccionado.");
 
+      const mapaTransferencia = new Map(
+        pedidosCompletos.map((entrada) => [entrada.chave, entrada.quantidade])
+      );
+
       const itensTransferir = [];
       const itensOrigemRestantes = [];
+      const chavesProcessadas = new Set();
 
-      for (const item of pedidoOrigemActual.itens) {
-        const entrada = pedidosCompletos.find((linha) => linha.itemId === item.id);
-        if (!entrada) {
+      for (const item of itensOrigem) {
+        const chave = chaveItemMesa(item);
+        if (!chave || chavesProcessadas.has(chave)) continue;
+        chavesProcessadas.add(chave);
+
+        const quantidadePedida = mapaTransferencia.get(chave);
+        if (quantidadePedida == null) {
           itensOrigemRestantes.push(item);
           continue;
         }
 
-        const quantidadeTransferir = normalizarQuantidadeVenda(entrada.quantidade, item.unidadeVenda);
+        const quantidadeTransferir = normalizarQuantidadeVenda(quantidadePedida, item.unidadeVenda);
         if (!quantidadeTransferir) {
           throw new Error(`Quantidade inválida para ${item.nome}.`);
         }
@@ -754,7 +802,7 @@ export const useMesaStore = defineStore("mesas", {
 
       const pedidoOrigem = {
         ...pedidoOrigemActual,
-        itens: itensOrigemRestantes,
+        itens: consolidarItensPedido(itensOrigemRestantes),
         pendenteSync: true,
       };
 
@@ -770,7 +818,8 @@ export const useMesaStore = defineStore("mesas", {
       };
 
       for (const item of itensTransferir) {
-        const existente = pedidoDestino.itens.find((linha) => linha.produtoId === item.produtoId);
+        const chave = chaveItemMesa(item);
+        const existente = pedidoDestino.itens.find((linha) => chaveItemMesa(linha) === chave);
         if (existente) {
           const novaQuantidade = Number((Number(existente.quantidade || 0) + item.quantidade).toFixed(3));
           existente.quantidade = novaQuantidade;
@@ -779,6 +828,8 @@ export const useMesaStore = defineStore("mesas", {
           pedidoDestino.itens.push({ ...item, id: gerarIdLocal() });
         }
       }
+
+      pedidoDestino.itens = consolidarItensPedido(pedidoDestino.itens);
 
       const pedidosActualizados = { ...this.pedidos, [pedidoDestino.mesaId]: pedidoDestino };
 

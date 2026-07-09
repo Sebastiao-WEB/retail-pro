@@ -17,12 +17,14 @@ import { enviarTalaoParaImpressao, abrirGavetaPosVenda } from "../../services/ta
 import { intlLocale } from "../../services/localeStorage.js";
 import {
   formatarQuantidadeExibicao,
+  formatarStockExibicao,
   normalizarQuantidadeVenda,
   parseQuantidadeTexto,
   quantidadeMinima,
   UNIDADE_VENDA_KG,
   vendidoPorPeso,
 } from "../../utils/produtoQuantidade";
+import { chaveItemMesa, consolidarItensPedido } from "../../utils/mesaItens";
 import {
   ArrowRightLeft,
   Banknote,
@@ -80,11 +82,15 @@ const troco = computed(() => Math.max(0, valorPagoNumerico.value - totalPedido.v
 
 const mesasDestinoTransferencia = computed(() =>
   mesasOrdenadas.value.filter(
-    (mesa) => mesa.id !== mesaStore.mesaSeleccionadaId && mesa.ocupada
+    (mesa) => mesa.id !== mesaStore.mesaSeleccionadaId && mesa.comandaAberta
   )
 );
 
 const pedidoTemConsumo = computed(() => (pedidoSeleccionado.value?.itens?.length || 0) > 0);
+
+const itensConsolidadosPedido = computed(() =>
+  consolidarItensPedido(pedidoSeleccionado.value?.itens || [])
+);
 
 const classeBotaoIcone =
   "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45";
@@ -96,6 +102,40 @@ function formatarMoeda(valor) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number(valor || 0));
+}
+
+function obterProdutoAtualizado(produto) {
+  const doCatalogo = produtoStore.produtos.find((reg) => reg.id === produto.id);
+  if (!doCatalogo) return produto;
+  return {
+    ...doCatalogo,
+    unidadeVenda: produto.unidadeVenda ?? doCatalogo.unidadeVenda,
+    stock: Math.max(Number(produto.stock ?? 0), Number(doCatalogo.stock ?? 0)),
+    precoVenda: produto.precoVenda ?? doCatalogo.precoVenda,
+    precoVendaComIva: produto.precoVendaComIva ?? doCatalogo.precoVendaComIva,
+  };
+}
+
+function quantidadeNaMesa(produtoId) {
+  const item = itensConsolidadosPedido.value.find((linha) => linha.produtoId === produtoId);
+  return Number(item?.quantidade || 0);
+}
+
+function podeAdicionarProdutoMesa(produto, quantidade = 1) {
+  const quantidadeNormalizada =
+    normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
+  return (
+    produto.stock > 0 &&
+    quantidadeNaMesa(produto.id) + quantidadeNormalizada <= produto.stock + 0.0001
+  );
+}
+
+function formatarDisponivelStock(produto, quantidadeDisponivel) {
+  return formatarStockExibicao(quantidadeDisponivel, produto?.unidadeVenda, intlLocale(locale.value));
+}
+
+function mostrarErroStock(texto = t("pos.toast.insufficientStockDefault")) {
+  mostrarToastSwal(texto, "error");
 }
 
 function classeMesa(mesa) {
@@ -183,14 +223,34 @@ watch(pesquisa, (termo) => {
 
 function adicionarProdutoComQuantidade(produto, quantidade) {
   if (!pedidoSeleccionado.value) return;
+  const produtoAtualizado = obterProdutoAtualizado(produto);
   const quantidadeNormalizada =
-    normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
+    normalizarQuantidadeVenda(quantidade, produtoAtualizado.unidadeVenda) ??
+    quantidadeMinima(produtoAtualizado.unidadeVenda);
   if (!quantidadeNormalizada) {
     mostrarToastSwal(t("mesas.toast.invalidQuantity"), "error");
     return;
   }
+
+  if (!podeAdicionarProdutoMesa(produtoAtualizado, quantidadeNormalizada)) {
+    if (produtoAtualizado.stock <= 0) {
+      mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
+    } else if (quantidadeNaMesa(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
+      const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNaMesa(produtoAtualizado.id));
+      mostrarErroStock(
+        t("pos.toast.insufficientStock", {
+          name: produtoAtualizado.nome,
+          available: formatarDisponivelStock(produtoAtualizado, disponivel),
+        })
+      );
+    } else {
+      mostrarErroStock(t("pos.toast.cannotExceedStock"));
+    }
+    return;
+  }
+
   try {
-    mesaStore.adicionarProduto(mesaStore.mesaSeleccionadaId, produto, quantidadeNormalizada);
+    mesaStore.adicionarProduto(mesaStore.mesaSeleccionadaId, produtoAtualizado, quantidadeNormalizada);
     pesquisa.value = "";
     produtoStore.limparPesquisa();
   } catch (erro) {
@@ -200,9 +260,40 @@ function adicionarProdutoComQuantidade(produto, quantidade) {
 
 async function solicitarAdicaoProduto(produto) {
   if (!pedidoSeleccionado.value) return;
-  produtoPendente.value = produto;
-  const minimo = quantidadeMinima(produto.unidadeVenda);
-  quantidadeInput.value = vendidoPorPeso(produto) ? "" : String(minimo);
+
+  const produtoAtualizado = obterProdutoAtualizado(produto);
+
+  if (vendidoPorPeso(produtoAtualizado)) {
+    if (produtoAtualizado.stock <= 0) {
+      mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
+      return;
+    }
+    produtoPendente.value = produtoAtualizado;
+    quantidadeInput.value = "";
+    modalQuantidade.value = true;
+    await nextTick();
+    inputQuantidadeRef.value?.focus();
+    return;
+  }
+
+  if (!podeAdicionarProdutoMesa(produtoAtualizado, 1)) {
+    if (produtoAtualizado.stock <= 0) {
+      mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
+    } else {
+      const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNaMesa(produtoAtualizado.id));
+      mostrarErroStock(
+        t("pos.toast.insufficientStock", {
+          name: produtoAtualizado.nome,
+          available: formatarDisponivelStock(produtoAtualizado, disponivel),
+        })
+      );
+    }
+    return;
+  }
+
+  produtoPendente.value = produtoAtualizado;
+  const minimo = quantidadeMinima(produtoAtualizado.unidadeVenda);
+  quantidadeInput.value = String(minimo);
   modalQuantidade.value = true;
   await nextTick();
   inputQuantidadeRef.value?.focus();
@@ -236,8 +327,8 @@ function formatarQuantidadeItem(item) {
   return formatarQuantidadeExibicao(item.quantidade, item.unidadeVenda, intlLocale(locale.value));
 }
 
-function removerItem(itemId) {
-  mesaStore.removerItem(mesaStore.mesaSeleccionadaId, itemId);
+function removerItem(item) {
+  mesaStore.removerItem(mesaStore.mesaSeleccionadaId, item.id, item.produtoId || null);
 }
 
 function abrirModalTransferir() {
@@ -246,43 +337,51 @@ function abrirModalTransferir() {
     mostrarToastSwal(t("mesas.modals.noOccupiedDestination"), "warning");
     return;
   }
+
+  mesaStore.reconciliarPedidosComMesas();
+
+  const itens = consolidarItensPedido(pedidoSeleccionado.value.itens);
   mesaDestinoTransferencia.value = "";
-  itensSeleccionadosTransferencia.value = pedidoSeleccionado.value.itens.map((item) => item.id);
+  itensSeleccionadosTransferencia.value = [];
   quantidadesTransferencia.value = Object.fromEntries(
-    pedidoSeleccionado.value.itens.map((item) => [item.id, String(item.quantidade)])
+    itens.map((item) => [chaveItemMesa(item), String(item.quantidade)])
   );
   modalTransferir.value = true;
 }
 
-function alternarItemTransferencia(itemId) {
-  const pedido = pedidoSeleccionado.value;
-  const item = pedido?.itens?.find((linha) => linha.id === itemId);
+function alternarItemTransferencia(chave) {
+  const item = itensConsolidadosPedido.value.find((linha) => chaveItemMesa(linha) === chave);
   if (!item) return;
 
-  if (itensSeleccionadosTransferencia.value.includes(itemId)) {
-    itensSeleccionadosTransferencia.value = itensSeleccionadosTransferencia.value.filter((id) => id !== itemId);
+  if (itensSeleccionadosTransferencia.value.includes(chave)) {
+    itensSeleccionadosTransferencia.value = itensSeleccionadosTransferencia.value.filter((id) => id !== chave);
     return;
   }
 
-  itensSeleccionadosTransferencia.value = [...itensSeleccionadosTransferencia.value, itemId];
-  if (!quantidadesTransferencia.value[itemId]) {
+  itensSeleccionadosTransferencia.value = [...itensSeleccionadosTransferencia.value, chave];
+  if (!quantidadesTransferencia.value[chave]) {
     quantidadesTransferencia.value = {
       ...quantidadesTransferencia.value,
-      [itemId]: String(item.quantidade),
+      [chave]: "1",
     };
   }
 }
 
 function montarItensTransferencia() {
-  const pedido = pedidoSeleccionado.value;
-  if (!pedido) return [];
+  const itens = itensConsolidadosPedido.value;
+  if (!itens.length) return [];
 
-  const itens = [];
-  for (const itemId of itensSeleccionadosTransferencia.value) {
-    const item = pedido.itens.find((linha) => linha.id === itemId);
+  const transferencia = [];
+  const vistos = new Set();
+
+  for (const chave of itensSeleccionadosTransferencia.value) {
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+
+    const item = itens.find((linha) => chaveItemMesa(linha) === chave);
     if (!item) continue;
 
-    const quantidade = parseQuantidadeTexto(quantidadesTransferencia.value[itemId], item.unidadeVenda);
+    const quantidade = parseQuantidadeTexto(quantidadesTransferencia.value[chave], item.unidadeVenda);
     if (!quantidade) {
       throw new Error(t("mesas.toast.invalidQuantity"));
     }
@@ -290,10 +389,14 @@ function montarItensTransferencia() {
       throw new Error(t("mesas.toast.transferQuantityExceeded", { item: item.nome }));
     }
 
-    itens.push({ itemId, quantidade });
+    transferencia.push({
+      produtoId: item.produtoId || null,
+      itemId: item.id,
+      quantidade,
+    });
   }
 
-  return itens;
+  return transferencia;
 }
 
 function confirmarTransferencia() {
@@ -308,7 +411,7 @@ function confirmarTransferencia() {
   }
 
   const mesaDestino = mesasDestinoTransferencia.value.find((mesa) => mesa.id === destinoId);
-  if (!mesaDestino?.ocupada) {
+  if (!mesaDestino?.comandaAberta) {
     mostrarToastSwal(t("mesas.toast.transferDestinationClosed"), "error");
     return;
   }
@@ -606,7 +709,8 @@ function aoSyncBackground() {
                   v-for="produto in resultadosPesquisa"
                   :key="produto.id"
                   type="button"
-                  class="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2 text-left text-sm hover:border-[var(--gold)]"
+                  class="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2 text-left text-sm hover:border-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
+                  :disabled="!podeAdicionarProdutoMesa(obterProdutoAtualizado(produto), quantidadeMinima(produto.unidadeVenda))"
                   @click="solicitarAdicaoProduto(produto)"
                 >
                   <span class="truncate text-slate-800">{{ produto.nome }}</span>
@@ -626,15 +730,15 @@ function aoSyncBackground() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="!pedidoSeleccionado.itens.length">
+                  <tr v-if="!itensConsolidadosPedido.length">
                     <td colspan="4" class="px-3 py-6 text-center text-slate-500">{{ t("mesas.emptyOrder") }}</td>
                   </tr>
-                  <tr v-for="item in pedidoSeleccionado.itens" :key="item.id" class="border-t border-[var(--border)]">
+                  <tr v-for="item in itensConsolidadosPedido" :key="chaveItemMesa(item)" class="border-t border-[var(--border)]">
                     <td class="px-3 py-2 text-slate-800">{{ item.nome }}</td>
                     <td class="px-3 py-2 text-right text-slate-700">{{ formatarQuantidadeItem(item) }}</td>
                     <td class="px-3 py-2 text-right font-medium text-[var(--gold)]">{{ formatarMoeda(item.subtotal) }}</td>
                     <td class="px-3 py-2 text-right">
-                      <button type="button" class="text-red-600 hover:text-red-700" @click="removerItem(item.id)">
+                      <button type="button" class="text-red-600 hover:text-red-700" @click="removerItem(item)">
                         <Trash2 :size="15" />
                       </button>
                     </td>
@@ -708,29 +812,27 @@ function aoSyncBackground() {
           <p class="mb-2 text-sm font-medium text-slate-700">{{ t("mesas.modals.items") }}</p>
           <div class="max-h-56 space-y-1 overflow-auto rounded-lg border border-[var(--border)] p-2">
             <label
-              v-for="item in pedidoSeleccionado?.itens || []"
-              :key="item.id"
+              v-for="item in itensConsolidadosPedido"
+              :key="chaveItemMesa(item)"
               class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50"
             >
               <input
                 type="checkbox"
                 class="shrink-0"
-                :checked="itensSeleccionadosTransferencia.includes(item.id)"
-                @change="alternarItemTransferencia(item.id)"
+                :checked="itensSeleccionadosTransferencia.includes(chaveItemMesa(item))"
+                @change="alternarItemTransferencia(chaveItemMesa(item))"
               />
               <span class="min-w-0 flex-1 truncate text-sm text-slate-800">{{ item.nome }}</span>
               <span class="shrink-0 text-[11px] text-slate-500">
                 / {{ formatarQuantidadeItem(item) }}
               </span>
               <input
-                v-if="itensSeleccionadosTransferencia.includes(item.id)"
-                v-model="quantidadesTransferencia[item.id]"
-                type="number"
-                class="h-8 w-10 shrink-0 rounded-md border border-[var(--border)] bg-white px-1 text-center text-sm text-slate-800 focus:border-[#c8ab5b] focus:outline-none focus:ring-2 focus:ring-[rgba(216,182,90,0.18)]"
-                :min="quantidadeMinima(item.unidadeVenda)"
-                :max="item.quantidade"
-                :step="vendidoPorPeso(item) ? 0.001 : 1"
+                v-if="itensSeleccionadosTransferencia.includes(chaveItemMesa(item))"
+                v-model="quantidadesTransferencia[chaveItemMesa(item)]"
+                type="text"
+                class="h-8 w-12 shrink-0 rounded-md border border-[var(--border)] bg-white px-1 text-center text-sm text-slate-800 focus:border-[#c8ab5b] focus:outline-none focus:ring-2 focus:ring-[rgba(216,182,90,0.18)]"
                 :inputmode="vendidoPorPeso(item) ? 'decimal' : 'numeric'"
+                pattern="[0-9.,]*"
                 :title="t('mesas.modals.transferQuantity')"
                 @click.stop
               />
@@ -740,6 +842,7 @@ function aoSyncBackground() {
         <div class="flex justify-end gap-2">
           <BotaoBase variante="secundario" @click="modalTransferir = false">{{ t("common.cancel") }}</BotaoBase>
           <BotaoBase
+            :auto-carregar-clique="false"
             :disabled="!mesaDestinoTransferencia || !itensSeleccionadosTransferencia.length || transferindo"
             @click="confirmarTransferencia"
           >
