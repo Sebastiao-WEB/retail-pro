@@ -568,6 +568,8 @@
       "print": "Imprimir conta",
       "transfer": "Transferir",
       "pay": "Pagar mesa",
+      "close": "Fechar mesa",
+      "closeRequiresPay": "Pague os consumos antes de fechar a mesa",
       "confirmPay": "Confirmar pagamento"
     },
     "modals": {
@@ -604,7 +606,9 @@
       "paid": "Mesa paga e fechada com sucesso.",
       "paidOffline": "Mesa paga localmente. A venda será sincronizada quando houver ligação.",
       "payFailed": "Não foi possível concluir o pagamento.",
-      "shiftRequired": "Abra o turno de caixa antes de pagar a mesa."
+      "shiftRequired": "Abra o turno de caixa antes de pagar a mesa.",
+      "closed": "Mesa fechada com sucesso.",
+      "payRequiredToClose": "Esta mesa tem consumos registados. Pague antes de fechar."
     }
   },
   "desktopWindow": {

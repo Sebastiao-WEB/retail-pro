@@ -25,7 +25,9 @@ import {
 } from "../../utils/produtoQuantidade";
 import {
   ArrowRightLeft,
+  Banknote,
   Check,
+  DoorClosed,
   LoaderCircle,
   Plus,
   Printer,
@@ -77,6 +79,13 @@ const troco = computed(() => Math.max(0, valorPagoNumerico.value - totalPedido.v
 const mesasDestinoTransferencia = computed(() =>
   mesasOrdenadas.value.filter((mesa) => mesa.id !== mesaStore.mesaSeleccionadaId)
 );
+
+const pedidoTemConsumo = computed(() => (pedidoSeleccionado.value?.itens?.length || 0) > 0);
+
+const classeBotaoIcone =
+  "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45";
+const classeBotaoIconePrimario =
+  "inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--gold)] text-black transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45";
 
 function formatarMoeda(valor) {
   return new Intl.NumberFormat(intlLocale(locale.value), {
@@ -257,12 +266,23 @@ function confirmarTransferencia() {
 }
 
 function abrirModalPagar() {
-  if (!pedidoSeleccionado.value?.itens?.length) return;
+  if (!pedidoTemConsumo.value) return;
   metodoPagamento.value = "Dinheiro";
   const total = totalPedido.value;
   valorPagoInteiro.value = String(Math.floor(total));
   valorPagoDecimal.value = String(Math.round((total % 1) * 100)).padStart(2, "0");
   modalPagar.value = true;
+}
+
+function fecharMesa() {
+  if (!pedidoSeleccionado.value) return;
+  if (pedidoTemConsumo.value) {
+    mostrarToastSwal(t("mesas.toast.payRequiredToClose"), "warning");
+    return;
+  }
+
+  mesaStore.fecharPedidoLocal(pedidoSeleccionado.value.mesaId);
+  mostrarToastSwal(t("mesas.toast.closed"), "success");
 }
 
 async function imprimirConta(opcoes = { pagarDepois: true }) {
@@ -383,10 +403,15 @@ function aoSyncBackground() {
         <h2 class="text-lg font-semibold text-slate-900">{{ t("mesas.title") }}</h2>
         <p class="text-sm text-slate-600">{{ t("mesas.subtitle") }}</p>
       </div>
-      <BotaoBase variante="secundario" @click="modalCriarMesa = true">
-        <Plus :size="16" />
-        {{ t("mesas.actions.newTable") }}
-      </BotaoBase>
+      <button
+        type="button"
+        :class="classeBotaoIcone"
+        :title="t('mesas.actions.newTable')"
+        :aria-label="t('mesas.actions.newTable')"
+        @click="modalCriarMesa = true"
+      >
+        <Plus :size="18" />
+      </button>
     </div>
 
     <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
@@ -433,18 +458,49 @@ function aoSyncBackground() {
               <p v-if="mesaSeleccionada.nome" class="text-sm text-slate-600">{{ mesaSeleccionada.nome }}</p>
               <p v-if="pedidoSeleccionado?.descricao" class="mt-1 text-sm text-slate-700">{{ pedidoSeleccionado.descricao }}</p>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <BotaoBase v-if="!pedidoSeleccionado" @click="abrirModalAbertura">{{ t("mesas.actions.open") }}</BotaoBase>
               <template v-else>
-                <BotaoBase variante="secundario" :disabled="imprimindo" @click="imprimirConta">
-                  <Printer :size="16" />
-                  {{ t("mesas.actions.print") }}
-                </BotaoBase>
-                <BotaoBase variante="secundario" @click="abrirModalTransferir">
-                  <ArrowRightLeft :size="16" />
-                  {{ t("mesas.actions.transfer") }}
-                </BotaoBase>
-                <BotaoBase @click="abrirModalPagar">{{ t("mesas.actions.pay") }}</BotaoBase>
+                <button
+                  type="button"
+                  :class="classeBotaoIcone"
+                  :title="t('mesas.actions.print')"
+                  :aria-label="t('mesas.actions.print')"
+                  :disabled="imprimindo || !pedidoTemConsumo"
+                  @click="imprimirConta"
+                >
+                  <LoaderCircle v-if="imprimindo" :size="18" class="animate-spin" />
+                  <Printer v-else :size="18" />
+                </button>
+                <button
+                  type="button"
+                  :class="classeBotaoIcone"
+                  :title="t('mesas.actions.transfer')"
+                  :aria-label="t('mesas.actions.transfer')"
+                  :disabled="!pedidoTemConsumo"
+                  @click="abrirModalTransferir"
+                >
+                  <ArrowRightLeft :size="18" />
+                </button>
+                <button
+                  type="button"
+                  :class="classeBotaoIconePrimario"
+                  :title="t('mesas.actions.pay')"
+                  :aria-label="t('mesas.actions.pay')"
+                  :disabled="!pedidoTemConsumo"
+                  @click="abrirModalPagar"
+                >
+                  <Banknote :size="18" />
+                </button>
+                <button
+                  type="button"
+                  :class="classeBotaoIcone"
+                  :title="pedidoTemConsumo ? t('mesas.actions.closeRequiresPay') : t('mesas.actions.close')"
+                  :aria-label="t('mesas.actions.close')"
+                  @click="fecharMesa"
+                >
+                  <DoorClosed :size="18" />
+                </button>
               </template>
             </div>
           </div>
@@ -452,12 +508,19 @@ function aoSyncBackground() {
           <template v-if="pedidoSeleccionado">
             <div class="mb-4">
               <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ t("mesas.addProducts") }}</label>
-              <div class="relative">
-                <Search :size="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <div
+                class="flex overflow-hidden rounded-lg border border-[var(--border)] bg-white focus-within:border-[#c8ab5b] focus-within:shadow-[0_0_0_3px_rgba(216,182,90,0.18)]"
+              >
+                <div
+                  class="flex w-10 shrink-0 items-center justify-center border-r border-[var(--border)] text-slate-500"
+                  :title="t('mesas.searchPlaceholder')"
+                >
+                  <Search :size="16" />
+                </div>
                 <input
                   v-model="pesquisa"
                   type="text"
-                  class="rp-input py-2 pl-9"
+                  class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
                   :placeholder="t('mesas.searchPlaceholder')"
                 />
               </div>

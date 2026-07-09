@@ -568,6 +568,8 @@
       "print": "Daabac xisaab",
       "transfer": "Wareeji",
       "pay": "Bixi miiska",
+      "close": "Xir miiska",
+      "closeRequiresPay": "Bixi isticmaalka ka hor intaadan xirin miiska",
       "confirmPay": "Xaqiiji bixinta"
     },
     "modals": {
@@ -604,7 +606,9 @@
       "paid": "Miiska waa la bixiyay oo la xiray.",
       "paidOffline": "Miiska waa la bixiyay maxalliga. Iibka waa la isku-dubaridi doonaa marka xiriirku soo noqdo.",
       "payFailed": "Lama dhammayn karin bixinta.",
-      "shiftRequired": "Fur wareegga sanduuqa ka hor intaadan bixin miiska."
+      "shiftRequired": "Fur wareegga sanduuqa ka hor intaadan bixin miiska.",
+      "closed": "Miiska si guul leh ayaa loo xiray.",
+      "payRequiredToClose": "Miiskan wuxuu leeyahay isticmaal. Bixi ka hor intaadan xirin."
     }
   },
   "desktopWindow": {
