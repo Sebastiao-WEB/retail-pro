@@ -31,6 +31,7 @@ import {
   Check,
   DoorClosed,
   LoaderCircle,
+  Package,
   Plus,
   Printer,
   Search,
@@ -142,9 +143,7 @@ function classeMesa(mesa) {
   const ocupada = !!mesa.ocupada;
   const seleccionada = mesaStore.mesaSeleccionadaId === mesa.id;
   if (seleccionada) {
-    return ocupada
-      ? "border-[var(--gold)] bg-[color:rgba(216,182,90,0.14)]"
-      : "border-cyan-500 bg-cyan-50";
+    return "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400/40";
   }
   return ocupada
     ? "border-amber-400 bg-amber-50 hover:border-amber-500"
@@ -710,70 +709,114 @@ function aoSyncBackground() {
           </template>
 
           <template v-else>
-            <div class="mb-4">
-              <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ t("mesas.addProducts") }}</label>
-              <div
-                class="flex overflow-hidden rounded-lg border border-[var(--border)] bg-white focus-within:border-[#c8ab5b] focus-within:shadow-[0_0_0_3px_rgba(216,182,90,0.18)]"
-              >
+            <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(510px,630px)_1fr]">
+              <section class="min-h-0 overflow-auto rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] p-3">
+                <label class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {{ t("mesas.addProducts") }}
+                </label>
                 <div
-                  class="flex w-10 shrink-0 items-center justify-center border-r border-[var(--border)] text-slate-500"
-                  :title="t('mesas.searchPlaceholder')"
+                  class="flex overflow-hidden rounded-lg border border-[var(--border)] bg-white focus-within:border-[#c8ab5b] focus-within:shadow-[0_0_0_3px_rgba(216,182,90,0.18)]"
                 >
-                  <Search :size="16" />
+                  <div
+                    class="flex w-10 shrink-0 items-center justify-center border-r border-[var(--border)] text-slate-500"
+                    :title="t('mesas.searchPlaceholder')"
+                  >
+                    <Search :size="16" />
+                  </div>
+                  <input
+                    v-model="pesquisa"
+                    type="text"
+                    class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                    :placeholder="t('mesas.searchPlaceholder')"
+                  />
                 </div>
-                <input
-                  v-model="pesquisa"
-                  type="text"
-                  class="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
-                  :placeholder="t('mesas.searchPlaceholder')"
-                />
-              </div>
-              <div v-if="resultadosPesquisa.length" class="mt-2 grid gap-1 sm:grid-cols-2">
-                <button
-                  v-for="produto in resultadosPesquisa"
-                  :key="produto.id"
-                  type="button"
-                  class="flex items-center justify-between rounded-lg border border-[var(--border)] px-3 py-2 text-left text-sm hover:border-[var(--gold)] disabled:cursor-not-allowed disabled:opacity-40"
-                  :disabled="!podeAdicionarProdutoMesa(obterProdutoAtualizado(produto), quantidadeMinima(produto.unidadeVenda))"
-                  @click="solicitarAdicaoProduto(produto)"
-                >
-                  <span class="truncate text-slate-800">{{ produto.nome }}</span>
-                  <span class="ml-2 shrink-0 text-[var(--gold)]">{{ formatarMoeda(produto.precoVendaComIva ?? produto.precoVenda) }}</span>
-                </button>
-              </div>
-            </div>
 
-            <div class="min-h-0 flex-1 overflow-auto rounded-lg border border-[var(--border)]">
-              <table class="w-full text-sm">
-                <thead class="sticky top-0 bg-[var(--panel-muted)] text-left text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th class="px-3 py-2">{{ t("mesas.columns.item") }}</th>
-                    <th class="px-3 py-2 text-right">{{ t("mesas.columns.qty") }}</th>
-                    <th class="px-3 py-2 text-right">{{ t("mesas.columns.total") }}</th>
-                    <th class="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-if="!itensConsolidadosPedido.length">
-                    <td colspan="4" class="px-3 py-6 text-center text-slate-500">{{ t("mesas.emptyOrder") }}</td>
-                  </tr>
-                  <tr v-for="item in itensConsolidadosPedido" :key="chaveItemMesa(item)" class="border-t border-[var(--border)]">
-                    <td class="px-3 py-2 text-slate-800">{{ item.nome }}</td>
-                    <td class="px-3 py-2 text-right text-slate-700">{{ formatarQuantidadeItem(item) }}</td>
-                    <td class="px-3 py-2 text-right font-medium text-[var(--gold)]">{{ formatarMoeda(item.subtotal) }}</td>
-                    <td class="px-3 py-2 text-right">
-                      <button type="button" class="text-red-600 hover:text-red-700" @click="removerItem(item)">
-                        <Trash2 :size="15" />
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                <div class="mt-3 space-y-2">
+                  <div
+                    v-if="!resultadosPesquisa.length"
+                    class="rounded-lg border border-dashed border-[var(--border)] bg-white px-3 py-6 text-center text-sm text-slate-500"
+                  >
+                    {{ t("mesas.searchPlaceholder") }}
+                  </div>
 
-            <div class="mt-4 flex items-center justify-between rounded-lg bg-[var(--panel-muted)] px-4 py-3">
-              <span class="text-sm text-slate-600">{{ t("mesas.total") }}</span>
-              <span class="text-2xl font-bold text-[var(--gold)]">{{ formatarMoeda(totalPedido) }} MT</span>
+                  <div v-else class="grid grid-cols-4 gap-2">
+                    <button
+                      v-for="produto in resultadosPesquisa"
+                      :key="produto.id"
+                      type="button"
+                      class="flex flex-col rounded-xl border border-[var(--border)] bg-white p-3 text-left transition hover:border-[var(--gold)] hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                      :disabled="!podeAdicionarProdutoMesa(obterProdutoAtualizado(produto), quantidadeMinima(produto.unidadeVenda))"
+                      @click="solicitarAdicaoProduto(produto)"
+                    >
+                      <div
+                        class="mb-2 flex aspect-square w-full items-center justify-center rounded-lg bg-slate-100 text-slate-400"
+                      >
+                        <Package :size="32" :stroke-width="1.5" />
+                      </div>
+                      <span class="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-slate-800">
+                        {{ produto.nome }}
+                      </span>
+                      <span class="mt-2 text-sm font-bold text-[var(--gold)]">
+                        {{ formatarMoeda(produto.precoVendaComIva ?? produto.precoVenda) }} MT
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="flex min-h-0 flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)]">
+                <div class="border-b border-[var(--border)] px-4 py-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {{ t("mesas.receipt.title") }}
+                    </span>
+                    <span class="text-sm font-semibold text-slate-700">
+                      {{ itensConsolidadosPedido.length }} {{ t("mesas.columns.item") }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="min-h-0 flex-1 overflow-auto">
+                  <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-[var(--panel-muted)] text-left text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th class="px-3 py-2">{{ t("mesas.columns.item") }}</th>
+                        <th class="px-3 py-2 text-right">{{ t("mesas.columns.qty") }}</th>
+                        <th class="px-3 py-2 text-right">{{ t("mesas.columns.total") }}</th>
+                        <th class="px-3 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-if="!itensConsolidadosPedido.length">
+                        <td colspan="4" class="px-3 py-10 text-center text-slate-500">
+                          {{ t("mesas.emptyOrder") }}
+                        </td>
+                      </tr>
+                      <tr
+                        v-for="item in itensConsolidadosPedido"
+                        :key="chaveItemMesa(item)"
+                        class="border-t border-[var(--border)]"
+                      >
+                        <td class="px-3 py-2 text-slate-800">{{ item.nome }}</td>
+                        <td class="px-3 py-2 text-right text-slate-700">{{ formatarQuantidadeItem(item) }}</td>
+                        <td class="px-3 py-2 text-right font-medium text-[var(--gold)]">{{ formatarMoeda(item.subtotal) }}</td>
+                        <td class="px-3 py-2 text-right">
+                          <button type="button" class="text-red-600 hover:text-red-700" @click="removerItem(item)">
+                            <Trash2 :size="15" />
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="border-t border-[var(--border)] bg-[var(--panel-muted)] px-4 py-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm text-slate-600">{{ t("mesas.total") }}</span>
+                    <span class="text-2xl font-bold text-[var(--gold)]">{{ formatarMoeda(totalPedido) }} MT</span>
+                  </div>
+                </div>
+              </section>
             </div>
           </template>
         </template>
