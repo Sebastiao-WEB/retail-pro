@@ -75,6 +75,7 @@ Route::prefix('v1')->group(function () {
         Route::post('table-orders/{tableOrder}/items', [TableOrderController::class, 'addItems']);
         Route::delete('table-orders/{tableOrder}/items/{tableOrderItem}', [TableOrderController::class, 'removeItem']);
         Route::post('table-orders/{tableOrder}/transfer', [TableOrderController::class, 'transfer']);
+        Route::post('table-orders/{tableOrder}/settle-items', [TableOrderController::class, 'settleItems']);
         Route::post('table-orders/{tableOrder}/close', [TableOrderController::class, 'close']);
 
         Route::get('sale-reversal-requests', [SaleReversalRequestController::class, 'index']);

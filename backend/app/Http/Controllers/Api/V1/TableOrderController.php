@@ -291,6 +291,82 @@ class TableOrderController extends Controller
         ]);
     }
 
+    public function settleItems(Request $request, TableOrder $tableOrder)
+    {
+        $this->garantirPedidoAberto($tableOrder);
+
+        $dados = $request->validate([
+            'sale_id' => ['nullable', 'uuid'],
+            'saleId' => ['nullable', 'uuid'],
+            'itens' => ['required', 'array', 'min:1'],
+            'itens.*.itemId' => ['nullable', 'uuid'],
+            'itens.*.item_id' => ['nullable', 'uuid'],
+            'itens.*.produtoId' => ['nullable', 'uuid'],
+            'itens.*.product_id' => ['nullable', 'uuid'],
+            'itens.*.quantidade' => ['required', 'numeric', 'gt:0'],
+        ]);
+
+        $saleId = $dados['sale_id'] ?? ($dados['saleId'] ?? null);
+
+        DB::transaction(function () use ($tableOrder, $dados, $saleId) {
+            foreach ($dados['itens'] as $entrada) {
+                $itemId = $entrada['itemId'] ?? ($entrada['item_id'] ?? null);
+                $productId = $entrada['produtoId'] ?? ($entrada['product_id'] ?? null);
+                $quantidade = (float) $entrada['quantidade'];
+
+                $item = null;
+                if ($itemId) {
+                    $item = TableOrderItem::query()
+                        ->where('table_order_id', $tableOrder->id)
+                        ->where('id', $itemId)
+                        ->first();
+                }
+
+                if (! $item && $productId) {
+                    $item = TableOrderItem::query()
+                        ->where('table_order_id', $tableOrder->id)
+                        ->where('product_id', $productId)
+                        ->first();
+                }
+
+                if (! $item) {
+                    throw ValidationException::withMessages([
+                        'itens' => 'Item não encontrado na comanda.',
+                    ]);
+                }
+
+                $quantidadeDisponivel = (float) $item->quantidade;
+                if ($quantidade > $quantidadeDisponivel + 0.0005) {
+                    throw ValidationException::withMessages([
+                        'itens' => "Quantidade superior ao disponível em {$item->nome}.",
+                    ]);
+                }
+
+                $quantidadeRestante = round($quantidadeDisponivel - $quantidade, 3);
+                if ($quantidadeRestante <= 0) {
+                    $item->delete();
+                    continue;
+                }
+
+                $preco = (float) $item->preco_venda;
+                $item->update([
+                    'quantidade' => $quantidadeRestante,
+                    'subtotal' => round($quantidadeRestante * $preco, 2),
+                ]);
+            }
+
+            if ($tableOrder->itens()->count() === 0) {
+                $tableOrder->update([
+                    'status' => 'CLOSED',
+                    'closed_at' => now(),
+                    'sale_id' => $saleId,
+                ]);
+            }
+        });
+
+        return response()->json(['data' => $this->serializarPedido($tableOrder->fresh(['itens', 'diningTable']))]);
+    }
+
     public function close(Request $request, TableOrder $tableOrder)
     {
         $this->garantirPedidoAberto($tableOrder);

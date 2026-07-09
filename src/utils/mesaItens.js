@@ -93,3 +93,67 @@ export function agregarQuantidadesTransferencia(entradas, itensOrigem = []) {
     };
   });
 }
+
+export function extrairItensPorQuantidade(itensOrigem, entradas) {
+  const itens = consolidarItensPedido(itensOrigem);
+  const pedidosPorQuantidade = agregarQuantidadesTransferencia(entradas, itens);
+
+  if (!pedidosPorQuantidade.length) {
+    throw new Error("Nenhum item seleccionado.");
+  }
+
+  const mapaExtracao = new Map(
+    pedidosPorQuantidade.map((entrada) => [entrada.chave, entrada.quantidade])
+  );
+
+  const itensExtraidos = [];
+  const itensRestantes = [];
+  const chavesProcessadas = new Set();
+
+  for (const item of itens) {
+    const chave = chaveItemMesa(item);
+    if (!chave || chavesProcessadas.has(chave)) continue;
+    chavesProcessadas.add(chave);
+
+    const quantidadePedida = mapaExtracao.get(chave);
+    if (quantidadePedida == null) {
+      itensRestantes.push(item);
+      continue;
+    }
+
+    const quantidadeExtrair = normalizarQuantidadeVenda(quantidadePedida, item.unidadeVenda);
+    if (!quantidadeExtrair) {
+      throw new Error(`Quantidade inválida para ${item.nome}.`);
+    }
+    if (quantidadeExtrair > Number(item.quantidade || 0)) {
+      throw new Error(`Quantidade superior ao disponível em ${item.nome}.`);
+    }
+
+    itensExtraidos.push({
+      ...item,
+      quantidade: quantidadeExtrair,
+      subtotal: calcularSubtotalMesa(quantidadeExtrair, item.precoVenda),
+    });
+
+    const quantidadeRestante = Number((Number(item.quantidade || 0) - quantidadeExtrair).toFixed(3));
+    if (quantidadeRestante > 0) {
+      const quantidadeNormalizada = normalizarQuantidadeVenda(quantidadeRestante, item.unidadeVenda);
+      if (quantidadeNormalizada) {
+        itensRestantes.push({
+          ...item,
+          quantidade: quantidadeNormalizada,
+          subtotal: calcularSubtotalMesa(quantidadeNormalizada, item.precoVenda),
+        });
+      }
+    }
+  }
+
+  if (!itensExtraidos.length) {
+    throw new Error("Nenhum item seleccionado.");
+  }
+
+  return {
+    itensExtraidos: consolidarItensPedido(itensExtraidos),
+    itensRestantes: consolidarItensPedido(itensRestantes),
+  };
+}

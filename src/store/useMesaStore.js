@@ -8,6 +8,7 @@ import {
   calcularSubtotalMesa,
   chaveItemMesa,
   consolidarItensPedido,
+  extrairItensPorQuantidade,
 } from "../utils/mesaItens";
 import {
   normalizarQuantidadeVenda,
@@ -754,57 +755,19 @@ export const useMesaStore = defineStore("mesas", {
 
       if (!pedidosCompletos.length) throw new Error("Nenhum item seleccionado.");
 
-      const mapaTransferencia = new Map(
-        pedidosCompletos.map((entrada) => [entrada.chave, entrada.quantidade])
-      );
-
-      const itensTransferir = [];
-      const itensOrigemRestantes = [];
-      const chavesProcessadas = new Set();
-
-      for (const item of itensOrigem) {
-        const chave = chaveItemMesa(item);
-        if (!chave || chavesProcessadas.has(chave)) continue;
-        chavesProcessadas.add(chave);
-
-        const quantidadePedida = mapaTransferencia.get(chave);
-        if (quantidadePedida == null) {
-          itensOrigemRestantes.push(item);
-          continue;
-        }
-
-        const quantidadeTransferir = normalizarQuantidadeVenda(quantidadePedida, item.unidadeVenda);
-        if (!quantidadeTransferir) {
-          throw new Error(`Quantidade inválida para ${item.nome}.`);
-        }
-        if (quantidadeTransferir > Number(item.quantidade || 0)) {
-          throw new Error(`Quantidade superior ao disponível em ${item.nome}.`);
-        }
-
-        itensTransferir.push({
-          ...item,
-          quantidade: quantidadeTransferir,
-          subtotal: calcularSubtotal(quantidadeTransferir, item.precoVenda),
-        });
-
-        const quantidadeRestante = Number((Number(item.quantidade || 0) - quantidadeTransferir).toFixed(3));
-        if (quantidadeRestante > 0) {
-          const quantidadeNormalizada = normalizarQuantidadeVenda(quantidadeRestante, item.unidadeVenda);
-          if (quantidadeNormalizada) {
-            itensOrigemRestantes.push({
-              ...item,
-              quantidade: quantidadeNormalizada,
-              subtotal: calcularSubtotal(quantidadeNormalizada, item.precoVenda),
-            });
-          }
-        }
-      }
-
-      if (!itensTransferir.length) throw new Error("Nenhum item seleccionado.");
+      const { itensExtraidos: itensTransferir, itensRestantes: itensOrigemRestantes } =
+        extrairItensPorQuantidade(
+          itensOrigem,
+          pedidosCompletos.map((entrada) => ({
+            produtoId: entrada.produtoId,
+            itemId: entrada.itemId,
+            quantidade: entrada.quantidade,
+          }))
+        );
 
       const pedidoOrigem = {
         ...pedidoOrigemActual,
-        itens: consolidarItensPedido(itensOrigemRestantes),
+        itens: itensOrigemRestantes,
         pendenteSync: true,
       };
 
@@ -866,6 +829,33 @@ export const useMesaStore = defineStore("mesas", {
       }
       this.agendarSincronizacaoMesas();
     },
+    removerItensPagos(mesaId, entradas = []) {
+      const pedido = this.obterPedidoDaMesa(mesaId);
+      if (!pedido) throw new Error("A mesa não tem comanda aberta.");
+
+      const { itensExtraidos, itensRestantes } = extrairItensPorQuantidade(pedido.itens, entradas);
+      const pedidosActualizados = { ...this.pedidos };
+
+      if (!itensRestantes.length) {
+        delete pedidosActualizados[pedido.mesaId];
+      } else {
+        pedidosActualizados[pedido.mesaId] = {
+          ...pedido,
+          itens: itensRestantes,
+          pendenteSync: true,
+        };
+      }
+
+      this.pedidos = pedidosActualizados;
+      this.reconciliarPedidosComMesas();
+      this.actualizarOcupacaoMesas();
+      this.agendarSincronizacaoMesas();
+
+      return {
+        itensPagos: itensExtraidos,
+        pedidoFicouVazio: !itensRestantes.length,
+      };
+    },
     fecharPedidoLocal(mesaId, saleId = null) {
       const pedido = this.obterPedidoDaMesa(mesaId);
       if (!pedido) return null;
@@ -891,12 +881,14 @@ export const useMesaStore = defineStore("mesas", {
       const sessaoStore = useSessaoStore();
       sessaoStore.hidratar();
       const mesa = this.mesas.find((item) => item.id === pedido.mesaId);
-      const total = pedido.itens.reduce((acc, item) => acc + Number(item.subtotal || 0), 0);
+      const itens = (opcoes.itens?.length ? opcoes.itens : pedido.itens).map((item) => ({ ...item }));
+      const total = itens.reduce((acc, item) => acc + Number(item.subtotal || 0), 0);
+      const codigoMesa = mesa?.codigo || pedido.mesaCodigo;
 
       return {
         id: opcoes.vendaId || gerarIdLocal(),
-        cliente: `Mesa ${mesa?.codigo || pedido.mesaCodigo}`,
-        itens: pedido.itens.map((item) => ({ ...item })),
+        cliente: opcoes.cliente || `Mesa ${codigoMesa}`,
+        itens,
         caixa: sessaoStore.caixaAtribuido,
         registerId: sessaoStore.registerId,
         cashSessionId: sessaoStore.cashSessionId,
@@ -912,7 +904,7 @@ export const useMesaStore = defineStore("mesas", {
         register_id: sessaoStore.registerId,
         source_location_id: sessaoStore.sourceLocationId,
         cash_session_id: sessaoStore.cashSessionId,
-        mesaCodigo: mesa?.codigo || pedido.mesaCodigo,
+        mesaCodigo: codigoMesa,
         tableOrderId: pedido.id,
       };
     },

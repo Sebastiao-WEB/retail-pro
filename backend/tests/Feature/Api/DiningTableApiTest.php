@@ -100,4 +100,78 @@ class DiningTableApiTest extends TestCase
             'quantidade' => 2,
         ]);
     }
+
+    public function test_liquida_itens_parcialmente_sem_fechar_comanda(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $mesa = DiningTable::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'MESA-C',
+            'register_id' => $ambiente['register']->id,
+            'is_active' => true,
+        ]);
+
+        $pedido = TableOrder::query()->create([
+            'id' => (string) Str::uuid(),
+            'dining_table_id' => $mesa->id,
+            'register_id' => $ambiente['register']->id,
+            'status' => 'OPEN',
+            'opened_at' => now(),
+        ]);
+
+        $itensResposta = $this->postJson("/api/v1/table-orders/{$pedido->id}/items", [
+            'itens' => [
+                [
+                    'nome' => 'Cerveja',
+                    'quantidade' => 3,
+                    'precoVenda' => 80,
+                    'subtotal' => 240,
+                ],
+                [
+                    'nome' => 'Refrigerante',
+                    'quantidade' => 1,
+                    'precoVenda' => 50,
+                    'subtotal' => 50,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $cervejaId = $itensResposta->json('data.itens.0.id');
+        $refrigeranteId = $itensResposta->json('data.itens.1.id');
+
+        $liquidacao = $this->postJson("/api/v1/table-orders/{$pedido->id}/settle-items", [
+            'itens' => [[
+                'itemId' => $cervejaId,
+                'quantidade' => 2,
+            ]],
+        ], $this->authHeaders($token));
+
+        $liquidacao
+            ->assertOk()
+            ->assertJsonPath('data.status', 'OPEN')
+            ->assertJsonCount(2, 'data.itens');
+
+        $this->assertDatabaseHas('table_order_items', [
+            'id' => $cervejaId,
+            'quantidade' => 1,
+        ]);
+        $this->assertDatabaseHas('table_order_items', [
+            'id' => $refrigeranteId,
+            'quantidade' => 1,
+        ]);
+
+        $liquidacaoFinal = $this->postJson("/api/v1/table-orders/{$pedido->id}/settle-items", [
+            'itens' => [
+                ['itemId' => $cervejaId, 'quantidade' => 1],
+                ['itemId' => $refrigeranteId, 'quantidade' => 1],
+            ],
+        ], $this->authHeaders($token));
+
+        $liquidacaoFinal
+            ->assertOk()
+            ->assertJsonPath('data.status', 'CLOSED')
+            ->assertJsonCount(0, 'data.itens');
+    }
 }

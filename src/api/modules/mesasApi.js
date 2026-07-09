@@ -46,6 +46,10 @@ export const mesasApi = {
     return httpRequest(`/table-orders/${pedidoId}/transfer`, { method: "POST", body: payload });
   },
 
+  async liquidarItens(pedidoId, payload) {
+    return httpRequest(`/table-orders/${pedidoId}/settle-items`, { method: "POST", body: payload });
+  },
+
   async fecharPedido(pedidoId, payload = {}) {
     return httpRequest(`/table-orders/${pedidoId}/close`, { method: "POST", body: payload });
   },

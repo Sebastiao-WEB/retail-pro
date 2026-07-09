@@ -64,6 +64,8 @@ const nomeNovaMesa = ref("");
 const mesaDestinoTransferencia = ref("");
 const itensSeleccionadosTransferencia = ref([]);
 const quantidadesTransferencia = ref({});
+const itensSeleccionadosPagamento = ref([]);
+const quantidadesPagamento = ref({});
 const metodoPagamento = ref("Dinheiro");
 const valorPagoInteiro = ref("0");
 const valorPagoDecimal = ref("00");
@@ -79,7 +81,35 @@ const valorPagoNumerico = computed(() => {
   return Number(`${inteiro}.${String(decimal).padStart(2, "0")}`);
 });
 
-const troco = computed(() => Math.max(0, valorPagoNumerico.value - totalPedido.value));
+const totalSeleccionado = computed(() => {
+  const itens = itensConsolidadosPedido.value;
+  if (!itensSeleccionadosPagamento.value.length) return 0;
+
+  return itensSeleccionadosPagamento.value.reduce((acc, chave) => {
+    const item = itens.find((linha) => chaveItemMesa(linha) === chave);
+    if (!item) return acc;
+
+    const quantidade = parseQuantidadeTexto(quantidadesPagamento.value[chave], item.unidadeVenda);
+    if (!quantidade) return acc;
+
+    const preco = Number(item.precoVenda || 0);
+    return acc + Number((quantidade * preco).toFixed(2));
+  }, 0);
+});
+
+const pagamentoParcial = computed(() => {
+  const itens = itensConsolidadosPedido.value;
+  if (!itens.length) return false;
+  if (itensSeleccionadosPagamento.value.length !== itens.length) return true;
+
+  return itens.some((item) => {
+    const chave = chaveItemMesa(item);
+    const quantidade = parseQuantidadeTexto(quantidadesPagamento.value[chave], item.unidadeVenda);
+    return Number(quantidade || 0) < Number(item.quantidade || 0);
+  });
+});
+
+const troco = computed(() => Math.max(0, valorPagoNumerico.value - totalSeleccionado.value));
 
 const mesasDestinoTransferencia = computed(() =>
   mesasOrdenadas.value.filter(
@@ -455,10 +485,119 @@ function confirmarTransferencia() {
 function abrirModalPagar() {
   if (!pedidoTemConsumo.value) return;
   metodoPagamento.value = "Dinheiro";
+
+  const itens = itensConsolidadosPedido.value;
+  itensSeleccionadosPagamento.value = itens.map((item) => chaveItemMesa(item));
+  quantidadesPagamento.value = Object.fromEntries(
+    itens.map((item) => [chaveItemMesa(item), String(item.quantidade)])
+  );
+
   const total = totalPedido.value;
   valorPagoInteiro.value = String(Math.floor(total));
   valorPagoDecimal.value = String(Math.round((total % 1) * 100)).padStart(2, "0");
   modalPagar.value = true;
+}
+
+function alternarItemPagamento(chave) {
+  const item = itensConsolidadosPedido.value.find((linha) => chaveItemMesa(linha) === chave);
+  if (!item) return;
+
+  if (itensSeleccionadosPagamento.value.includes(chave)) {
+    itensSeleccionadosPagamento.value = itensSeleccionadosPagamento.value.filter((id) => id !== chave);
+    return;
+  }
+
+  itensSeleccionadosPagamento.value = [...itensSeleccionadosPagamento.value, chave];
+  if (!quantidadesPagamento.value[chave]) {
+    quantidadesPagamento.value = {
+      ...quantidadesPagamento.value,
+      [chave]: String(item.quantidade),
+    };
+  }
+}
+
+function seleccionarTodosPagamento() {
+  const itens = itensConsolidadosPedido.value;
+  itensSeleccionadosPagamento.value = itens.map((item) => chaveItemMesa(item));
+  quantidadesPagamento.value = Object.fromEntries(
+    itens.map((item) => [chaveItemMesa(item), String(item.quantidade)])
+  );
+  actualizarValorPagoPorTotal(totalSeleccionado.value);
+}
+
+function limparSeleccaoPagamento() {
+  itensSeleccionadosPagamento.value = [];
+}
+
+function actualizarValorPagoPorTotal(total) {
+  valorPagoInteiro.value = String(Math.floor(total));
+  valorPagoDecimal.value = String(Math.round((total % 1) * 100)).padStart(2, "0");
+}
+
+watch(totalSeleccionado, (total) => {
+  if (!modalPagar.value) return;
+  if (metodoPagamento.value !== "Dinheiro") return;
+  actualizarValorPagoPorTotal(total);
+});
+
+function montarItensPagamento() {
+  const itens = itensConsolidadosPedido.value;
+  if (!itens.length) return [];
+
+  const pagamento = [];
+  const vistos = new Set();
+
+  for (const chave of itensSeleccionadosPagamento.value) {
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+
+    const item = itens.find((linha) => chaveItemMesa(linha) === chave);
+    if (!item) continue;
+
+    const quantidade = parseQuantidadeTexto(quantidadesPagamento.value[chave], item.unidadeVenda);
+    if (!quantidade) {
+      throw new Error(t("mesas.toast.invalidQuantity"));
+    }
+    if (quantidade > Number(item.quantidade || 0)) {
+      throw new Error(t("mesas.toast.payQuantityExceeded", { item: item.nome }));
+    }
+
+    pagamento.push({
+      produtoId: item.produtoId || null,
+      itemId: item.id,
+      quantidade,
+    });
+  }
+
+  return pagamento;
+}
+
+function montarItensVendaPagamento(entradas) {
+  const itens = itensConsolidadosPedido.value;
+  const vistos = new Set();
+  const itensVenda = [];
+
+  for (const entrada of entradas) {
+    const item = itens.find(
+      (linha) =>
+        (entrada.itemId && linha.id === entrada.itemId) ||
+        (entrada.produtoId && linha.produtoId === entrada.produtoId)
+    );
+    if (!item) continue;
+
+    const chave = chaveItemMesa(item);
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+
+    const quantidade = entrada.quantidade;
+    itensVenda.push({
+      ...item,
+      quantidade,
+      subtotal: Number((quantidade * Number(item.precoVenda || 0)).toFixed(2)),
+    });
+  }
+
+  return itensVenda;
 }
 
 function fecharMesa() {
@@ -472,8 +611,8 @@ function fecharMesa() {
   mostrarToastSwal(t("mesas.toast.closed"), "success");
 }
 
-async function imprimirConta(opcoes = { pagarDepois: true }) {
-  if (!pedidoSeleccionado.value?.itens?.length) return;
+async function imprimirTalaoVenda(venda, opcoes = { pagarDepois: true }) {
+  if (!venda?.itens?.length) return;
   if (!configuracaoStore.impressoraPadrao) {
     mostrarToastSwal(t("pos.toast.setPrinterToPrint"), "error");
     return;
@@ -481,11 +620,6 @@ async function imprimirConta(opcoes = { pagarDepois: true }) {
 
   imprimindo.value = true;
   try {
-    const venda = mesaStore.montarVendaDoPedido(pedidoSeleccionado.value, {
-      metodoPagamento: metodoPagamento.value,
-      valorPago: valorPagoNumerico.value,
-      troco: troco.value,
-    });
     const resultado = await enviarTalaoParaImpressao({
       venda,
       configuracao: configuracaoStore,
@@ -509,13 +643,40 @@ async function imprimirConta(opcoes = { pagarDepois: true }) {
   }
 }
 
+async function imprimirConta(opcoes = { pagarDepois: true }) {
+  if (!pedidoSeleccionado.value?.itens?.length) return;
+  const venda = mesaStore.montarVendaDoPedido(pedidoSeleccionado.value, {
+    metodoPagamento: metodoPagamento.value,
+    valorPago: valorPagoNumerico.value,
+    troco: troco.value,
+  });
+  await imprimirTalaoVenda(venda, opcoes);
+}
+
 async function confirmarPagamento() {
   if (!pedidoSeleccionado.value?.itens?.length) return;
   if (!sessaoStore.turnoAberto) {
     mostrarToastSwal(t("mesas.toast.shiftRequired"), "error");
     return;
   }
-  if (metodoPagamento.value === "Dinheiro" && valorPagoNumerico.value < totalPedido.value) {
+
+  let entradasPagamento = [];
+  try {
+    entradasPagamento = montarItensPagamento();
+  } catch (erro) {
+    mostrarToastSwal(erro?.message || t("mesas.toast.invalidQuantity"), "error");
+    return;
+  }
+
+  if (!entradasPagamento.length) {
+    mostrarToastSwal(t("mesas.toast.selectItemsToPay"), "error");
+    return;
+  }
+
+  const itensVenda = montarItensVendaPagamento(entradasPagamento);
+  const totalPagar = itensVenda.reduce((acc, item) => acc + Number(item.subtotal || 0), 0);
+
+  if (metodoPagamento.value === "Dinheiro" && valorPagoNumerico.value < totalPagar) {
     mostrarToastSwal(t("pos.toast.insufficientPayment"), "error");
     return;
   }
@@ -528,9 +689,10 @@ async function confirmarPagamento() {
   try {
     const pedido = { ...pedidoSeleccionado.value };
     const venda = mesaStore.montarVendaDoPedido(pedido, {
+      itens: itensVenda,
       metodoPagamento: metodoPagamento.value,
       valorPago: valorPagoNumerico.value,
-      troco: troco.value,
+      troco: Math.max(0, valorPagoNumerico.value - totalPagar),
     });
 
     produtoStore.aplicarVenda(venda.itens, sessaoStore.sourceLocationId ? { source_location_id: sessaoStore.sourceLocationId } : {});
@@ -547,18 +709,29 @@ async function confirmarPagamento() {
       throw erro;
     }
 
-    mesaStore.fecharPedidoLocal(pedido.mesaId, venda.id);
-    modalPagar.value = false;
-    mesaStore.seleccionarMesa(null);
+    const { pedidoFicouVazio } = mesaStore.removerItensPagos(pedido.mesaId, entradasPagamento);
 
-    await imprimirConta({ pagarDepois: false });
+    if (pedidoFicouVazio) {
+      mesaStore.fecharPedidoLocal(pedido.mesaId, venda.id);
+      modalPagar.value = false;
+      mesaStore.seleccionarMesa(null);
+    } else {
+      modalPagar.value = false;
+    }
+
+    await imprimirTalaoVenda(venda, { pagarDepois: false });
     await abrirGavetaPosVenda({ venda, configuracao: configuracaoStore });
 
     const modo = resultadoRegisto?.modo || "local";
     if (modo === "offline") {
-      mostrarToastSwal(t("mesas.toast.paidOffline"), "warning");
-    } else {
+      mostrarToastSwal(
+        pedidoFicouVazio ? t("mesas.toast.paidOffline") : t("mesas.toast.paidPartialOffline"),
+        "warning"
+      );
+    } else if (pedidoFicouVazio) {
       mostrarToastSwal(t("mesas.toast.paid"), "success");
+    } else {
+      mostrarToastSwal(t("mesas.toast.paidPartial"), "success");
     }
   } catch (erro) {
     mostrarToastSwal(erro?.message || t("mesas.toast.payFailed"), "error");
@@ -923,8 +1096,54 @@ function aoSyncBackground() {
     <ModalBase v-model:aberto="modalPagar" :titulo="t('mesas.modals.payTitle')">
       <div class="space-y-4">
         <div class="rounded-lg bg-[var(--panel-muted)] px-4 py-3 text-center">
-          <p class="text-sm text-slate-600">{{ t("mesas.total") }}</p>
-          <p class="text-3xl font-bold text-[var(--gold)]">{{ formatarMoeda(totalPedido) }} MT</p>
+          <p class="text-sm text-slate-600">
+            {{ pagamentoParcial ? t("mesas.modals.selectedTotal") : t("mesas.total") }}
+          </p>
+          <p class="text-3xl font-bold text-[var(--gold)]">{{ formatarMoeda(totalSeleccionado) }} MT</p>
+          <p v-if="pagamentoParcial" class="mt-1 text-xs text-slate-500">
+            {{ t("mesas.modals.remainingTotal", { total: formatarMoeda(totalPedido - totalSeleccionado) }) }}
+          </p>
+        </div>
+        <div>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <p class="text-sm font-medium text-slate-700">{{ t("mesas.modals.payItems") }}</p>
+            <div class="flex gap-2 text-xs">
+              <button type="button" class="text-[var(--gold)] hover:underline" @click="seleccionarTodosPagamento">
+                {{ t("mesas.modals.selectAll") }}
+              </button>
+              <button type="button" class="text-slate-500 hover:underline" @click="limparSeleccaoPagamento">
+                {{ t("mesas.modals.clearSelection") }}
+              </button>
+            </div>
+          </div>
+          <div class="max-h-56 space-y-1 overflow-auto rounded-lg border border-[var(--border)] p-2">
+            <label
+              v-for="item in itensConsolidadosPedido"
+              :key="chaveItemMesa(item)"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                class="shrink-0"
+                :checked="itensSeleccionadosPagamento.includes(chaveItemMesa(item))"
+                @change="alternarItemPagamento(chaveItemMesa(item))"
+              />
+              <span class="min-w-0 flex-1 truncate text-sm text-slate-800">{{ item.nome }}</span>
+              <span class="shrink-0 text-[11px] text-slate-500">
+                / {{ formatarQuantidadeItem(item) }}
+              </span>
+              <input
+                v-if="itensSeleccionadosPagamento.includes(chaveItemMesa(item))"
+                v-model="quantidadesPagamento[chaveItemMesa(item)]"
+                type="text"
+                class="h-8 w-12 shrink-0 rounded-md border border-[var(--border)] bg-white px-1 text-center text-sm text-slate-800 focus:border-[#c8ab5b] focus:outline-none focus:ring-2 focus:ring-[rgba(216,182,90,0.18)]"
+                :inputmode="vendidoPorPeso(item) ? 'decimal' : 'numeric'"
+                pattern="[0-9.,]*"
+                :title="t('mesas.modals.payQuantity')"
+                @click.stop
+              />
+            </label>
+          </div>
         </div>
         <label class="rp-label">
           {{ t("common.payment") }}
@@ -946,10 +1165,13 @@ function aoSyncBackground() {
         </div>
         <div class="flex justify-end gap-2">
           <BotaoBase variante="secundario" @click="modalPagar = false">{{ t("common.cancel") }}</BotaoBase>
-          <BotaoBase :disabled="processando" @click="confirmarPagamento">
+          <BotaoBase
+            :disabled="processando || !itensSeleccionadosPagamento.length || totalSeleccionado <= 0"
+            @click="confirmarPagamento"
+          >
             <LoaderCircle v-if="processando" :size="16" class="animate-spin" />
             <Check v-else :size="16" />
-            {{ t("mesas.actions.confirmPay") }}
+            {{ pagamentoParcial ? t("mesas.actions.confirmPartialPay") : t("mesas.actions.confirmPay") }}
           </BotaoBase>
         </div>
       </div>
