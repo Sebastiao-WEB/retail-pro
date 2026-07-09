@@ -89,6 +89,21 @@ function mesclarMesasSemDuplicar(locais, remotas) {
   return [...resultado.values()];
 }
 
+function obterPedidoDaMesaNoEstado(pedidos, mesas, mesaId) {
+  if (!mesaId) return null;
+  if (pedidos[mesaId]) return pedidos[mesaId];
+
+  const mesa = mesas.find((item) => item.id === mesaId);
+  if (!mesa) return null;
+
+  const codigo = normalizarCodigoMesa(mesa.codigo);
+  return (
+    Object.values(pedidos).find(
+      (pedido) =>
+        pedido.mesaId === mesaId || normalizarCodigoMesa(pedido.mesaCodigo) === codigo
+    ) || null
+  );
+}
 function mapearMesaRemota(mesa) {
   return {
     id: mesa.id,
@@ -139,15 +154,31 @@ export const useMesaStore = defineStore("mesas", {
   },
   getters: {
     mesaSeleccionada(state) {
-      return state.mesas.find((mesa) => mesa.id === state.mesaSeleccionadaId) || null;
+      const mesa = state.mesas.find((item) => item.id === state.mesaSeleccionadaId) || null;
+      if (!mesa) return null;
+      const pedido = obterPedidoDaMesaNoEstado(state.pedidos, state.mesas, mesa.id);
+      return {
+        ...mesa,
+        ocupada: !!pedido,
+        pedidoAbertoId: pedido?.id || null,
+      };
     },
     pedidoSeleccionado(state) {
       const mesaId = state.mesaSeleccionadaId;
       if (!mesaId) return null;
-      return this.obterPedidoDaMesa(mesaId);
+      return obterPedidoDaMesaNoEstado(state.pedidos, state.mesas, mesaId);
     },
     mesasOrdenadas(state) {
-      return [...state.mesas].sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+      return [...state.mesas]
+        .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)))
+        .map((mesa) => {
+          const pedido = obterPedidoDaMesaNoEstado(state.pedidos, state.mesas, mesa.id);
+          return {
+            ...mesa,
+            ocupada: !!pedido,
+            pedidoAbertoId: pedido?.id || null,
+          };
+        });
     },
     subtotalPedido() {
       const pedido = this.pedidoSeleccionado;
@@ -219,20 +250,7 @@ export const useMesaStore = defineStore("mesas", {
       return this.obterPedidoDaMesa(mesaId);
     },
     obterPedidoDaMesa(mesaId) {
-      if (!mesaId) return null;
-      if (this.pedidos[mesaId]) return this.pedidos[mesaId];
-
-      const mesa = this.mesas.find((item) => item.id === mesaId);
-      if (!mesa) return null;
-
-      const codigo = normalizarCodigoMesa(mesa.codigo);
-      return (
-        Object.values(this.pedidos).find(
-          (pedido) =>
-            pedido.mesaId === mesaId ||
-            normalizarCodigoMesa(pedido.mesaCodigo) === codigo
-        ) || null
-      );
+      return obterPedidoDaMesaNoEstado(this.pedidos, this.mesas, mesaId);
     },
     reconciliarPedidosComMesas() {
       const mesasPorId = new Map(this.mesas.map((mesa) => [mesa.id, mesa]));
