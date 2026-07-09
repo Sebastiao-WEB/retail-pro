@@ -60,6 +60,7 @@ const codigoNovaMesa = ref("");
 const nomeNovaMesa = ref("");
 const mesaDestinoTransferencia = ref("");
 const itensSeleccionadosTransferencia = ref([]);
+const quantidadesTransferencia = ref({});
 const metodoPagamento = ref("Dinheiro");
 const valorPagoInteiro = ref("0");
 const valorPagoDecimal = ref("00");
@@ -241,31 +242,74 @@ function abrirModalTransferir() {
   if (!pedidoSeleccionado.value?.itens?.length) return;
   mesaDestinoTransferencia.value = "";
   itensSeleccionadosTransferencia.value = pedidoSeleccionado.value.itens.map((item) => item.id);
+  quantidadesTransferencia.value = Object.fromEntries(
+    pedidoSeleccionado.value.itens.map((item) => [item.id, String(item.quantidade)])
+  );
   modalTransferir.value = true;
 }
 
 function alternarItemTransferencia(itemId) {
+  const pedido = pedidoSeleccionado.value;
+  const item = pedido?.itens?.find((linha) => linha.id === itemId);
+  if (!item) return;
+
   if (itensSeleccionadosTransferencia.value.includes(itemId)) {
     itensSeleccionadosTransferencia.value = itensSeleccionadosTransferencia.value.filter((id) => id !== itemId);
-  } else {
-    itensSeleccionadosTransferencia.value = [...itensSeleccionadosTransferencia.value, itemId];
+    return;
   }
+
+  itensSeleccionadosTransferencia.value = [...itensSeleccionadosTransferencia.value, itemId];
+  if (!quantidadesTransferencia.value[itemId]) {
+    quantidadesTransferencia.value = {
+      ...quantidadesTransferencia.value,
+      [itemId]: String(item.quantidade),
+    };
+  }
+}
+
+function montarItensTransferencia() {
+  const pedido = pedidoSeleccionado.value;
+  if (!pedido) return [];
+
+  const itens = [];
+  for (const itemId of itensSeleccionadosTransferencia.value) {
+    const item = pedido.itens.find((linha) => linha.id === itemId);
+    if (!item) continue;
+
+    const quantidade = parseQuantidadeTexto(quantidadesTransferencia.value[itemId], item.unidadeVenda);
+    if (!quantidade) {
+      throw new Error(t("mesas.toast.invalidQuantity"));
+    }
+    if (quantidade > Number(item.quantidade || 0)) {
+      throw new Error(t("mesas.toast.transferQuantityExceeded", { item: item.nome }));
+    }
+
+    itens.push({ itemId, quantidade });
+  }
+
+  return itens;
 }
 
 function confirmarTransferencia() {
   if (transferindo.value) return;
 
   const pedido = pedidoSeleccionado.value;
-  const itensIds = [...itensSeleccionadosTransferencia.value];
   const destinoId = mesaDestinoTransferencia.value;
 
-  if (!pedido?.itens?.length || !destinoId || !itensIds.length) {
+  if (!pedido?.itens?.length || !destinoId || !itensSeleccionadosTransferencia.value.length) {
     mostrarToastSwal(t("mesas.toast.transferFailed"), "error");
     return;
   }
 
-  const itensAntes = pedido.itens.filter((item) => itensIds.includes(item.id));
-  if (!itensAntes.length) {
+  let itensTransferencia = [];
+  try {
+    itensTransferencia = montarItensTransferencia();
+  } catch (erro) {
+    mostrarToastSwal(erro?.message || t("mesas.toast.invalidQuantity"), "error");
+    return;
+  }
+
+  if (!itensTransferencia.length) {
     mostrarToastSwal(t("mesas.toast.transferFailed"), "error");
     return;
   }
@@ -275,19 +319,18 @@ function confirmarTransferencia() {
     mesaStore.transferirItens({
       deMesaId: pedido.mesaId || mesaStore.mesaSeleccionadaId,
       paraMesaId: destinoId,
-      itemIds: itensIds,
+      itens: itensTransferencia,
     });
     modalTransferir.value = false;
     mostrarToastSwal(t("mesas.toast.transferred"), "success");
   } catch (erro) {
     const pedidoDestino = mesaStore.obterPedidoDaMesa(destinoId);
-    const transferiu = itensAntes.every((item) =>
-      pedidoDestino?.itens?.some(
-        (linha) =>
-          linha.produtoId === item.produtoId &&
-          Number(linha.quantidade || 0) >= Number(item.quantidade || 0)
-      )
-    );
+    const transferiu = itensTransferencia.every(({ itemId, quantidade }) => {
+      const item = pedido.itens.find((linha) => linha.id === itemId);
+      if (!item) return false;
+      const linhaDestino = pedidoDestino?.itens?.find((linha) => linha.produtoId === item.produtoId);
+      return Number(linhaDestino?.quantidade || 0) >= Number(quantidade || 0);
+    });
 
     if (transferiu) {
       modalTransferir.value = false;
@@ -661,16 +704,39 @@ function aoSyncBackground() {
         </label>
         <div>
           <p class="mb-2 text-sm font-medium text-slate-700">{{ t("mesas.modals.items") }}</p>
-          <div class="max-h-48 space-y-1 overflow-auto rounded-lg border border-[var(--border)] p-2">
-            <label
+          <div class="max-h-56 space-y-2 overflow-auto rounded-lg border border-[var(--border)] p-2">
+            <div
               v-for="item in pedidoSeleccionado?.itens || []"
               :key="item.id"
-              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-slate-50"
+              class="rounded px-2 py-2 hover:bg-slate-50"
             >
-              <input type="checkbox" :checked="itensSeleccionadosTransferencia.includes(item.id)" @change="alternarItemTransferencia(item.id)" />
-              <span class="flex-1 text-sm text-slate-800">{{ item.nome }}</span>
-              <span class="text-xs text-slate-500">x{{ item.quantidade }}</span>
-            </label>
+              <label class="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="itensSeleccionadosTransferencia.includes(item.id)"
+                  @change="alternarItemTransferencia(item.id)"
+                />
+                <span class="min-w-0 flex-1 truncate text-sm text-slate-800">{{ item.nome }}</span>
+                <span class="shrink-0 text-xs text-slate-500">
+                  {{ t("mesas.modals.available") }}: {{ formatarQuantidadeItem(item) }}
+                </span>
+              </label>
+              <div v-if="itensSeleccionadosTransferencia.includes(item.id)" class="mt-2 pl-6">
+                <label class="rp-label">
+                  {{ t("mesas.modals.transferQuantity") }}
+                  <input
+                    v-model="quantidadesTransferencia[item.id]"
+                    type="number"
+                    class="rp-input py-1 text-right"
+                    :min="quantidadeMinima(item.unidadeVenda)"
+                    :max="item.quantidade"
+                    :step="vendidoPorPeso(item) ? 0.001 : 1"
+                    :inputmode="vendidoPorPeso(item) ? 'decimal' : 'numeric'"
+                    :placeholder="formatarQuantidadeItem(item)"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
         </div>
         <div class="flex justify-end gap-2">

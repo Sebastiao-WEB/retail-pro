@@ -677,7 +677,7 @@ export const useMesaStore = defineStore("mesas", {
       this.salvar();
       this.agendarSincronizacaoMesas();
     },
-    transferirItens({ deMesaId, paraMesaId, itemIds = [] }) {
+    transferirItens({ deMesaId, paraMesaId, itens = [], itemIds = [] }) {
       if (deMesaId === paraMesaId) throw new Error("Seleccione uma mesa de destino diferente.");
 
       this.deduplicarMesasEstado();
@@ -696,13 +696,65 @@ export const useMesaStore = defineStore("mesas", {
       const mesaDestino = this.mesas.find((mesa) => mesa.id === mesaDestinoId);
       if (!mesaDestino) throw new Error("Mesa de destino não encontrada.");
 
-      const ids = itemIds.length ? itemIds : pedidoOrigemActual.itens.map((item) => item.id);
-      const itensTransferir = pedidoOrigemActual.itens.filter((item) => ids.includes(item.id));
+      const pedidosPorQuantidade = (itens || [])
+        .map((entrada) => ({
+          itemId: entrada.itemId || entrada.id,
+          quantidade: Number(entrada.quantidade || 0),
+        }))
+        .filter((entrada) => entrada.itemId && entrada.quantidade > 0);
+
+      const pedidosCompletos =
+        pedidosPorQuantidade.length > 0
+          ? pedidosPorQuantidade
+          : (itemIds.length ? itemIds : pedidoOrigemActual.itens.map((item) => item.id)).map((itemId) => {
+              const item = pedidoOrigemActual.itens.find((linha) => linha.id === itemId);
+              return item ? { itemId, quantidade: Number(item.quantidade || 0) } : null;
+            }).filter(Boolean);
+
+      if (!pedidosCompletos.length) throw new Error("Nenhum item seleccionado.");
+
+      const itensTransferir = [];
+      const itensOrigemRestantes = [];
+
+      for (const item of pedidoOrigemActual.itens) {
+        const entrada = pedidosCompletos.find((linha) => linha.itemId === item.id);
+        if (!entrada) {
+          itensOrigemRestantes.push(item);
+          continue;
+        }
+
+        const quantidadeTransferir = normalizarQuantidadeVenda(entrada.quantidade, item.unidadeVenda);
+        if (!quantidadeTransferir) {
+          throw new Error(`Quantidade inválida para ${item.nome}.`);
+        }
+        if (quantidadeTransferir > Number(item.quantidade || 0)) {
+          throw new Error(`Quantidade superior ao disponível em ${item.nome}.`);
+        }
+
+        itensTransferir.push({
+          ...item,
+          quantidade: quantidadeTransferir,
+          subtotal: calcularSubtotal(quantidadeTransferir, item.precoVenda),
+        });
+
+        const quantidadeRestante = Number((Number(item.quantidade || 0) - quantidadeTransferir).toFixed(3));
+        if (quantidadeRestante > 0) {
+          const quantidadeNormalizada = normalizarQuantidadeVenda(quantidadeRestante, item.unidadeVenda);
+          if (quantidadeNormalizada) {
+            itensOrigemRestantes.push({
+              ...item,
+              quantidade: quantidadeNormalizada,
+              subtotal: calcularSubtotal(quantidadeNormalizada, item.precoVenda),
+            });
+          }
+        }
+      }
+
       if (!itensTransferir.length) throw new Error("Nenhum item seleccionado.");
 
       const pedidoOrigem = {
         ...pedidoOrigemActual,
-        itens: pedidoOrigemActual.itens.filter((item) => !ids.includes(item.id)),
+        itens: itensOrigemRestantes,
         pendenteSync: true,
       };
 
@@ -723,8 +775,9 @@ export const useMesaStore = defineStore("mesas", {
       for (const item of itensTransferir) {
         const existente = pedidoDestino.itens.find((linha) => linha.produtoId === item.produtoId);
         if (existente) {
-          existente.quantidade = Number((existente.quantidade + item.quantidade).toFixed(3));
-          existente.subtotal = calcularSubtotal(existente.quantidade, existente.precoVenda);
+          const novaQuantidade = Number((Number(existente.quantidade || 0) + item.quantidade).toFixed(3));
+          existente.quantidade = novaQuantidade;
+          existente.subtotal = calcularSubtotal(novaQuantidade, existente.precoVenda);
         } else {
           pedidoDestino.itens.push({ ...item, id: gerarIdLocal() });
         }
