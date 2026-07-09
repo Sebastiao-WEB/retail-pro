@@ -157,6 +157,10 @@ function seleccionarMesa(mesa) {
 
 function abrirModalAbertura() {
   if (!mesaSeleccionada.value) return;
+  if (!sessaoStore.turnoAberto) {
+    mostrarToastSwal(t("mesas.toast.shiftRequiredOpen"), "error");
+    return;
+  }
   mesaStore.deduplicarMesasEstado();
   mesaStore.reconciliarPedidosComMesas();
   const mesa = mesaStore.mesaSeleccionada;
@@ -169,6 +173,10 @@ function abrirModalAbertura() {
 function confirmarAberturaMesa() {
   try {
     mesaStore.deduplicarMesasEstado();
+    if (!sessaoStore.turnoAberto) {
+      mostrarToastSwal(t("mesas.toast.shiftRequiredOpen"), "error");
+      return;
+    }
     const mesa = mesaStore.mesaSeleccionada;
     if (!mesa) {
       mostrarToastSwal(t("mesas.toast.openFailed"), "error");
@@ -639,7 +647,14 @@ function aoSyncBackground() {
               <p v-if="pedidoSeleccionado?.descricao" class="mt-1 text-sm text-slate-700">{{ pedidoSeleccionado.descricao }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-              <BotaoBase v-if="!pedidoSeleccionado" @click="abrirModalAbertura">{{ t("mesas.actions.open") }}</BotaoBase>
+              <BotaoBase
+                v-if="!pedidoSeleccionado"
+                :disabled="!sessaoStore.turnoAberto"
+                :title="!sessaoStore.turnoAberto ? t('mesas.toast.shiftRequiredOpen') : undefined"
+                @click="abrirModalAbertura"
+              >
+                {{ t("mesas.actions.open") }}
+              </BotaoBase>
               <template v-else>
                 <button
                   type="button"

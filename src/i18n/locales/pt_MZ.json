@@ -613,6 +613,7 @@
       "paidOffline": "Mesa paga localmente. A venda será sincronizada quando houver ligação.",
       "payFailed": "Não foi possível concluir o pagamento.",
       "shiftRequired": "Abra o turno de caixa antes de pagar a mesa.",
+      "shiftRequiredOpen": "Abra o turno de caixa antes de abrir a mesa.",
       "closed": "Mesa fechada com sucesso.",
       "payRequiredToClose": "Esta mesa tem consumos registados. Pague antes de fechar."
     }

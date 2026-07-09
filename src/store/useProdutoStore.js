@@ -10,6 +10,7 @@ import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/ne
 import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
 import {
   normalizarCodigoBarras,
+  pareceCodigoBarras,
   pesquisarProdutosNoCatalogo,
   resolverProdutoPorCodigoBarras,
 } from "../utils/produtoPesquisa";
@@ -304,7 +305,20 @@ export const useProdutoStore = defineStore("produtos", {
         }
 
         try {
-          let produtos = await carregarProdutosIntegrado(filtros);
+          const codigoBarrasConsulta = pareceCodigoBarras(termo)
+            ? normalizarCodigoBarras(termo)
+            : null;
+          const filtrosParaRemoto = codigoBarrasConsulta
+            ? {
+                ...filtros,
+                // Quando é código de barras (EAN/UPC), a API deve usar o filtro "barcode".
+                // Evitamos enviar "search" (nome) para não restringir demais a consulta.
+                search: "",
+                barcode: codigoBarrasConsulta,
+              }
+            : filtros;
+
+          let produtos = await carregarProdutosIntegrado(filtrosParaRemoto);
           const normalizados = produtos.map((produto) => normalizarProduto(produto));
           this.mesclarProdutosConsultados(normalizados);
           this.resultadosPesquisa = this.pesquisarLocalmente(termo);
