@@ -548,6 +548,7 @@
     "tables": "Mesas disponíveis",
     "emptyTables": "Ainda não existem mesas. Crie a primeira mesa com um código único.",
     "selectTable": "Seleccione uma mesa para abrir ou gerir a comanda.",
+    "notOpen": "Esta mesa ainda não está aberta. Clique em \"Abrir mesa\" para iniciar a comanda.",
     "addProducts": "Adicionar produtos",
     "searchPlaceholder": "Pesquisar produto...",
     "emptyOrder": "Nenhum consumo registado nesta mesa.",

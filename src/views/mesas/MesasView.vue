@@ -685,7 +685,16 @@ function aoSyncBackground() {
             </div>
           </div>
 
-          <template v-if="pedidoSeleccionado">
+          <template v-if="!pedidoSeleccionado">
+            <div class="flex flex-1 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--panel-muted)] px-4 py-6 text-center text-sm text-slate-600">
+              <div class="mx-auto max-w-sm space-y-2">
+                <DoorClosed :size="28" class="mx-auto text-amber-500" />
+                <p>{{ t("mesas.notOpen") }}</p>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
             <div class="mb-4">
               <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{{ t("mesas.addProducts") }}</label>
               <div
