@@ -253,8 +253,14 @@ function alternarItemTransferencia(itemId) {
 
 function confirmarTransferencia() {
   try {
+    const pedido = pedidoSeleccionado.value;
+    if (!pedido?.itens?.length) {
+      mostrarToastSwal(t("mesas.toast.transferFailed"), "error");
+      return;
+    }
+
     mesaStore.transferirItens({
-      deMesaId: mesaStore.mesaSeleccionadaId,
+      deMesaId: pedido.mesaId || mesaStore.mesaSeleccionadaId,
       paraMesaId: mesaDestinoTransferencia.value,
       itemIds: itensSeleccionadosTransferencia.value,
     });

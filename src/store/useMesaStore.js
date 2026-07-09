@@ -93,16 +93,36 @@ function obterPedidoDaMesaNoEstado(pedidos, mesas, mesaId) {
   if (!mesaId) return null;
   if (pedidos[mesaId]) return pedidos[mesaId];
 
+  const porMesaId = Object.values(pedidos).find((pedido) => pedido.mesaId === mesaId);
+  if (porMesaId) return porMesaId;
+
   const mesa = mesas.find((item) => item.id === mesaId);
   if (!mesa) return null;
 
   const codigo = normalizarCodigoMesa(mesa.codigo);
   return (
     Object.values(pedidos).find(
-      (pedido) =>
-        pedido.mesaId === mesaId || normalizarCodigoMesa(pedido.mesaCodigo) === codigo
+      (pedido) => normalizarCodigoMesa(pedido.mesaCodigo) === codigo
     ) || null
   );
+}
+
+function resolverMesaIdCanonico(mesas, mesaId, pedidos = {}) {
+  if (!mesaId) return null;
+  if (mesas.some((mesa) => mesa.id === mesaId)) return mesaId;
+
+  const pedido = obterPedidoDaMesaNoEstado(pedidos, mesas, mesaId);
+  if (pedido?.mesaId && mesas.some((mesa) => mesa.id === pedido.mesaId)) {
+    return pedido.mesaId;
+  }
+
+  const codigo = pedido?.mesaCodigo ? normalizarCodigoMesa(pedido.mesaCodigo) : "";
+  if (codigo) {
+    const mesa = mesas.find((item) => normalizarCodigoMesa(item.codigo) === codigo);
+    if (mesa) return mesa.id;
+  }
+
+  return mesaId;
 }
 function mapearMesaRemota(mesa) {
   return {
@@ -273,6 +293,10 @@ export const useMesaStore = defineStore("mesas", {
           mesaId: mesa.id,
           mesaCodigo: mesa.codigo,
         };
+
+        if (this.mesaSeleccionadaId === pedido.mesaId && pedido.mesaId !== mesa.id) {
+          this.mesaSeleccionadaId = mesa.id;
+        }
 
         if (!actual) {
           pedidosNormalizados[chave] = candidato;
@@ -656,16 +680,25 @@ export const useMesaStore = defineStore("mesas", {
     transferirItens({ deMesaId, paraMesaId, itemIds = [] }) {
       if (deMesaId === paraMesaId) throw new Error("Seleccione uma mesa de destino diferente.");
 
+      this.deduplicarMesasEstado();
       this.reconciliarPedidosComMesas();
-      const pedidoOrigem = this.obterPedidoDaMesa(deMesaId);
+
+      const mesaOrigemId = resolverMesaIdCanonico(this.mesas, deMesaId, this.pedidos);
+      const mesaDestinoId = resolverMesaIdCanonico(this.mesas, paraMesaId, this.pedidos);
+
+      if (mesaOrigemId === mesaDestinoId) {
+        throw new Error("Seleccione uma mesa de destino diferente.");
+      }
+
+      const pedidoOrigem = this.obterPedidoDaMesa(mesaOrigemId);
       if (!pedidoOrigem) throw new Error("A mesa de origem não tem comanda aberta.");
 
-      const mesaDestino = this.mesas.find((mesa) => mesa.id === paraMesaId);
+      const mesaDestino = this.mesas.find((mesa) => mesa.id === mesaDestinoId);
       if (!mesaDestino) throw new Error("Mesa de destino não encontrada.");
 
-      let pedidoDestino = this.obterPedidoDaMesa(paraMesaId);
+      let pedidoDestino = this.obterPedidoDaMesa(mesaDestinoId);
       if (!pedidoDestino) {
-        pedidoDestino = this.abrirPedido(paraMesaId, `Transferência de ${pedidoOrigem.mesaCodigo}`);
+        pedidoDestino = this.abrirPedido(mesaDestinoId, `Transferência de ${pedidoOrigem.mesaCodigo}`);
       }
 
       const ids = itemIds.length ? itemIds : pedidoOrigem.itens.map((item) => item.id);
