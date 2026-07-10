@@ -179,6 +179,16 @@
       "bank": "Bangiga",
       "iban": "IBAN / Lambarka Koontada"
     },
+    "establishment": {
+      "title": "Nooca goobta",
+      "subtitle": "Qeex qaybaha POS ee la heli karo rakibiddan",
+      "supermarket": "Suuq weyn",
+      "supermarketHint": "Iibka counter-ka iyo maaraynta kaydka dukaanka",
+      "restaurant": "Makhaayad / bar",
+      "restaurantHint": "Fur miisaska, amarrada iyo wareejinta miisaska",
+      "tablesHidden": "Menu-ga Miisaska waa qarsoon sababtoo ah habka makhaayadda waa dansan yahay.",
+      "atLeastOne": "Dooro ugu yaraan hal nooc oo goob ah."
+    },
     "printing": {
       "title": "Daabacaadda POS",
       "subtitle": "Deji daabacaha caadiga ah ee rasiidka",

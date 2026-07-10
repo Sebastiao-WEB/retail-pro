@@ -32,6 +32,17 @@ const router = createRouter({
   routes,
 });
 
+function mesasPermitidas() {
+  try {
+    const raw = localStorage.getItem("retailpro:configuracoes");
+    if (!raw) return false;
+    const dados = JSON.parse(raw);
+    return !!dados.modoRestaurante;
+  } catch {
+    return false;
+  }
+}
+
 router.beforeEach((to) => {
   const raw = localStorage.getItem("retailpro:sessao");
   let sessao = null;
@@ -45,6 +56,7 @@ router.beforeEach((to) => {
   const estaLogado = modoApi ? !!sessao?.utilizador && !!token : !!sessao?.utilizador;
   if (to.name !== "login" && to.name !== "not-found" && !estaLogado) return { name: "login" };
   if (to.name === "login" && estaLogado) return { name: "pos" };
+  if (to.name === "mesas" && !mesasPermitidas()) return { name: "pos" };
   return true;
 });
 

@@ -179,6 +179,16 @@
       "bank": "Banco",
       "iban": "IBAN / Nº Conta"
     },
+    "establishment": {
+      "title": "Tipo de estabelecimento",
+      "subtitle": "Define que módulos do POS ficam disponíveis nesta instalação",
+      "supermarket": "Supermercado",
+      "supermarketHint": "Venda de balcão e gestão de stock por loja",
+      "restaurant": "Restaurante / bar",
+      "restaurantHint": "Activa mesas, comandas e transferência entre mesas",
+      "tablesHidden": "O menu Mesas está oculto porque o modo restaurante está desactivado.",
+      "atLeastOne": "Seleccione pelo menos um tipo de estabelecimento."
+    },
     "printing": {
       "title": "Impressão do POS",
       "subtitle": "Defina a impressora padrão usada no talão",

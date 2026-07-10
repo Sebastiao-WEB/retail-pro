@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
+import { useConfiguracaoStore } from "../store/useConfiguracaoStore";
 import { useSessaoStore } from "../store/useSessaoStore";
 import { intlLocale } from "../services/localeStorage.js";
 import SeletorIdioma from "./SeletorIdioma.vue";
@@ -11,6 +12,8 @@ import logoRetailPro from "../assets/rp.png";
 const { t, locale } = useI18n();
 const route = useRoute();
 const sessaoStore = useSessaoStore();
+const configuracaoStore = useConfiguracaoStore();
+configuracaoStore.hidratar();
 const dataHoraAtual = ref(new Date());
 let temporizadorRelogio = null;
 
@@ -37,11 +40,17 @@ const horarioDigital = computed(() =>
 );
 const nomeOperador = computed(() => sessaoStore.utilizador || t("common.operator"));
 const caixaOperador = computed(() => sessaoStore.caixaAtribuido || t("common.noRegister"));
-const posItens = computed(() => [
-  { nome: t("sidebar.pointOfSale"), rota: { path: "/pos", query: { secao: "venda" } }, icon: ShoppingCart, secao: "venda" },
-  { nome: t("sidebar.tables"), rota: "/mesas", icon: UtensilsCrossed, secao: "mesas" },
-  { nome: t("sidebar.cashRegister"), rota: { path: "/pos", query: { secao: "caixa" } }, icon: LayoutGrid, secao: "caixa" },
-]);
+const posItens = computed(() => {
+  const itens = [
+    { nome: t("sidebar.pointOfSale"), rota: { path: "/pos", query: { secao: "venda" } }, icon: ShoppingCart, secao: "venda" },
+    { nome: t("sidebar.tables"), rota: "/mesas", icon: UtensilsCrossed, secao: "mesas" },
+    { nome: t("sidebar.cashRegister"), rota: { path: "/pos", query: { secao: "caixa" } }, icon: LayoutGrid, secao: "caixa" },
+  ];
+  if (!configuracaoStore.mostrarModuloMesas) {
+    return itens.filter((item) => item.secao !== "mesas");
+  }
+  return itens;
+});
 
 function classeItemPos(secao) {
   if (secao === "mesas") {
