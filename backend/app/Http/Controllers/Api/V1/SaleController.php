@@ -147,18 +147,31 @@ class SaleController extends Controller
                 ->filter(fn (array $item) => ! empty($item['produtoId']))
                 ->values();
 
-            if ($itensComProduto->isNotEmpty() && ! $locationId) {
+            $produtosPorId = Product::query()
+                ->whereIn('id', $itensComProduto->pluck('produtoId')->unique()->values())
+                ->get()
+                ->keyBy('id');
+
+            $itensComControloStock = $itensComProduto
+                ->filter(function (array $item) use ($produtosPorId) {
+                    $produto = $produtosPorId->get($item['produtoId']);
+
+                    return $produto && ProductStockDisplay::controlaEstoque($produto);
+                })
+                ->values();
+
+            if ($itensComControloStock->isNotEmpty() && ! $locationId) {
                 throw ValidationException::withMessages([
                     'source_location_id' => ['Localização de stock obrigatória para baixar inventário.'],
                 ]);
             }
 
-            if ($itensComProduto->isNotEmpty() && $locationId) {
+            if ($itensComControloStock->isNotEmpty() && $locationId) {
                 ProductStockDisplay::exigirLocalizacaoActiva($locationId, 'source_location_id');
             }
 
             $saldosPorProduto = [];
-            foreach ($itensComProduto as $index => $item) {
+            foreach ($itensComControloStock as $index => $item) {
                 $produtoId = $item['produtoId'];
                 $quantidade = (float) $item['quantidade'];
 
@@ -229,11 +242,6 @@ class SaleController extends Controller
 
             $produtosAfetados = [];
 
-            $produtosPorId = Product::query()
-                ->whereIn('id', collect($dados['itens'])->pluck('produtoId')->filter()->unique()->values())
-                ->get()
-                ->keyBy('id');
-
             foreach ($dados['itens'] as $item) {
                 $produto = ! empty($item['produtoId']) ? $produtosPorId->get($item['produtoId']) : null;
                 $iva = SaleItemTaxSnapshot::fromPayload($item, $produto);
@@ -253,6 +261,11 @@ class SaleController extends Controller
 
                 $produtoId = $item['produtoId'] ?? null;
                 if (! $produtoId || ! $locationId) {
+                    continue;
+                }
+
+                $produto = $produtosPorId->get($produtoId);
+                if (! $produto || ! ProductStockDisplay::controlaEstoque($produto)) {
                     continue;
                 }
 

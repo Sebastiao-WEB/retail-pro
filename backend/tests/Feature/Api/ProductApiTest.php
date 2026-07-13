@@ -68,6 +68,18 @@ class ProductApiTest extends TestCase
         $this->assertSame('KG', $resposta->json('data.0.unidadeVenda'));
     }
 
+    public function test_expoe_controla_estoque_na_lista(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $ambiente['product']->update(['controla_estoque' => false]);
+
+        $resposta = $this->getJson('/api/v1/products', $this->authHeaders($token));
+
+        $resposta->assertOk();
+        $this->assertFalse($resposta->json('data.0.controlaEstoque'));
+    }
+
     public function test_filtra_produtos_por_pesquisa(): void
     {
         $ambiente = $this->criarAmbienteApi();

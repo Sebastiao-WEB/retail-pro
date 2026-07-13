@@ -82,6 +82,7 @@ class ProductController extends Controller
             'ivaValor' => ['nullable', 'numeric', 'gte:0'],
             'ivaPercentual' => ['nullable', 'numeric', 'gte:0'],
             'stock' => ['nullable', 'numeric'],
+            'controlaEstoque' => ['nullable', 'boolean'],
             'unidadeVenda' => ProductValidation::regrasUnidadeVenda(),
         ]);
 
@@ -115,6 +116,9 @@ class ProductController extends Controller
             'iva_valor' => $ivaValor,
             'iva_percentual' => $ivaPercentual,
             'stock' => $dados['stock'] ?? 0,
+            'controla_estoque' => array_key_exists('controlaEstoque', $dados)
+                ? (bool) $dados['controlaEstoque']
+                : true,
         ]);
 
         return response()->json([
@@ -145,6 +149,7 @@ class ProductController extends Controller
             'ivaValor' => ['sometimes', 'numeric', 'gte:0'],
             'ivaPercentual' => ['sometimes', 'numeric', 'gte:0'],
             'stock' => ['sometimes', 'numeric'],
+            'controlaEstoque' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'unidadeVenda' => ProductValidation::regrasUnidadeVenda(true),
         ]);
@@ -190,6 +195,7 @@ class ProductController extends Controller
             'ivaValor' => 'iva_valor',
             'ivaPercentual' => 'iva_percentual',
             'stock' => 'stock',
+            'controlaEstoque' => 'controla_estoque',
             'is_active' => 'is_active',
             'unidadeVenda' => 'unidade_venda',
         ];
@@ -235,6 +241,7 @@ class ProductController extends Controller
             'ivaValor' => (float) $produto->iva_valor,
             'ivaPercentual' => (float) $produto->iva_percentual,
             'stock' => ProductStockDisplay::stockParaExibicao($produto),
+            'controlaEstoque' => ProductStockDisplay::controlaEstoque($produto),
             'isActive' => (bool) $produto->is_active,
         ];
     }

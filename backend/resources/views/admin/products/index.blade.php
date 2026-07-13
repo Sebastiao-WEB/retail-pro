@@ -54,7 +54,13 @@
                                 <span class="text-xs text-slate-500">/ kg</span>
                             @endif
                         </td>
-                        <td class="px-3 py-2">{{ number_format(\App\Support\ProductStockDisplay::stockParaExibicao($produto), 2, ',', '.') }}</td>
+                        <td class="px-3 py-2">
+                            @if ($produto->controlaEstoque())
+                                {{ number_format(\App\Support\ProductStockDisplay::stockParaExibicao($produto), 2, ',', '.') }}
+                            @else
+                                <span class="text-sky-700">{{ __('pages.products.sem_controlo_stock') }}</span>
+                            @endif
+                        </td>
                         <td class="px-3 py-2">
                             <span class="{{ $produto->is_active ? 'text-emerald-600' : 'text-red-600' }}">
                                 {{ $produto->is_active ? __('app.active') : __('app.inactive') }}
@@ -64,7 +70,7 @@
                             <td class="px-3 py-2">
                                 <div class="flex flex-wrap items-center gap-1">
                                     @can('stock.reload')
-                                        @if ($produto->is_active)
+                                        @if ($produto->is_active && $produto->controlaEstoque())
                                             <a
                                                 href="{{ route('stock.reload.form', ['product' => $produto, 'return_to' => 'products', 'search' => $search]) }}"
                                                 title="{{ __('pages.common.reload_action') }}"
@@ -166,11 +172,19 @@
                     <div data-iva-panel="ISENTO" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
                         {{ __('pages.products.iva_exempt_note') }}
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2" data-stock-create-panel>
                         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.stock') }}</label>
-                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-stock-create-note>
                             {{ __('pages.products.stock_initial') }}
                         </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="flex items-center gap-2 text-sm text-slate-600">
+                            <input type="hidden" name="controla_estoque" value="0">
+                            <input id="produto-controla-estoque" name="controla_estoque" type="checkbox" value="1" checked class="h-4 w-4 rounded border-slate-300 text-amber-600">
+                            {{ __('pages.products.controla_estoque') }}
+                        </label>
+                        <p class="mt-1 text-xs text-slate-500">{{ __('pages.products.controla_estoque_hint') }}</p>
                     </div>
                     <div class="md:col-span-2">
                         <label class="flex items-center gap-2 text-sm text-slate-600">

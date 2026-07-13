@@ -15,6 +15,11 @@ use Illuminate\Validation\ValidationException;
  */
 final class ProductStockDisplay
 {
+    public static function controlaEstoque(Product $product): bool
+    {
+        return $product->controlaEstoque();
+    }
+
     public static function somaStockLocaisActivos(string $productId): float
     {
         return (float) StockBalance::query()

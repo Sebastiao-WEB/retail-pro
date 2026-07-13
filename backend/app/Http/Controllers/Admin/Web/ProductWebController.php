@@ -131,6 +131,7 @@ class ProductWebController extends Controller
                 'iva_percentual' => ['required_if:iva_tipo,PERCENTUAL', 'nullable', 'numeric', 'gte:0'],
                 'iva_valor' => ['required_if:iva_tipo,MONETARIO', 'nullable', 'numeric', 'gte:0'],
                 'is_active' => ['boolean'],
+                'controla_estoque' => ['boolean'],
             ],
             [],
             [
@@ -172,6 +173,7 @@ class ProductWebController extends Controller
             'iva_valor' => $ivaValor,
             'iva_percentual' => $ivaPercentual,
             'is_active' => $request->boolean('is_active', true),
+            'controla_estoque' => $request->boolean('controla_estoque', true),
         ];
     }
 
@@ -192,6 +194,7 @@ class ProductWebController extends Controller
             'iva_percentual' => (string) $product->iva_percentual,
             'iva_valor' => (string) $product->iva_valor,
             'stock' => (string) ProductStockDisplay::stockParaExibicao($product),
+            'controla_estoque' => $product->controlaEstoque(),
             'is_active' => (bool) $product->is_active,
         ];
     }

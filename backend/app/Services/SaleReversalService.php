@@ -84,6 +84,11 @@ class SaleReversalService
                 continue;
             }
 
+            $produto = Product::query()->find($produtoId);
+            if (! $produto || ! ProductStockDisplay::controlaEstoque($produto)) {
+                continue;
+            }
+
             $quantidade = (float) $item->quantidade;
             if ($quantidade <= 0) {
                 continue;

@@ -7,7 +7,7 @@ import {
   salvarCatalogoOffline,
 } from "../services/offline/catalogCache";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../services/offline/networkError";
-import { normalizarQuantidadeVenda, normalizarUnidadeVenda } from "../utils/produtoQuantidade";
+import { normalizarQuantidadeVenda, normalizarUnidadeVenda, produtoControlaEstoque } from "../utils/produtoQuantidade";
 import {
   normalizarCodigoBarras,
   pareceCodigoBarras,
@@ -385,7 +385,7 @@ export const useProdutoStore = defineStore("produtos", {
     aplicarVenda(itensVenda, filtros = {}) {
       itensVenda.forEach((item) => {
         const produto = this.produtos.find((reg) => reg.id === item.produtoId);
-        if (!produto) return;
+        if (!produto || !produtoControlaEstoque(produto)) return;
         const quantidade = normalizarQuantidadeVenda(item.quantidade, produto.unidadeVenda) ?? 0;
         if (quantidade <= 0) return;
         const novoStock = Math.max(0, produto.stock - quantidade);
@@ -416,7 +416,7 @@ export const useProdutoStore = defineStore("produtos", {
     },
     reporStock(produtoId, quantidade) {
       const produto = this.produtos.find((reg) => reg.id === produtoId);
-      if (!produto) return;
+      if (!produto || !produtoControlaEstoque(produto)) return;
       produto.stock += quantidade;
     },
   },

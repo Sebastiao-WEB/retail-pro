@@ -264,6 +264,10 @@ return [
         'sale_unit_kg' => 'Por peso (kg)',
         'sale_unit_hint' => 'Peso: preço e stock em quilogramas; no POS introduz kg (ex.: 0,7 ou 1,2).',
         'sale_price_per_kg' => 'Preço venda (por kg)',
+        'controla_estoque' => 'Controlar stock',
+        'controla_estoque_hint' => 'Desmarque para produtos preparados sob pedido (ex.: hambúrguer, sandes, pizza). Não exigem stock nem recarga.',
+        'sem_controlo_stock' => 'Sob pedido',
+        'stock_not_applicable' => 'Este produto não usa controlo de stock.',
     ],
     'customers' => [
         'title' => 'Gestão de clientes',

@@ -28,8 +28,14 @@ class StockController extends Controller
 
         ProductStockDisplay::exigirLocalizacaoActiva($dados['to_location_id'], 'to_location_id');
 
-        $result = DB::transaction(function () use ($dados) {
-            $product = Product::query()->findOrFail($dados['product_id']);
+        $product = Product::query()->findOrFail($dados['product_id']);
+        if (! ProductStockDisplay::controlaEstoque($product)) {
+            return response()->json([
+                'message' => 'Este produto não usa controlo de stock.',
+            ], 422);
+        }
+
+        $result = DB::transaction(function () use ($dados, $product) {
             $quantity = (float) $dados['quantity'];
             $unitCost = (float) $dados['unit_cost'];
             $total = $quantity * $unitCost;
@@ -193,6 +199,13 @@ class StockController extends Controller
         ]);
 
         ProductStockDisplay::exigirLocalizacaoActiva($dados['location_id']);
+
+        $product = Product::query()->findOrFail($dados['product_id']);
+        if (! ProductStockDisplay::controlaEstoque($product)) {
+            return response()->json([
+                'message' => 'Este produto não usa controlo de stock.',
+            ], 422);
+        }
 
         $movement = $stockAdjustmentService->aplicar(
             $dados['product_id'],

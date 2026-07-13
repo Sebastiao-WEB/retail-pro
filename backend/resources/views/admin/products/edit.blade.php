@@ -2,6 +2,7 @@
     $ivaTipo = old('iva_tipo', $product->iva_tipo ?? 'ISENTO');
     $unidadeVenda = old('unidade_venda', $product->unidade_venda ?? 'UN');
     $isActive = old('is_active', $product->is_active);
+    $controlaEstoque = old('controla_estoque', $product->controla_estoque ?? true);
 @endphp
 
 <x-layouts.desktop :title="__('pages.titles.products_edit')" admin-page="products-edit">
@@ -110,12 +111,27 @@
             {{ __('pages.products.iva_exempt_note') }}
         </div>
 
-        <div class="md:col-span-2">
+        <div class="md:col-span-2" data-stock-panel>
             <label class="mb-1 block text-xs font-semibold text-slate-600">{{ __('app.fields.stock') }}</label>
-            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                <span class="font-semibold text-slate-800">{{ number_format((float) $stockExibido, 2, ',', '.') }}</span>
-                <span class="text-slate-500"> — {{ __('pages.products.stock_readonly') }}</span>
-            </div>
+            @if ($controlaEstoque)
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <span class="font-semibold text-slate-800">{{ number_format((float) $stockExibido, 2, ',', '.') }}</span>
+                    <span class="text-slate-500"> — {{ __('pages.products.stock_readonly') }}</span>
+                </div>
+            @else
+                <div class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                    {{ __('pages.products.sem_controlo_stock') }} — {{ __('pages.products.stock_not_applicable') }}
+                </div>
+            @endif
+        </div>
+
+        <div class="md:col-span-2">
+            <label class="flex items-center gap-2 text-sm text-slate-600">
+                <input type="hidden" name="controla_estoque" value="0">
+                <input name="controla_estoque" type="checkbox" value="1" @checked($controlaEstoque) class="h-4 w-4 rounded border-slate-300 text-amber-600">
+                {{ __('pages.products.controla_estoque') }}
+            </label>
+            <p class="mt-1 text-xs text-slate-500">{{ __('pages.products.controla_estoque_hint') }}</p>
         </div>
 
         <div class="md:col-span-2">

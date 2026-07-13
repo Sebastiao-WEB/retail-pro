@@ -38,6 +38,7 @@ import {
   normalizarQuantidadeVenda,
   parseQuantidadeTexto,
   passoQuantidade,
+  produtoControlaEstoque,
   quantidadeMinima,
   UNIDADE_VENDA_KG,
   vendidoPorPeso,
@@ -260,7 +261,7 @@ async function processarLeituraCodigoBarras() {
   }
 
   if (!vendidoPorPeso(produtoAtualizado) && !podeAdicionarProduto(produtoAtualizado, 1)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
     } else {
       const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id));
@@ -276,7 +277,11 @@ async function processarLeituraCodigoBarras() {
     return;
   }
 
-  if (vendidoPorPeso(produtoAtualizado) && produtoAtualizado.stock <= 0) {
+  if (
+    vendidoPorPeso(produtoAtualizado) &&
+    produtoControlaEstoque(produtoAtualizado) &&
+    produtoAtualizado.stock <= 0
+  ) {
     mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
     limparCampoPesquisa();
     await focarCampoPesquisa();
@@ -479,7 +484,9 @@ async function garantirInventarioPosLocal() {
 function ajustarCarrinhoAoStock() {
   for (const item of [...carrinhoStore.itens]) {
     const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
-    if (!produto || produto.stock <= 0) {
+    if (!produto) continue;
+    if (!produtoControlaEstoque(produto)) continue;
+    if (produto.stock <= 0) {
       carrinhoStore.removerProduto(item.produtoId);
       continue;
     }
@@ -515,7 +522,8 @@ function obterProdutoAtualizado(produto) {
 function validarStockCarrinhoAtual() {
   for (const item of carrinhoStore.itens) {
     const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
-    if (!produto || produto.stock <= 0) {
+    if (!produto || !produtoControlaEstoque(produto)) continue;
+    if (produto.stock <= 0) {
       return { ok: false, erro: t("pos.toast.stockUnavailable", { name: item.nome }) };
     }
     if (item.quantidade > produto.stock) {
@@ -560,14 +568,35 @@ function quantidadeNoCarrinho(produtoId) {
 function podeAdicionarProduto(produto, quantidade = 1) {
   const quantidadeNormalizada =
     normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
+  if (!sessaoStore.turnoAberto) return false;
+  if (!produtoControlaEstoque(produto)) return true;
   return (
-    sessaoStore.turnoAberto &&
     produto.stock > 0 &&
     quantidadeNoCarrinho(produto.id) + quantidadeNormalizada <= produto.stock + 0.0001
   );
 }
 
+function produtoDisponivelParaVenda(produto) {
+  return produtoControlaEstoque(produto) ? produto.stock > 0 : true;
+}
+
+function exibirStockProduto(produto) {
+  if (!produtoControlaEstoque(produto)) {
+    return t("pos.catalog.madeToOrder");
+  }
+  return formatarStockExibicao(produto.stock, produto.unidadeVenda, intlLocale(locale.value));
+}
+
+function limiteQuantidadeCarrinho(produtoId, unidadeVenda) {
+  const produto = produtoStore.produtos.find((p) => p.id === produtoId);
+  if (!produto || !produtoControlaEstoque(produto)) return undefined;
+  return produto.stock || quantidadeMinima(unidadeVenda);
+}
+
 function formatarDisponivelStock(produto, quantidadeDisponivel) {
+  if (!produtoControlaEstoque(produto)) {
+    return t("pos.catalog.madeToOrder");
+  }
   return formatarStockExibicao(quantidadeDisponivel, produto?.unidadeVenda, intlLocale(locale.value));
 }
 
@@ -608,7 +637,7 @@ async function solicitarAdicaoProduto(produto) {
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
   if (vendidoPorPeso(produtoAtualizado)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
       return;
     }
@@ -635,7 +664,7 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
   if (!podeAdicionarProduto(produtoAtualizado, quantidadeNormalizada)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
     } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
       const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id));
@@ -681,8 +710,8 @@ async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}
   if (!quantidadeFinal) return;
 
   const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
-  const limiteStock = produto?.stock ?? quantidadeFinal;
-  if (quantidadeFinal > limiteStock + 0.0001) {
+  const limiteStock = produtoControlaEstoque(produto) ? (produto?.stock ?? quantidadeFinal) : quantidadeFinal;
+  if (produtoControlaEstoque(produto) && quantidadeFinal > limiteStock + 0.0001) {
     carrinhoStore.definirQuantidade(produtoId, normalizarQuantidadeVenda(limiteStock, unidadeVenda) ?? minimo);
     mostrarErroStock(t("pos.toast.quantityAdjusted"));
     return;
@@ -1265,17 +1294,23 @@ async function confirmarFechoCaixa() {
                 <td class="px-3 py-2">
                   <span
                     class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                    :class="produto.stock <= (vendidoPorPeso(produto) ? 1 : 10) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'"
+                    :class="
+                      !produtoControlaEstoque(produto)
+                        ? 'bg-sky-100 text-sky-800'
+                        : produto.stock <= (vendidoPorPeso(produto) ? 1 : 10)
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-slate-100 text-slate-700'
+                    "
                   >
-                    {{ formatarStockExibicao(produto.stock, produto.unidadeVenda, intlLocale(locale)) }}
+                    {{ exibirStockProduto(produto) }}
                   </span>
                 </td>
                 <td class="px-3 py-2 text-right">
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
                     :title="t('pos.catalog.addToCart')"
-                    :disabled="!sessaoStore.turnoAberto || produto.stock <= 0"
-                    :class="!sessaoStore.turnoAberto || produto.stock <= 0 ? 'cursor-not-allowed opacity-40' : ''"
+                    :disabled="!sessaoStore.turnoAberto || !produtoDisponivelParaVenda(produto)"
+                    :class="!sessaoStore.turnoAberto || !produtoDisponivelParaVenda(produto) ? 'cursor-not-allowed opacity-40' : ''"
                     @click="void solicitarAdicaoProduto(produto)"
                   >
                     <span class="relative inline-flex h-4 w-4 items-center justify-center">
@@ -1369,7 +1404,7 @@ async function confirmarFechoCaixa() {
                       :min="quantidadeMinima(item.unidadeVenda)"
                       :step="passoQuantidade(item.unidadeVenda)"
                       :inputmode="item.unidadeVenda === 'KG' ? 'decimal' : 'numeric'"
-                      :max="produtoStore.produtos.find((p) => p.id === item.produtoId)?.stock || quantidadeMinima(item.unidadeVenda)"
+                      :max="limiteQuantidadeCarrinho(item.produtoId, item.unidadeVenda)"
                       class="w-20 rounded border border-slate-300 px-1.5 py-1 text-center text-xs font-semibold text-slate-900 focus:border-[var(--gold)] focus:outline-none"
                       autocomplete="off"
                       @focus="$event.target.select()"
@@ -1547,8 +1582,11 @@ async function confirmarFechoCaixa() {
       <p class="text-xs text-slate-500">
         {{ t("pos.weightModal.pricePerKg", { price: formatarMT(produtoPesoPendente.precoVendaComIva ?? produtoPesoPendente.precoVenda) }) }}
       </p>
-      <p class="text-xs text-slate-500">
+      <p v-if="produtoControlaEstoque(produtoPesoPendente)" class="text-xs text-slate-500">
         {{ t("pos.weightModal.stockAvailable", { stock: formatarStockExibicao(produtoPesoPendente.stock, 'KG', intlLocale(locale)) }) }}
+      </p>
+      <p v-else class="text-xs text-sky-700">
+        {{ t("pos.catalog.madeToOrder") }}
       </p>
       <div>
         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.weightModal.kgLabel") }}</label>

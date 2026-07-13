@@ -25,7 +25,21 @@ function resetProductForm(form) {
     form.querySelector('[name="preco_venda"]').value = '0';
     form.querySelector('[name="iva_percentual"]').value = '0';
     form.querySelector('[name="iva_valor"]').value = '0';
+    const controlaEstoqueCheckbox = form.querySelector('[name="controla_estoque"]');
+    if (controlaEstoqueCheckbox) {
+        controlaEstoqueCheckbox.checked = true;
+    }
+    toggleStockCreatePanel(form);
     toggleIvaFields(form);
+}
+
+function toggleStockCreatePanel(form) {
+    const controla = form.querySelector('[name="controla_estoque"]')?.checked ?? true;
+    const note = form.querySelector('[data-stock-create-note]');
+    if (!note) return;
+    note.textContent = controla
+        ? note.dataset.stockNoteDefault || note.textContent
+        : note.dataset.stockNoteSkip || 'Produto sob pedido — stock não aplicável.';
 }
 
 export default function init() {
@@ -35,6 +49,13 @@ export default function init() {
     }
 
     form.querySelector('[name="iva_tipo"]')?.addEventListener('change', () => toggleIvaFields(form));
+    form.querySelector('[name="controla_estoque"]')?.addEventListener('change', () => toggleStockCreatePanel(form));
+
+    const note = form.querySelector('[data-stock-create-note]');
+    if (note && !note.dataset.stockNoteDefault) {
+        note.dataset.stockNoteDefault = note.textContent.trim();
+        note.dataset.stockNoteSkip = 'Produto sob pedido — stock não aplicável.';
+    }
 
     form.addEventListener('submit', (event) => {
         event.preventDefault();

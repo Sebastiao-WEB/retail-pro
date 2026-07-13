@@ -330,7 +330,8 @@
       "resultsCount": "{count} produto(s) encontrado(s)",
       "addToCart": "Adicionar ao carrinho",
       "emptyHint": "Digite no campo de pesquisa para listar produtos.",
-      "pricePerKg": "/ kg"
+      "pricePerKg": "/ kg",
+      "madeToOrder": "Sob pedido"
     },
     "weightModal": {
       "title": "Quantidade por peso",

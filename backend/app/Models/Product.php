@@ -27,6 +27,7 @@ class Product extends Model
         'iva_valor',
         'iva_percentual',
         'stock',
+        'controla_estoque',
         'is_active',
     ];
 
@@ -36,8 +37,14 @@ class Product extends Model
         'iva_valor' => 'decimal:2',
         'iva_percentual' => 'decimal:2',
         'stock' => 'decimal:2',
+        'controla_estoque' => 'boolean',
         'is_active' => 'boolean',
     ];
+
+    public function controlaEstoque(): bool
+    {
+        return (bool) ($this->controla_estoque ?? true);
+    }
 
     public function stockBalances()
     {

@@ -262,6 +262,10 @@ return [
         'sale_unit_kg' => 'Miisaanka (kg)',
         'sale_unit_hint' => 'Miisaan: qiimaha iyo kaydka waa kg; POS geli kg (tusaale 0.7 ama 1.2).',
         'sale_price_per_kg' => 'Qiimaha iibka (kg)',
+        'controla_estoque' => 'Xakamee kaydka',
+        'controla_estoque_hint' => 'Ka saar calaamadda alaabta la diyaariyo marka la dalbado (tusaale burger, sandwich, pizza). Kayd looma baahna.',
+        'sem_controlo_stock' => 'Dalbasho',
+        'stock_not_applicable' => 'Alaabtan ma isticmaasho xakamaynta kaydka.',
     ],
     'customers' => [
         'title' => 'Maamulka macaamiisha',

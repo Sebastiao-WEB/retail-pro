@@ -16,6 +16,7 @@ export type Product = {
   ivaValor: number;
   ivaPercentual: number;
   stock: number;
+  controlaEstoque: boolean;
   isActive: boolean;
 };
 
@@ -40,6 +41,7 @@ export type ProductUpdatePayload = {
   ivaValor: number;
   ivaPercentual: number;
   is_active: boolean;
+  controlaEstoque: boolean;
 };
 
 export async function fetchProducts(page = 1, perPage = 10, search = '') {

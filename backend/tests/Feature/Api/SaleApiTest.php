@@ -699,4 +699,40 @@ class SaleApiTest extends TestCase
             ->assertJsonPath('data.0.referencia', 'VD-MEU-001')
             ->assertJsonPath('data.1.referencia', 'VD-OUTRO-001');
     }
+
+    public function test_vende_produto_sem_controlo_de_stock_sem_debitar_inventario(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['controla_estoque' => false, 'stock' => 0]);
+
+        StockBalance::query()->where('product_id', $produto->id)->delete();
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 2,
+                    'precoVenda' => 50,
+                    'subtotal' => 100,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated();
+
+        $produto->refresh();
+        $this->assertSame(0.0, (float) $produto->stock);
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $produto->id,
+            'type' => 'OUT',
+        ]);
+    }
 }

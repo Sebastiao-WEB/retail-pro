@@ -20,6 +20,7 @@ import {
   formatarStockExibicao,
   normalizarQuantidadeVenda,
   parseQuantidadeTexto,
+  produtoControlaEstoque,
   quantidadeMinima,
   UNIDADE_VENDA_KG,
   vendidoPorPeso,
@@ -155,6 +156,7 @@ function quantidadeNaMesa(produtoId) {
 function podeAdicionarProdutoMesa(produto, quantidade = 1) {
   const quantidadeNormalizada =
     normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
+  if (!produtoControlaEstoque(produto)) return true;
   return (
     produto.stock > 0 &&
     quantidadeNaMesa(produto.id) + quantidadeNormalizada <= produto.stock + 0.0001
@@ -270,7 +272,7 @@ function adicionarProdutoComQuantidade(produto, quantidade) {
   }
 
   if (!podeAdicionarProdutoMesa(produtoAtualizado, quantidadeNormalizada)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
     } else if (quantidadeNaMesa(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
       const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNaMesa(produtoAtualizado.id));
@@ -301,7 +303,7 @@ async function solicitarAdicaoProduto(produto) {
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
   if (vendidoPorPeso(produtoAtualizado)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
       return;
     }
@@ -314,7 +316,7 @@ async function solicitarAdicaoProduto(produto) {
   }
 
   if (!podeAdicionarProdutoMesa(produtoAtualizado, 1)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
     } else {
       const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNaMesa(produtoAtualizado.id));

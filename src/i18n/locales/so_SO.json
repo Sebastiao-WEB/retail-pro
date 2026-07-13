@@ -330,7 +330,8 @@
       "resultsCount": "{count} alaab(o) ayaa la helay",
       "addToCart": "Ku dar gaadhiga",
       "emptyHint": "Ku qor goobta raadinta si aad u liis gareyso alaabta.",
-      "pricePerKg": "/ kg"
+      "pricePerKg": "/ kg",
+      "madeToOrder": "Dalbasho"
     },
     "weightModal": {
       "title": "Tirada miisaanka",

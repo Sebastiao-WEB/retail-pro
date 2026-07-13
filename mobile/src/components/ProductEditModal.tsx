@@ -53,6 +53,7 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
   const [ivaPercentual, setIvaPercentual] = useState('');
   const [ivaValor, setIvaValor] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [controlaEstoque, setControlaEstoque] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -69,6 +70,7 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
     setIvaPercentual(String(product.ivaPercentual ?? 0));
     setIvaValor(String(product.ivaValor ?? 0));
     setIsActive(product.isActive);
+    setControlaEstoque(product.controlaEstoque !== false);
     setError('');
   }, [visible, product]);
 
@@ -115,6 +117,7 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
         ivaPercentual: ivaTipo === 'PERCENTUAL' ? ivaPerc : 0,
         ivaValor: ivaTipo === 'MONETARIO' ? ivaMon : 0,
         is_active: isActive,
+        controlaEstoque,
       });
 
       onSaved();
@@ -241,12 +244,23 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
               <View style={styles.infoCard}>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Stock actual: </Text>
-                  {formatarStock(product.stock, unidadeVenda)}
+                  {controlaEstoque ? formatarStock(product.stock, unidadeVenda) : 'Sob pedido'}
                 </Text>
                 <Text style={styles.infoLine}>
                   <Text style={styles.infoLabel}>Preço actual: </Text>
                   {formatMt(product.precoVenda)}
                 </Text>
+              </View>
+
+              <View style={styles.switchRow}>
+                <Text style={styles.label}>Controlar stock</Text>
+                <Switch
+                  value={controlaEstoque}
+                  onValueChange={setControlaEstoque}
+                  disabled={submitting}
+                  trackColor={{ false: brand.border, true: brand.gold }}
+                  thumbColor={brand.white}
+                />
               </View>
 
               <View style={styles.switchRow}>
