@@ -360,6 +360,10 @@ class AuthController extends Controller
 
     private function userCanAccessMobileAdmin(User $user): bool
     {
+        if ($user->isCashier()) {
+            return false;
+        }
+
         if (in_array((string) ($user->role ?? ''), ['ADMIN', 'MANAGER'], true)) {
             return true;
         }

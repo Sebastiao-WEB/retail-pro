@@ -242,6 +242,9 @@ window.retailToast = function retailToast(message, type = 'info') {
 
 document.addEventListener('DOMContentLoaded', renderLucideIcons);
 
+window.rpRefreshIcons = renderLucideIcons;
+window.addEventListener('rp:admin-content-updated', renderLucideIcons);
+
 window.rpFocusField = function rpFocusField(field) {
     const campo = String(field || '').trim();
     if (!campo) return;

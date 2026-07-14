@@ -162,4 +162,13 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->belongsTo(StockLocation::class, 'source_location_id');
     }
+
+    public function isCashier(): bool
+    {
+        if (strcasecmp((string) ($this->role ?? ''), 'CASHIER') === 0) {
+            return true;
+        }
+
+        return $this->hasRole('CASHIER');
+    }
 }

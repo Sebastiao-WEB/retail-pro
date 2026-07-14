@@ -22,7 +22,7 @@ use App\Http\Controllers\Admin\Web\StockTransferWebController;
 use App\Http\Controllers\Admin\Web\UserWebController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'admin.panel'])->group(function () {
     Route::get('/dashboard', [DashboardWebController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
 
     Route::middleware('permission:products.view')->group(function () {

@@ -33,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'user.active' => EnsureUserIsActive::class,
+            'admin.panel' => \App\Http\Middleware\EnsureAdminPanelAccess::class,
         ]);
 
         $middleware->appendToGroup('web', EnsureUserIsActive::class);

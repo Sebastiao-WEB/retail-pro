@@ -25,8 +25,7 @@ class RolesPermissionsPageTest extends TestCase
 
     public function test_utilizador_com_roles_view_acede_a_pagina_em_modo_leitura(): void
     {
-        $user = User::factory()->create(['role' => 'CASHIER']);
-        $user->assignRole('CASHIER');
+        $user = User::factory()->create(['role' => 'MANAGER']);
         $user->givePermissionTo('roles.view');
 
         $this->actingAs($user)
@@ -38,8 +37,7 @@ class RolesPermissionsPageTest extends TestCase
 
     public function test_utilizador_sem_roles_view_recebe_403(): void
     {
-        $user = User::factory()->create(['role' => 'CASHIER']);
-        $user->assignRole('CASHIER');
+        $user = User::factory()->create(['role' => 'MANAGER']);
 
         $this->actingAs($user)
             ->get(route('roles.permissions'))
@@ -81,15 +79,14 @@ class RolesPermissionsPageTest extends TestCase
 
     public function test_rota_roles_permissoes_exige_roles_view(): void
     {
-        $user = User::factory()->create(['role' => 'CASHIER']);
-        $user->assignRole('CASHIER');
+        $user = User::factory()->create(['role' => 'MANAGER']);
 
         $this->actingAs($user)
             ->get(route('roles.permissions'))
             ->assertForbidden();
     }
 
-    public function test_cashier_com_permissao_pode_aceder_vendas(): void
+    public function test_caixa_nao_pode_aceder_ao_painel_administrativo(): void
     {
         $user = User::factory()->create(['role' => 'CASHIER']);
         $user->assignRole('CASHIER');
@@ -97,6 +94,8 @@ class RolesPermissionsPageTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('sales.index'))
-            ->assertOk();
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
     }
 }

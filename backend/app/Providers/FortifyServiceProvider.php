@@ -80,6 +80,18 @@ class FortifyServiceProvider extends ServiceProvider
                 ]);
             }
 
+            if ($user->isCashier()) {
+                Log::warning('Login failed', [
+                    'username' => $credentials['username'],
+                    'ip' => $request->ip(),
+                    'reason' => 'cashier_no_admin',
+                ]);
+
+                throw ValidationException::withMessages([
+                    Fortify::username() => [__('errors.cashier_no_admin')],
+                ]);
+            }
+
             return $user;
         });
 

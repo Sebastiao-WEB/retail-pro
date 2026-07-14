@@ -67,22 +67,176 @@ export async function submitJson(form, { method = 'POST', url, onSuccess, reload
     }
 }
 
+function buildFilterUrl(form) {
+    const action = form.getAttribute('action') || window.location.pathname;
+    const url = new URL(action, window.location.origin);
+    const params = new URLSearchParams();
+
+    new FormData(form).forEach((value, key) => {
+        const text = String(value ?? '').trim();
+        if (text === '') {
+            return;
+        }
+        params.append(key, text);
+    });
+
+    url.search = params.toString();
+
+    return url;
+}
+
+function captureFocusState() {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement)) {
+        return null;
+    }
+
+    return {
+        name: active.getAttribute('name'),
+        id: active.id || null,
+        selectionStart: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+        selectionEnd: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
+    };
+}
+
+function restoreFocusState(state) {
+    if (!state) {
+        return;
+    }
+
+    let field = null;
+    if (state.id) {
+        field = document.getElementById(state.id);
+    }
+    if (!field && state.name) {
+        field = document.querySelector(`[name="${CSS.escape(state.name)}"]`);
+    }
+    if (!(field instanceof HTMLElement)) {
+        return;
+    }
+
+    field.focus({ preventScroll: true });
+    if (
+        (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) &&
+        state.selectionStart !== null &&
+        state.selectionEnd !== null &&
+        typeof field.setSelectionRange === 'function' &&
+        field.type !== 'checkbox' &&
+        field.type !== 'radio'
+    ) {
+        try {
+            field.setSelectionRange(state.selectionStart, state.selectionEnd);
+        } catch {
+            // ignore unsupported input types
+        }
+    }
+}
+
+function isRequestCanceled(error) {
+    const original = error?.original;
+    return (
+        error?.code === 'ERR_CANCELED' ||
+        original?.code === 'ERR_CANCELED' ||
+        original?.name === 'CanceledError' ||
+        original?.name === 'AbortError'
+    );
+}
+
+function refreshAdminIcons() {
+    if (typeof window.rpRefreshIcons === 'function') {
+        window.rpRefreshIcons();
+        return;
+    }
+
+    window.dispatchEvent(new CustomEvent('rp:admin-content-updated'));
+}
+
+let autoSubmitSeq = 0;
+const autoSubmitControllers = new WeakMap();
+
+async function ajaxFilterSubmit(form) {
+    const seq = ++autoSubmitSeq;
+    const focusState = captureFocusState();
+    const url = buildFilterUrl(form);
+
+    const previous = autoSubmitControllers.get(form);
+    previous?.abort();
+
+    const controller = new AbortController();
+    autoSubmitControllers.set(form, controller);
+
+    try {
+        const response = await http.get(url.toString(), {
+            headers: {
+                Accept: 'text/html',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            responseType: 'text',
+            transformResponse: [(data) => data],
+            skipPreloader: true,
+            signal: controller.signal,
+        });
+
+        if (seq !== autoSubmitSeq) {
+            return;
+        }
+
+        const html = typeof response.data === 'string' ? response.data : String(response.data ?? '');
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const nextCard = doc.querySelector('.rp-card');
+        const currentCard = document.querySelector('.rp-card');
+
+        if (!nextCard || !currentCard) {
+            window.location.assign(url.toString());
+            return;
+        }
+
+        currentCard.innerHTML = nextCard.innerHTML;
+        history.replaceState({}, '', url.toString());
+        refreshAdminIcons();
+        bindAutoSubmitForms();
+        restoreFocusState(focusState);
+    } catch (error) {
+        if (isRequestCanceled(error) || seq !== autoSubmitSeq) {
+            return;
+        }
+
+        window.retailToast?.(error.message || 'Falha ao actualizar a pesquisa.', 'error');
+    }
+}
+
 export function bindAutoSubmitForms() {
     document.querySelectorAll('form[data-auto-submit]').forEach((form) => {
+        if (form.dataset.autoSubmitBound === '1') {
+            return;
+        }
+
+        form.dataset.autoSubmitBound = '1';
         const debounceMs = Number(form.dataset.debounce || 300);
         let timer = null;
 
-        const submit = () => {
+        const submitAjax = () => {
             clearTimeout(timer);
-            timer = setTimeout(() => form.submit(), debounceMs);
+            timer = setTimeout(() => {
+                void ajaxFilterSubmit(form);
+            }, debounceMs);
         };
 
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            clearTimeout(timer);
+            void ajaxFilterSubmit(form);
+        });
+
         form.querySelectorAll('input[type="text"], input[type="search"]').forEach((input) => {
-            input.addEventListener('input', submit);
+            input.addEventListener('input', submitAjax);
         });
 
         form.querySelectorAll('select, input[type="date"], input[type="checkbox"]').forEach((element) => {
-            element.addEventListener('change', () => form.submit());
+            element.addEventListener('change', () => {
+                clearTimeout(timer);
+                void ajaxFilterSubmit(form);
+            });
         });
     });
 }

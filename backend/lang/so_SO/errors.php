@@ -42,4 +42,6 @@ return [
         'message' => 'Nidaamku si ku meel gaar ah wuu dayacan yahay ama wuu buuxay.',
         'hint' => 'Isku day mar kale daqiiqado gudahood.',
     ],
+
+    'cashier_no_admin' => 'Isticmaalayaasha doorka Khasnaji ma geli karaan guddiga maamulka. Isticmaal POS.',
 ];

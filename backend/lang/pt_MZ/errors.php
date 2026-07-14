@@ -54,4 +54,6 @@ return [
         'message' => 'O sistema está temporariamente em manutenção ou sobrecarregado.',
         'hint' => 'Volte a tentar dentro de alguns minutos.',
     ],
+
+    'cashier_no_admin' => 'Utilizadores com perfil Caixa não podem aceder ao painel administrativo. Use a aplicação POS.',
 ];
