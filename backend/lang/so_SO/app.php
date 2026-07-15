@@ -2,7 +2,8 @@
 
 return [
     'language' => 'Luqadda',
-    'backoffice' => 'Backoffice Livewire',
+    'backoffice' => 'Backoffice',
+    'loading' => 'Waa la soo rarayaa...',
     'pos_edition' => 'Daabaca POS',
     'central_management' => 'Maamulka dhexe ee POS',
     'default_title' => 'Guddiga maamulka',
@@ -11,6 +12,7 @@ return [
     'logout' => 'Ka bax',
     'save' => 'Kaydi',
     'cancel' => 'Jooji',
+    'back' => 'Dib u noqo',
     'close' => 'Xir',
     'edit' => 'Wax ka beddel',
     'new' => 'Cusub',
@@ -43,6 +45,7 @@ return [
         'cash_sessions_active' => 'Fadhiyada firfircoon',
         'cash_sessions_closed' => 'Taariikhda xiritaanka',
         'stock_reload' => 'Buuxi kaydka',
+        'stock_reload_history' => 'Taariikhda buuxinta',
         'stock_movements' => 'Dhaqdhaqaaqa kaydka',
         'stock_transfers' => 'Wareejinta',
         'products' => 'Alaabta',
@@ -88,6 +91,7 @@ return [
         'total' => 'Wadarta',
         'date' => 'Taariikhda',
         'register' => 'Sanduuqa',
+        'registers' => 'Sanduuqyada',
         'period' => 'Xilliga',
         'phone' => 'Telefoon',
         'nuit' => 'NUIT',

@@ -93,6 +93,7 @@
     "posSection": "POS",
     "pointOfSale": "Goobta iibka",
     "cashRegister": "Sanduuqa",
+    "tables": "Miisaska",
     "shiftStatus": "Xaaladda wareegga",
     "shiftOpen": "Wareeg furan",
     "shiftClosed": "Wareeg xiran",
@@ -127,6 +128,10 @@
       "seguranca": {
         "title": "Amniga",
         "subtitle": "Xaqiijinta laba-tallaabo ee koontada"
+      },
+      "mesas": {
+        "title": "Miisaska",
+        "subtitle": "Dalabyada bar iyo makhaayadda"
       }
     },
     "backend": {
@@ -173,6 +178,16 @@
       "address": "Cinwaanka",
       "bank": "Bangiga",
       "iban": "IBAN / Lambarka Koontada"
+    },
+    "establishment": {
+      "title": "Nooca goobta",
+      "subtitle": "Qeex qaybaha POS ee la heli karo rakibiddan",
+      "supermarket": "Suuq weyn",
+      "supermarketHint": "Iibka counter-ka iyo maaraynta kaydka dukaanka",
+      "restaurant": "Makhaayad / bar",
+      "restaurantHint": "Fur miisaska, amarrada iyo wareejinta miisaska",
+      "tablesHidden": "Menu-ga Miisaska waa qarsoon sababtoo ah habka makhaayadda waa dansan yahay.",
+      "atLeastOne": "Dooro ugu yaraan hal nooc oo goob ah."
     },
     "printing": {
       "title": "Daabacaadda POS",
@@ -315,7 +330,8 @@
       "resultsCount": "{count} alaab(o) ayaa la helay",
       "addToCart": "Ku dar gaadhiga",
       "emptyHint": "Ku qor goobta raadinta si aad u liis gareyso alaabta.",
-      "pricePerKg": "/ kg"
+      "pricePerKg": "/ kg",
+      "madeToOrder": "Dalbasho"
     },
     "weightModal": {
       "title": "Tirada miisaanka",
@@ -390,8 +406,11 @@
         "cashSales": "Iibka Lacag Caddaan ah",
         "transferSales": "Iibka Wareejinta",
         "expectedCash": "Lacagta la filayo",
+        "expectedTransfers": "Wareejinta la filayo",
         "actualCash": "Lacagta la tiriyay",
-        "difference": "Farqiga",
+        "actualMobileWallets": "Jeebka moobilka",
+        "difference": "Farqiga sanduuqa",
+        "transferDifference": "Farqiga wareejinta",
         "justification": "Sabab"
       }
     },
@@ -416,8 +435,12 @@
       "cashSales": "Iibka Lacag Caddaan ah:",
       "transferSales": "Iibka Wareejinta:",
       "expectedCash": "Lacagta la filayo:",
+      "expectedTransfers": "Wareejinta la filayo:",
       "actualCashLabel": "Lacagta dhabta ah ee sanduuqa la tiriyay",
-      "difference": "Farqiga (ka badan/ka yar):",
+      "actualMobileWalletsLabel": "Wadarta lagu helay jeebka moobilka",
+      "mobileWalletsHint": "Geli wadarta wareejinta lagu helay wareeggan (M-Pesa, e-Mola, iwm.).",
+      "cashDifference": "Farqiga sanduuqa:",
+      "transferDifference": "Farqiga wareejinta:",
       "justificationRequired": "Sababta farqiga (waajib)",
       "justificationPlaceholder": "Tusaale: lacag celin furan, lacag la saaray oo aan la diiwaangelin, khalad hawlgal...",
       "closing": "Waa la xirayaa...",
@@ -497,6 +520,7 @@
       "openRegisterSuccessLocal": "Sanduuqa waa lagu furay meel ahaan. API fadhiga lama heli karo: {error}",
       "openRegisterSuccess": "Sanduuqa waa la furay iyadoo lacagta bilowga ah tahay {amount}.",
       "enterActualCash": "Geli lacagta dhabta ah ee sanduuqa la tiriyay.",
+      "enterActualMobileWallets": "Geli wadarta lagu helay jeebka moobilka.",
       "enterDifferenceJustification": "Geli sababta farqiga si aad u dhammeystirto xiritaanka.",
       "closeRegisterApiFailed": "Lama xiri karo sanduuqa API-ga.",
       "closeCompletePrintFailed": "Xiritaanku wuu dhammaaday, laakiin daabacaadda warbixinta waa fashilantay: {error}",
@@ -529,8 +553,104 @@
     "reversalInProgress": "Codsiga celinta ayaa socda. Fadlan sug.",
     "httpError": "Khalad HTTP {status}"
   },
+  "mesas": {
+    "title": "Miisaska",
+    "subtitle": "Maamul dalabyada miiska",
+    "tables": "Miisaska la heli karo",
+    "emptyTables": "Weli miisas ma jiraan. Abuur miiska ugu horreeya oo leh koodh gaar ah.",
+    "selectTable": "Dooro miis si aad u furto ama u maamusho dalabka.",
+    "addProducts": "Ku dar alaab",
+    "searchPlaceholder": "Raadi alaab...",
+    "emptyOrder": "Wax isticmaal ah laguma diiwaangelin miiskan.",
+    "total": "Wadarta",
+    "status": {
+      "free": "Bannaan",
+      "occupied": "La qabsaday"
+    },
+    "columns": {
+      "item": "Shay",
+      "qty": "Tirada",
+      "total": "Wadarta"
+    },
+    "actions": {
+      "newTable": "Miis cusub",
+      "open": "Fur miiska",
+      "create": "Abuur miis",
+      "print": "Daabac xisaab",
+      "transfer": "Wareeji",
+      "pay": "Bixi miiska",
+      "close": "Xir miiska",
+      "closeRequiresPay": "Bixi isticmaalka ka hor intaadan xirin miiska",
+      "confirmPay": "Xaqiiji bixinta",
+      "confirmPartialPay": "Bixi kuwa la doortay"
+    },
+    "modals": {
+      "openTitle": "Fur miiska",
+      "createTitle": "Abuur miis",
+      "transferTitle": "Wareeji isticmaalka",
+      "payTitle": "Bixi miiska",
+      "payItems": "Shayada la bixinayo",
+      "payQuantity": "Tirada la bixinayo",
+      "selectedTotal": "Wadarta la doortay",
+      "remainingTotal": "Haraaga miiska: {total} MT",
+      "selectAll": "Dooro dhammaan",
+      "clearSelection": "Nadiifi",
+      "description": "Sharaxaad (ikhtiyaari)",
+      "descriptionPlaceholder": "Tusaale: Dhalasho, ballan...",
+      "code": "Koodh gaar ah",
+      "name": "Magac (ikhtiyaari)",
+      "destination": "Miiska loo wareejinayo",
+      "selectDestination": "Dooro miiska...",
+      "noOccupiedDestination": "Ma jiraan miisas kale oo furan. Fur miiska loo wareejinayo ka hor.",
+      "items": "Shayada la wareejinayo",
+      "available": "La heli karo",
+      "transferQuantity": "Tirada la wareejinayo",
+      "quantityTitle": "Tirada",
+      "quantityLabel": "Tirada",
+      "quantityPlaceholder": "Tusaale: 2",
+      "confirmAdd": "Ku dar miiska"
+    },
+    "receipt": {
+      "title": "Xisaabta Miiska"
+    },
+    "toast": {
+      "opened": "Miiska si guul leh ayaa loo furay.",
+      "openFailed": "Lama furi karin miiska.",
+      "tableCreated": "Miiska si guul leh ayaa loo abuuray.",
+      "tableAlreadyExists": "Miiskan hore ayuu u jiray. Waa la doortay — waad furi kartaa amarka.",
+      "tableCreateFailed": "Lama abuuri karin miiska.",
+      "addItemFailed": "Lama dari karin alaabta.",
+      "invalidQuantity": "Geli tirada saxda ah.",
+      "transferQuantityExceeded": "Tirada {item} way ka badan tahay tan la heli karo miiska.",
+      "payQuantityExceeded": "Tirada {item} way ka badan tahay tan la heli karo miiska.",
+      "selectItemsToPay": "Dooro ugu yaraan hal shay si aad u bixiso.",
+      "transferDestinationClosed": "Miiska loo wareejinayo lama furin. Fur miiska ka hor intaadan wareejin.",
+      "transferred": "Isticmaalka si guul leh ayaa loo wareejiyay.",
+      "transferFailed": "Lama wareejin karin isticmaalka.",
+      "printed": "Xisaabta waa la daabacay.",
+      "paid": "Miiska waa la bixiyay oo la xiray.",
+      "paidPartial": "Bixinta waa la diiwaangeliyay. Shay ayaa weli ku haray miiska.",
+      "paidOffline": "Miiska waa la bixiyay maxalliga. Iibka waa la isku-dubaridi doonaa marka xiriirku soo noqdo.",
+      "paidPartialOffline": "Bixinta waa la diiwaangeliyay maxalliga. Iibka waa la isku-dubaridi doonaa marka xiriirku soo noqdo.",
+      "payFailed": "Lama dhammayn karin bixinta.",
+      "shiftRequired": "Fur wareegga sanduuqa ka hor intaadan bixin miiska.",
+      "closed": "Miiska si guul leh ayaa loo xiray.",
+      "payRequiredToClose": "Miiskan wuxuu leeyahay isticmaal. Bixi ka hor intaadan xirin."
+    }
+  },
   "desktopWindow": {
     "minimize": "Yaree daaqada",
+    "maximize": "Balaadhi daaqada",
+    "restore": "Soo celi daaqada",
     "close": "Xir barnaamijka"
+  },
+  "errors": {
+    "logoAlt": "RetailPro POS",
+    "goBack": "Dib u noqo",
+    "goPos": "Tag POS",
+    "notFound": {
+      "title": "Bogga lama helin",
+      "message": "Shaashadda aad raadineysay kuma jirto barnaamijkan."
+    }
   }
 }

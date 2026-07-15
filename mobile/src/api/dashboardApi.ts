@@ -1,4 +1,5 @@
 import { httpRequest } from './httpClient';
+import type { RecentSalesResponse } from './salesApi';
 
 export type DashboardSummary = {
   period: string;
@@ -15,19 +16,15 @@ export type DashboardSummary = {
     vendasPorDia: { labels: string[]; values: number[] };
     metodosPagamento: Array<{ metodo: string; quantidade: number; valor: number }>;
   };
-  ultimasVendas: Array<{
-    id: string;
-    referencia: string;
-    cliente: string;
-    caixa: string;
-    metodoPagamento: string;
-    total: number;
-    estado: string;
-    data: string | null;
-  }>;
+  recentSales: RecentSalesResponse;
 };
 
-export async function fetchDashboardSummary(period = '7d') {
-  const response = await httpRequest<{ data: DashboardSummary }>(`/dashboard/summary?period=${period}`);
+export async function fetchDashboardSummary(period = '7d', salesPage = 1, salesPerPage = 5) {
+  const params = new URLSearchParams({
+    period,
+    sales_page: String(salesPage),
+    sales_per_page: String(salesPerPage),
+  });
+  const response = await httpRequest<{ data: DashboardSummary }>(`/dashboard/summary?${params.toString()}`);
   return response.data;
 }

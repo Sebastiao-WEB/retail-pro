@@ -82,6 +82,22 @@ async function carregarImpressoras() {
   }
 }
 
+function alternarModoSupermercado(evento) {
+  const activo = configuracoes.definirModoSupermercado(evento.target.checked);
+  if (!activo) {
+    evento.target.checked = true;
+    mostrarToastSwal(t("settings.establishment.atLeastOne"), "warning");
+  }
+}
+
+function alternarModoRestaurante(evento) {
+  const activo = configuracoes.definirModoRestaurante(evento.target.checked);
+  if (!activo) {
+    evento.target.checked = true;
+    mostrarToastSwal(t("settings.establishment.atLeastOne"), "warning");
+  }
+}
+
 async function testarGaveta() {
   if (testandoGaveta.value) return;
   if (!window.api?.abrirGaveta) {
@@ -163,6 +179,42 @@ async function testarGaveta() {
               </span>
             </BotaoBase>
           </div>
+        </div>
+      </article>
+
+      <article class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div class="border-b border-slate-200 px-4 py-3">
+          <h3 class="text-sm font-bold text-slate-900">{{ t("settings.establishment.title") }}</h3>
+          <p class="text-xs text-slate-500">{{ t("settings.establishment.subtitle") }}</p>
+        </div>
+        <div class="space-y-3 p-4">
+          <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+            <div>
+              <p class="font-semibold text-slate-700">{{ t("settings.establishment.supermarket") }}</p>
+              <p class="text-[11px] text-slate-500">{{ t("settings.establishment.supermarketHint") }}</p>
+            </div>
+            <input
+              :checked="configuracoes.modoSupermercado"
+              type="checkbox"
+              class="h-4 w-4 accent-amber-500"
+              @change="alternarModoSupermercado"
+            />
+          </label>
+          <label class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700">
+            <div>
+              <p class="font-semibold text-slate-700">{{ t("settings.establishment.restaurant") }}</p>
+              <p class="text-[11px] text-slate-500">{{ t("settings.establishment.restaurantHint") }}</p>
+            </div>
+            <input
+              :checked="configuracoes.modoRestaurante"
+              type="checkbox"
+              class="h-4 w-4 accent-amber-500"
+              @change="alternarModoRestaurante"
+            />
+          </label>
+          <p v-if="!configuracoes.mostrarModuloMesas" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+            {{ t("settings.establishment.tablesHidden") }}
+          </p>
         </div>
       </article>
 

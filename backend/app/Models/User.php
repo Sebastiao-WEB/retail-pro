@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\StoreFloorLocationResolver;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -31,6 +32,8 @@ class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
+
+    protected string $guard_name = 'web';
 
     public $incrementing = false;
 
@@ -109,7 +112,6 @@ class User extends Authenticatable implements JWTSubject
                 $this->register_id = $ids[0];
             }
             $this->syncCaixaAtribuido($ids);
-            $this->syncSourceLocationFromRegister($this->register_id);
         } else {
             $this->register_id = null;
             $this->caixa_atribuido = null;
@@ -138,11 +140,18 @@ class User extends Authenticatable implements JWTSubject
 
     public function syncSourceLocationFromRegister(?string $registerId): void
     {
+        $shared = StoreFloorLocationResolver::findSharedStoreFloor();
+        if ($shared) {
+            $this->source_location_id = $shared->id;
+
+            return;
+        }
+
         if (! $registerId) {
             return;
         }
 
-        $register = Register::query()->with('sourceLocation')->find($registerId);
+        $register = Register::query()->with('stockLocations')->find($registerId);
         $location = $register?->sourceLocation;
         if ($location) {
             $this->source_location_id = $location->id;
@@ -152,5 +161,14 @@ class User extends Authenticatable implements JWTSubject
     public function sourceLocation()
     {
         return $this->belongsTo(StockLocation::class, 'source_location_id');
+    }
+
+    public function isCashier(): bool
+    {
+        if (strcasecmp((string) ($this->role ?? ''), 'CASHIER') === 0) {
+            return true;
+        }
+
+        return $this->hasRole('CASHIER');
     }
 }

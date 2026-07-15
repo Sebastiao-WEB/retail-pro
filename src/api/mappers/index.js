@@ -39,6 +39,9 @@ export function mapearProduto(item) {
     ivaValor: Number(ivaValor ?? ivaPercentual ?? 0),
     ivaPercentual: Number(ivaPercentual ?? (ivaTipo === "percentual" ? ivaValor : 0) ?? 0),
     stock: Number(pick(item, "stock", "stock_quantity") ?? 0),
+    controlaEstoque: pick(item, "controlaEstoque", "controla_estoque") !== false
+      && pick(item, "controlaEstoque", "controla_estoque") !== 0
+      && pick(item, "controlaEstoque", "controla_estoque") !== "0",
   };
 }
 

@@ -2,7 +2,8 @@
 
 return [
     'language' => 'Idioma',
-    'backoffice' => 'Backoffice Livewire',
+    'backoffice' => 'Backoffice',
+    'loading' => 'A carregar...',
     'pos_edition' => 'Edição Caixa Pro',
     'central_management' => 'Gestão central do POS',
     'default_title' => 'Painel administrativo',
@@ -11,6 +12,7 @@ return [
     'logout' => 'Sair',
     'save' => 'Guardar',
     'cancel' => 'Cancelar',
+    'back' => 'Voltar',
     'close' => 'Fechar',
     'edit' => 'Editar',
     'new' => 'Novo',
@@ -43,6 +45,7 @@ return [
         'cash_sessions_active' => 'Sessões activas',
         'cash_sessions_closed' => 'Histórico de fechos',
         'stock_reload' => 'Recarregar stock',
+        'stock_reload_history' => 'Histórico de recargas',
         'stock_movements' => 'Movimentos stock',
         'stock_transfers' => 'Transferências',
         'products' => 'Produtos',
@@ -88,6 +91,7 @@ return [
         'total' => 'Total',
         'date' => 'Data',
         'register' => 'Caixa',
+        'registers' => 'Caixas',
         'period' => 'Período',
         'phone' => 'Telefone',
         'nuit' => 'NUIT',

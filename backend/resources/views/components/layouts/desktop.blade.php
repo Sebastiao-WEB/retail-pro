@@ -1,13 +1,31 @@
+@props(['title' => null, 'adminPage' => null])
+
 <!doctype html>
 <html lang="{{ \App\Support\SupportedLocales::htmlLang(app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? __('app.default_title') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
+    @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/admin.js'])
 </head>
-<body class="h-screen overflow-hidden bg-[var(--bg-app)] text-slate-900">
+<body class="h-screen overflow-hidden bg-[var(--bg-app)] text-slate-900" @if(!empty($adminPage)) data-admin-page="{{ $adminPage }}" @endif>
+    @if (!empty($adminPage))
+        <div
+            id="rp-admin-preloader"
+            class="rp-admin-preloader"
+            role="status"
+            aria-live="polite"
+            aria-label="{{ __('app.loading') }}"
+        >
+            <div class="rp-admin-preloader-panel">
+                <img src="{{ asset('assets/images/rp.png') }}" alt="" class="rp-admin-preloader-logo" aria-hidden="true">
+                <div class="rp-admin-preloader-spinner" aria-hidden="true"></div>
+                <p class="rp-admin-preloader-text">{{ __('app.loading') }}</p>
+            </div>
+        </div>
+    @endif
+
     @php
         $user = auth()->user();
         $nomeUtilizador = $user?->name ?? __('app.operator');
@@ -71,10 +89,10 @@
                         </a>
                     @endcan
                     @can('stock.reload')
-                        <a href="{{ route('stock.reload') }}"
-                           class="{{ request()->routeIs('stock.reload') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
-                            <i data-lucide="rotate-cw" class="h-4 w-4"></i>
-                            <span>{{ __('app.menu.stock_reload') }}</span>
+                        <a href="{{ route('stock.reload.history') }}"
+                           class="{{ request()->routeIs('stock.reload.history') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
+                            <i data-lucide="history" class="h-4 w-4"></i>
+                            <span>{{ __('app.menu.stock_reload_history') }}</span>
                         </a>
                     @endcan
                     @can('stock.movements.view')
@@ -97,7 +115,7 @@
                     <p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ __('app.sections.system') }}</p>
                     @can('products.view')
                         <a href="{{ route('products.index') }}"
-                           class="{{ request()->routeIs('products.*') ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
+                           class="{{ request()->routeIs(['products.*', 'stock.reload.form', 'stock.reload.adjust.form']) ? 'mb-1 flex items-center gap-2 rounded-lg bg-[color:rgba(216,182,90,0.16)] px-2.5 py-2 text-[13px] text-[var(--gold)] transition' : 'mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-300 transition hover:bg-[var(--dark-soft)] hover:text-white' }}">
                             <i data-lucide="box" class="h-4 w-4"></i>
                             <span>{{ __('app.menu.products') }}</span>
                         </a>
@@ -228,6 +246,6 @@
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    @livewireScripts
+    @stack('scripts')
 </body>
 </html>

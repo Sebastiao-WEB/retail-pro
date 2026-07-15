@@ -49,6 +49,21 @@ export async function fetchMe() {
   return httpRequest<MeResponse>('/auth/me');
 }
 
+export async function updatePassword(
+  currentPassword: string,
+  password: string,
+  passwordConfirmation: string,
+) {
+  return httpRequest<{ message: string }>('/auth/password', {
+    method: 'PUT',
+    body: JSON.stringify({
+      current_password: currentPassword,
+      password,
+      password_confirmation: passwordConfirmation,
+    }),
+  });
+}
+
 export async function logout() {
   try {
     await httpRequest('/auth/logout', { method: 'POST' });

@@ -7,5 +7,6 @@ export { customersApi } from "./modules/customersApi";
 export { productsApi } from "./modules/productsApi";
 export { purchasesApi } from "./modules/purchasesApi";
 export { salesApi } from "./modules/salesApi";
+export { mesasApi } from "./modules/mesasApi";
 export { stockApi } from "./modules/stockApi";
 

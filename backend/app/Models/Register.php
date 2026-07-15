@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Register extends Model
 {
@@ -19,9 +20,10 @@ class Register extends Model
         'is_active' => 'boolean',
     ];
 
-    public function sourceLocation()
+    public function stockLocations(): BelongsToMany
     {
-        return $this->hasOne(StockLocation::class);
+        return $this->belongsToMany(StockLocation::class, 'register_stock_location')
+            ->withTimestamps();
     }
 
     public function users()
@@ -32,5 +34,20 @@ class Register extends Model
     public function cashSessions()
     {
         return $this->hasMany(CashSession::class);
+    }
+
+    public function getSourceLocationAttribute(): ?StockLocation
+    {
+        if ($this->relationLoaded('stockLocations')) {
+            return $this->stockLocations
+                ->where('is_active', true)
+                ->sortBy('code')
+                ->first();
+        }
+
+        return $this->stockLocations()
+            ->where('stock_locations.is_active', true)
+            ->orderBy('stock_locations.code')
+            ->first();
     }
 }

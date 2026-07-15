@@ -89,9 +89,8 @@ class SaleApiTest extends TestCase
         $produto->update(['stock' => 25]);
 
         StockBalance::query()
-            ->where('location_id', $ambiente['location']->id)
             ->where('product_id', $produto->id)
-            ->update(['quantity' => 0]);
+            ->delete();
 
         $resposta = $this->postJson('/api/v1/sales', [
             'cliente' => 'Cliente Geral',
@@ -128,15 +127,11 @@ class SaleApiTest extends TestCase
         $produto = $ambiente['product'];
         $produto->update(['stock' => 20]);
 
-        $balance = StockBalance::query()
-            ->where('location_id', $ambiente['location']->id)
+        StockBalance::query()
             ->where('product_id', $produto->id)
-            ->first();
+            ->delete();
 
-        $balance->update(['quantity' => 0]);
-        $balance->refresh();
-
-        $versaoActual = (string) optional($balance->updated_at)->toJSON();
+        $versaoActual = '';
 
         $resposta = $this->postJson('/api/v1/sales', [
             'cliente' => 'Cliente Geral',
@@ -161,7 +156,12 @@ class SaleApiTest extends TestCase
 
         $resposta->assertCreated();
 
-        $balance->refresh();
+        $balance = StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->first();
+
+        $this->assertNotNull($balance);
         $this->assertSame(19.0, (float) $balance->quantity);
     }
 
@@ -366,6 +366,45 @@ class SaleApiTest extends TestCase
             ->assertJsonPath('meta.last_page', 2);
 
         $this->assertCount(10, $resposta->json('data'));
+        $this->assertSame('VD-PAG-0', $resposta->json('data.0.referencia'));
+        $resposta->assertJsonStructure(['data' => [['itens']]]);
+    }
+
+    public function test_lista_vendas_filtra_por_periodo(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-HOJE',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 50,
+            'total' => 50,
+            'data' => now(),
+        ]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-ANTIGA',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 80,
+            'total' => 80,
+            'data' => now()->subDays(20),
+        ]);
+
+        $resposta = $this->getJson('/api/v1/sales?period=today&page=1&per_page=10', $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.referencia', 'VD-HOJE');
     }
 
     public function test_rejeita_reenvio_com_mesmo_id_e_conteudo_diferente(): void
@@ -595,7 +634,7 @@ class SaleApiTest extends TestCase
             ->assertJsonPath('data.0.itens.0.valorIvaUnitario', 16);
     }
 
-    public function test_lista_apenas_vendas_do_utilizador_autenticado(): void
+    public function test_lista_vendas_de_todo_o_register(): void
     {
         $ambiente = $this->criarAmbienteApi();
         $token = $this->loginApi($ambiente['user']);
@@ -656,7 +695,44 @@ class SaleApiTest extends TestCase
 
         $resposta
             ->assertOk()
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.referencia', 'VD-MEU-001');
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.0.referencia', 'VD-MEU-001')
+            ->assertJsonPath('data.1.referencia', 'VD-OUTRO-001');
+    }
+
+    public function test_vende_produto_sem_controlo_de_stock_sem_debitar_inventario(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
+        $produto->update(['controla_estoque' => false, 'stock' => 0]);
+
+        StockBalance::query()->where('product_id', $produto->id)->delete();
+
+        $resposta = $this->postJson('/api/v1/sales', [
+            'cliente' => 'Cliente Geral',
+            'register_id' => $ambiente['register']->id,
+            'metodoPagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'itens' => [
+                [
+                    'produtoId' => $produto->id,
+                    'nome' => $produto->nome,
+                    'quantidade' => 2,
+                    'precoVenda' => 50,
+                    'subtotal' => 100,
+                ],
+            ],
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated();
+
+        $produto->refresh();
+        $this->assertSame(0.0, (float) $produto->stock);
+        $this->assertDatabaseMissing('stock_movements', [
+            'product_id' => $produto->id,
+            'type' => 'OUT',
+        ]);
     }
 }

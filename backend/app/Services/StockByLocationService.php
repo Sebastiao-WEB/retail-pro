@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\StockLocation;
 use Illuminate\Support\Collection;
@@ -25,6 +26,7 @@ class StockByLocationService
     {
         $balances = StockBalance::query()
             ->with(['product', 'location'])
+            ->inActiveLocations()
             ->where('quantity', '>', 0)
             ->get()
             ->groupBy('product_id');
@@ -65,10 +67,42 @@ class StockByLocationService
 
     public function quantidadeDisponivel(string $locationId, string $productId): float
     {
-        return (float) StockBalance::query()
+        if (! \App\Support\ProductStockDisplay::localizacaoEstaActiva($locationId)) {
+            return 0.0;
+        }
+
+        return (float) (StockBalance::query()
             ->where('location_id', $locationId)
             ->where('product_id', $productId)
-            ->value('quantity');
+            ->value('quantity') ?? 0);
+    }
+
+    /** @return list<array{location_id: string, codigo: string, nome: string, quantity: float}> */
+    public function saldosDoProdutoPorLocal(string $productId): array
+    {
+        return StockBalance::query()
+            ->with('location')
+            ->where('product_id', $productId)
+            ->where('quantity', '>', 0)
+            ->get()
+            ->map(fn (StockBalance $balance) => [
+                'location_id' => $balance->location_id,
+                'codigo' => $balance->location?->code ?? '—',
+                'nome' => $balance->location?->name ?? '—',
+                'quantity' => (float) $balance->quantity,
+            ])
+            ->sortBy('nome')
+            ->values()
+            ->all();
+    }
+
+    public function stockGlobalDoProduto(string $productId): float
+    {
+        $product = Product::query()->find($productId);
+
+        return $product
+            ? \App\Support\ProductStockDisplay::stockParaExibicao($product)
+            : 0.0;
     }
 
     /** @param Collection<int, StockBalance> $balances */

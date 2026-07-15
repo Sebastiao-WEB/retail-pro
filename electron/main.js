@@ -153,42 +153,28 @@ function obterIconeAplicacao() {
 function opcoesJanelaProducao() {
   return {
     frame: false,
-    fullscreen: true,
-    alwaysOnTop: true,
-    minimizable: false,
+    minimizable: true,
     closable: true,
-    maximizable: false,
-    resizable: false,
+    maximizable: true,
+    resizable: true,
     fullscreenable: true,
     skipTaskbar: false,
   };
 }
 
-function aplicarFullscreenPos(window) {
-  window.setAlwaysOnTop(true, "screen-saver");
-  window.setFullScreen(true);
-  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  window.setMaximizable(false);
-  window.focus();
+function notificarEstadoJanela(window) {
+  if (!window || window.isDestroyed()) return;
+  window.webContents.send("pos:estado-janela", {
+    maximized: window.isMaximized(),
+    minimized: window.isMinimized(),
+    fullscreen: window.isFullScreen(),
+  });
 }
 
-function configurarPersistenciaFullscreen(window, modoJanela) {
-  if (modoJanela) return;
-
-  window.on("blur", () => {
-    if (window.isDestroyed() || window.isMinimized()) return;
-    window.setAlwaysOnTop(true, "screen-saver");
-    window.focus();
-  });
-
-  window.on("leave-full-screen", () => {
-    if (window.isDestroyed() || window.isMinimized()) return;
-    aplicarFullscreenPos(window);
-  });
-
-  window.on("restore", () => {
-    if (window.isDestroyed()) return;
-    aplicarFullscreenPos(window);
+function configurarEventosJanela(window) {
+  const eventos = ["maximize", "unmaximize", "minimize", "restore", "enter-full-screen", "leave-full-screen"];
+  eventos.forEach((evento) => {
+    window.on(evento, () => notificarEstadoJanela(window));
   });
 }
 
@@ -204,13 +190,11 @@ function createWindow() {
       ? {
           width: 1280,
           height: 735,
-          minWidth: 1280,
-          minHeight: 735,
-          maxWidth: 1280,
-          maxHeight: 735,
-          resizable: false,
-          maximizable: false,
-          fullscreenable: false,
+          minWidth: 1024,
+          minHeight: 600,
+          resizable: true,
+          maximizable: true,
+          fullscreenable: true,
         }
       : opcoesJanelaProducao()),
     webPreferences: {
@@ -221,14 +205,14 @@ function createWindow() {
     },
   });
   mainWindow = window;
-  window.setMaximizable(false);
-  configurarPersistenciaFullscreen(window, modoJanela);
+  configurarEventosJanela(window);
 
   window.once("ready-to-show", () => {
     if (!modoJanela) {
-      aplicarFullscreenPos(window);
+      window.maximize();
     }
     window.show();
+    notificarEstadoJanela(window);
   });
 
   // Fallback para ambientes onde preload não injeta window.api.
@@ -281,10 +265,44 @@ function createWindow() {
   window.loadFile(indexLocal);
 }
 
+function obterJanelaAtiva() {
+  return mainWindow || BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+}
+
 ipcMain.handle("pos:fechar-janela", () => {
-  const alvo = mainWindow || BrowserWindow.getFocusedWindow();
-  alvo?.close();
+  obterJanelaAtiva()?.close();
   return { ok: true };
+});
+
+ipcMain.handle("pos:minimizar-janela", () => {
+  const alvo = obterJanelaAtiva();
+  alvo?.minimize();
+  notificarEstadoJanela(alvo);
+  return { ok: true };
+});
+
+ipcMain.handle("pos:alternar-maximizar-janela", () => {
+  const alvo = obterJanelaAtiva();
+  if (!alvo) return { ok: false };
+  if (alvo.isMaximized()) {
+    alvo.unmaximize();
+  } else {
+    alvo.maximize();
+  }
+  notificarEstadoJanela(alvo);
+  return { ok: true, maximized: alvo.isMaximized() };
+});
+
+ipcMain.handle("pos:estado-janela", () => {
+  const alvo = obterJanelaAtiva();
+  if (!alvo) {
+    return { maximized: false, minimized: false, fullscreen: false };
+  }
+  return {
+    maximized: alvo.isMaximized(),
+    minimized: alvo.isMinimized(),
+    fullscreen: alvo.isFullScreen(),
+  };
 });
 
 ipcMain.handle("pos:listar-impressoras", async () => {

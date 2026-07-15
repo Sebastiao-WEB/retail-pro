@@ -53,12 +53,32 @@ class StockAvailabilityApiTest extends TestCase
             ->assertJsonPath('data.'.$produto->id.'.quantity', 33);
     }
 
-    public function test_disponibilidade_usa_stock_global_quando_saldo_local_e_zero(): void
+    public function test_consulta_saldo_local_por_produto_e_localizacao(): void
     {
         $ambiente = $this->criarAmbienteApi();
         $token = $this->loginApi($ambiente['user']);
         $produto = $ambiente['product'];
-        $produto->update(['stock' => 40]);
+
+        StockBalance::query()
+            ->where('location_id', $ambiente['location']->id)
+            ->where('product_id', $produto->id)
+            ->update(['quantity' => 9.5]);
+
+        $resposta = $this->getJson(
+            '/api/v1/stock/balance?location_id='.$ambiente['location']->id.'&product_id='.$produto->id,
+            $this->authHeaders($token)
+        );
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.quantity', 9.5);
+    }
+
+    public function test_disponibilidade_retorna_zero_quando_saldo_local_activo_e_zero(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+        $produto = $ambiente['product'];
 
         StockBalance::query()
             ->where('location_id', $ambiente['location']->id)
@@ -72,6 +92,6 @@ class StockAvailabilityApiTest extends TestCase
 
         $resposta
             ->assertOk()
-            ->assertJsonPath('data.'.$produto->id.'.quantity', 40);
+            ->assertJsonPath('data.'.$produto->id.'.quantity', 0);
     }
 }

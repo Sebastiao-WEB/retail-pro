@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\V1\StockController;
 use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\StockLocationController;
 use App\Http\Controllers\Api\V1\StockTransferController;
+use App\Http\Controllers\Api\V1\DiningTableController;
+use App\Http\Controllers\Api\V1\TableOrderController;
 use App\Http\Controllers\Api\V1\TwoFactorSettingsController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -29,7 +31,9 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:api')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::put('auth/password', [AuthController::class, 'updatePassword']);
         Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('dashboard/recent-sales', [DashboardController::class, 'recentSales']);
 
         Route::prefix('auth/two-factor')->group(function () {
             Route::get('status', [TwoFactorSettingsController::class, 'status']);
@@ -60,6 +64,20 @@ Route::prefix('v1')->group(function () {
         Route::post('sales', [SaleController::class, 'store']);
         Route::get('sales/{sale}', [SaleController::class, 'show']);
 
+        Route::get('dining-tables', [DiningTableController::class, 'index']);
+        Route::post('dining-tables', [DiningTableController::class, 'store']);
+        Route::put('dining-tables/{diningTable}', [DiningTableController::class, 'update']);
+
+        Route::get('table-orders', [TableOrderController::class, 'index']);
+        Route::post('table-orders', [TableOrderController::class, 'store']);
+        Route::post('table-orders/sync', [TableOrderController::class, 'sync']);
+        Route::get('table-orders/{tableOrder}', [TableOrderController::class, 'show']);
+        Route::post('table-orders/{tableOrder}/items', [TableOrderController::class, 'addItems']);
+        Route::delete('table-orders/{tableOrder}/items/{tableOrderItem}', [TableOrderController::class, 'removeItem']);
+        Route::post('table-orders/{tableOrder}/transfer', [TableOrderController::class, 'transfer']);
+        Route::post('table-orders/{tableOrder}/settle-items', [TableOrderController::class, 'settleItems']);
+        Route::post('table-orders/{tableOrder}/close', [TableOrderController::class, 'close']);
+
         Route::get('sale-reversal-requests', [SaleReversalRequestController::class, 'index']);
         Route::post('sale-reversal-requests', [SaleReversalRequestController::class, 'store']);
         Route::patch('sale-reversal-requests/{saleReversalRequest}', [SaleReversalRequestController::class, 'update']);
@@ -80,6 +98,7 @@ Route::prefix('v1')->group(function () {
 
         Route::post('stock/reload', [StockController::class, 'reload']);
         Route::post('stock/adjust', [StockController::class, 'adjust']);
+        Route::get('stock/balance', [StockController::class, 'balance']);
         Route::get('stock/availability', [StockController::class, 'availability']);
         Route::get('stock/movements', [StockMovementController::class, 'index']);
         Route::get('stock/transfers', [StockTransferController::class, 'index']);

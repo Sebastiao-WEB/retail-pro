@@ -93,6 +93,7 @@
     "posSection": "POS",
     "pointOfSale": "Ponto de venda",
     "cashRegister": "Caixa",
+    "tables": "Mesas",
     "shiftStatus": "Estado do turno",
     "shiftOpen": "Turno aberto",
     "shiftClosed": "Turno fechado",
@@ -127,6 +128,10 @@
       "seguranca": {
         "title": "Segurança",
         "subtitle": "Autenticação de dois factores da conta"
+      },
+      "mesas": {
+        "title": "Mesas",
+        "subtitle": "Comandas de bar e restaurante"
       }
     },
     "backend": {
@@ -173,6 +178,16 @@
       "address": "Endereço",
       "bank": "Banco",
       "iban": "IBAN / Nº Conta"
+    },
+    "establishment": {
+      "title": "Tipo de estabelecimento",
+      "subtitle": "Define que módulos do POS ficam disponíveis nesta instalação",
+      "supermarket": "Supermercado",
+      "supermarketHint": "Venda de balcão e gestão de stock por loja",
+      "restaurant": "Restaurante / bar",
+      "restaurantHint": "Activa mesas, comandas e transferência entre mesas",
+      "tablesHidden": "O menu Mesas está oculto porque o modo restaurante está desactivado.",
+      "atLeastOne": "Seleccione pelo menos um tipo de estabelecimento."
     },
     "printing": {
       "title": "Impressão do POS",
@@ -315,7 +330,8 @@
       "resultsCount": "{count} produto(s) encontrado(s)",
       "addToCart": "Adicionar ao carrinho",
       "emptyHint": "Digite no campo de pesquisa para listar produtos.",
-      "pricePerKg": "/ kg"
+      "pricePerKg": "/ kg",
+      "madeToOrder": "Sob pedido"
     },
     "weightModal": {
       "title": "Quantidade por peso",
@@ -390,8 +406,11 @@
         "cashSales": "Vendas Dinheiro",
         "transferSales": "Vendas Transfer.",
         "expectedCash": "Dinheiro esperado",
+        "expectedTransfers": "Transfer. esperadas",
         "actualCash": "Dinheiro contado",
-        "difference": "Diferenca",
+        "actualMobileWallets": "Carteiras moveis",
+        "difference": "Diferenca caixa",
+        "transferDifference": "Diferenca transfer.",
         "justification": "Justificativa"
       }
     },
@@ -416,8 +435,12 @@
       "cashSales": "Vendas em Dinheiro:",
       "transferSales": "Vendas por Transferência:",
       "expectedCash": "Dinheiro esperado:",
+      "expectedTransfers": "Transferências esperadas:",
       "actualCashLabel": "Dinheiro real contado no caixa",
-      "difference": "Diferença (sobra/falta):",
+      "actualMobileWalletsLabel": "Total recebido nas carteiras móveis",
+      "mobileWalletsHint": "Informe o total de transferências recebidas neste turno (M-Pesa, e-Mola, etc.).",
+      "cashDifference": "Diferença na gaveta:",
+      "transferDifference": "Diferença nas transferências:",
       "justificationRequired": "Justificativa da diferença (obrigatório)",
       "justificationPlaceholder": "Ex: troco em aberto, sangria não registada, erro operacional...",
       "closing": "A fechar...",
@@ -497,6 +520,7 @@
       "openRegisterSuccessLocal": "Caixa aberto localmente. API de sessão indisponível: {error}",
       "openRegisterSuccess": "Caixa aberto com fundo inicial de {amount}.",
       "enterActualCash": "Informe o dinheiro real contado no caixa.",
+      "enterActualMobileWallets": "Informe o total recebido nas carteiras móveis.",
       "enterDifferenceJustification": "Informe a justificativa da diferença para concluir o fecho.",
       "closeRegisterApiFailed": "Não foi possível fechar caixa na API.",
       "closeCompletePrintFailed": "Fecho concluído, mas falhou a impressão do relatório: {error}",
@@ -529,8 +553,106 @@
     "reversalInProgress": "Pedido de reversão em curso. Aguarde um momento.",
     "httpError": "Erro HTTP {status}"
   },
+  "mesas": {
+    "title": "Mesas",
+    "subtitle": "Gerir comandas por mesa",
+    "tables": "Mesas disponíveis",
+    "emptyTables": "Ainda não existem mesas. Crie a primeira mesa com um código único.",
+    "selectTable": "Seleccione uma mesa para abrir ou gerir a comanda.",
+    "notOpen": "Esta mesa ainda não está aberta. Clique em \"Abrir mesa\" para iniciar a comanda.",
+    "addProducts": "Adicionar produtos",
+    "searchPlaceholder": "Pesquisar produto...",
+    "emptyOrder": "Nenhum consumo registado nesta mesa.",
+    "total": "Total",
+    "status": {
+      "free": "Livre",
+      "occupied": "Ocupado"
+    },
+    "columns": {
+      "item": "Item",
+      "qty": "Qtd",
+      "total": "Total"
+    },
+    "actions": {
+      "newTable": "Nova mesa",
+      "open": "Abrir mesa",
+      "create": "Criar mesa",
+      "print": "Imprimir conta",
+      "transfer": "Transferir",
+      "pay": "Pagar mesa",
+      "close": "Fechar mesa",
+      "closeRequiresPay": "Pague os consumos antes de fechar a mesa",
+      "confirmPay": "Confirmar pagamento",
+      "confirmPartialPay": "Pagar seleccionados"
+    },
+    "modals": {
+      "openTitle": "Abrir mesa",
+      "createTitle": "Criar mesa",
+      "transferTitle": "Transferir consumos",
+      "payTitle": "Pagar mesa",
+      "payItems": "Itens a pagar",
+      "payQuantity": "Quantidade a pagar",
+      "selectedTotal": "Total seleccionado",
+      "remainingTotal": "Restante na mesa: {total} MT",
+      "selectAll": "Seleccionar todos",
+      "clearSelection": "Limpar",
+      "description": "Descrição (opcional)",
+      "descriptionPlaceholder": "Ex: Aniversário, reserva João...",
+      "code": "Código único",
+      "name": "Nome (opcional)",
+      "destination": "Mesa de destino",
+      "selectDestination": "Seleccione a mesa...",
+      "noOccupiedDestination": "Não há outras mesas abertas. Abra a mesa de destino antes de transferir.",
+      "items": "Itens a transferir",
+      "available": "Disponível",
+      "transferQuantity": "Quantidade a transferir",
+      "quantityTitle": "Quantidade",
+      "quantityLabel": "Quantidade",
+      "quantityPlaceholder": "Ex: 2",
+      "confirmAdd": "Adicionar à mesa"
+    },
+    "receipt": {
+      "title": "Conta da Mesa"
+    },
+    "toast": {
+      "opened": "Mesa aberta com sucesso.",
+      "openFailed": "Não foi possível abrir a mesa.",
+      "tableCreated": "Mesa criada com sucesso.",
+      "tableAlreadyExists": "Esta mesa já existe. Foi seleccionada — pode abrir a comanda.",
+      "tableCreateFailed": "Não foi possível criar a mesa.",
+      "addItemFailed": "Não foi possível adicionar o produto.",
+      "invalidQuantity": "Indique uma quantidade válida.",
+      "transferQuantityExceeded": "A quantidade de {item} excede o disponível na mesa.",
+      "payQuantityExceeded": "A quantidade de {item} excede o disponível na mesa.",
+      "selectItemsToPay": "Seleccione pelo menos um item para pagar.",
+      "transferDestinationClosed": "A mesa de destino não está aberta. Abra a mesa antes de transferir.",
+      "transferred": "Consumos transferidos com sucesso.",
+      "transferFailed": "Não foi possível transferir os consumos.",
+      "printed": "Conta impressa.",
+      "paid": "Mesa paga e fechada com sucesso.",
+      "paidPartial": "Pagamento registado. Restam itens na mesa.",
+      "paidOffline": "Mesa paga localmente. A venda será sincronizada quando houver ligação.",
+      "paidPartialOffline": "Pagamento registado localmente. A venda será sincronizada quando houver ligação.",
+      "payFailed": "Não foi possível concluir o pagamento.",
+      "shiftRequired": "Abra o turno de caixa antes de pagar a mesa.",
+      "shiftRequiredOpen": "Abra o turno de caixa antes de abrir a mesa.",
+      "closed": "Mesa fechada com sucesso.",
+      "payRequiredToClose": "Esta mesa tem consumos registados. Pague antes de fechar."
+    }
+  },
   "desktopWindow": {
     "minimize": "Minimizar janela",
+    "maximize": "Maximizar janela",
+    "restore": "Restaurar janela",
     "close": "Fechar aplicação"
+  },
+  "errors": {
+    "logoAlt": "RetailPro POS",
+    "goBack": "Voltar",
+    "goPos": "Ir para o caixa",
+    "notFound": {
+      "title": "Página não encontrada",
+      "message": "O ecrã que procurou não existe nesta aplicação."
+    }
   }
 }

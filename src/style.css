@@ -61,6 +61,34 @@ button:disabled {
   box-shadow: 0 0 0 3px rgba(216, 182, 90, 0.18);
 }
 
+.rp-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.rp-label .rp-input,
+.rp-label .rp-select {
+  margin-top: 4px;
+}
+
+.rp-select {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #d8dde6;
+  background: #fff;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.rp-select:focus {
+  outline: none;
+  border-color: #c8ab5b;
+  box-shadow: 0 0 0 3px rgba(216, 182, 90, 0.18);
+}
+
 .rp-section-title {
   font-size: 10px;
   font-weight: 700;
@@ -77,7 +105,14 @@ button:disabled {
   z-index: 20001 !important;
 }
 
-html.pos-desktop-frameless header,
+html.pos-desktop-frameless body {
+  padding-top: 2rem;
+}
+
+html.pos-desktop-frameless #app {
+  min-height: calc(100vh - 2rem);
+}
+
 html.pos-desktop-frameless .pos-login-top {
-  padding-right: 2.75rem;
+  top: 2.5rem;
 }

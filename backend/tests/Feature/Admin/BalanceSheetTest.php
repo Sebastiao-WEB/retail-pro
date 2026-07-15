@@ -44,12 +44,12 @@ class BalanceSheetTest extends TestCase
         $location = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-BAL',
-            'register_id' => $register->id,
             'name' => 'Loja Balanço',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $location->registers()->sync([$register->id]);
 
         $product = Product::query()->create([
             'id' => (string) Str::uuid(),
@@ -101,6 +101,180 @@ class BalanceSheetTest extends TestCase
         $this->assertEquals(75.0, (float) $balance->total_stock_valor_venda);
         $this->assertSame(1, $balance->locationLines()->count());
         $this->assertEquals(5.0, (float) $balance->locationLines()->first()->quantity);
+    }
+
+    public function test_balanco_ignora_stock_em_localizacao_inactiva(): void
+    {
+        $user = User::factory()->create(['role' => 'ADMIN']);
+        $user->assignRole('ADMIN');
+
+        $register = Register::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'CX-BAL-2',
+            'name' => 'Caixa Balanço 2',
+            'is_active' => true,
+        ]);
+
+        $localActivo = StockLocation::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'LOC-ACT',
+            'name' => 'Loja Activa',
+            'type' => 'STORE_FLOOR',
+            'is_saleable' => true,
+            'is_active' => true,
+        ]);
+        $localActivo->registers()->sync([$register->id]);
+
+        $localInactivo = StockLocation::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'LOC-OFF',
+            'name' => 'Loja Desactivada',
+            'type' => 'WAREHOUSE',
+            'is_saleable' => false,
+            'is_active' => false,
+        ]);
+        $localInactivo->registers()->sync([$register->id]);
+
+        $product = Product::query()->create([
+            'id' => (string) Str::uuid(),
+            'nome' => 'Produto Local Inactivo',
+            'codigo_barras' => '7777777777777',
+            'preco_compra' => 8,
+            'preco_venda' => 12,
+            'iva_tipo' => 'ISENTO',
+            'iva_valor' => 0,
+            'iva_percentual' => 0,
+            'stock' => 15,
+            'is_active' => true,
+        ]);
+
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $localActivo->id,
+            'product_id' => $product->id,
+            'quantity' => 5,
+        ]);
+
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $localInactivo->id,
+            'product_id' => $product->id,
+            'quantity' => 10,
+        ]);
+
+        $balance = app(BalanceSheetBuilder::class)->create([
+            'titulo' => 'Balanço Locais',
+            'data_referencia' => now()->toDateString(),
+            'periodo_inicio' => now()->startOfMonth()->toDateString(),
+            'periodo_fim' => now()->toDateString(),
+        ], $user->id);
+
+        $line = $balance->lines()->first();
+
+        $this->assertNotNull($line);
+        $this->assertEquals(5.0, (float) $line->qtd_stock);
+        $this->assertEquals(40.0, (float) $line->valor_stock_compra);
+        $this->assertEquals(60.0, (float) $line->valor_stock_venda);
+        $this->assertEquals(5.0, (float) $balance->total_stock_qtd);
+        $this->assertSame(1, $balance->locationLines()->count());
+        $this->assertEquals($localActivo->id, $balance->locationLines()->first()->location_id);
+    }
+
+    public function test_balanco_ignora_recargas_para_localizacao_inactiva(): void
+    {
+        $user = User::factory()->create(['role' => 'ADMIN']);
+        $user->assignRole('ADMIN');
+
+        $register = Register::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'CX-BAL-3',
+            'name' => 'Caixa Balanço 3',
+            'is_active' => true,
+        ]);
+
+        $localInactivo = StockLocation::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'LOC-OFF-2',
+            'name' => 'Armaz?m Desactivado',
+            'type' => 'WAREHOUSE',
+            'is_saleable' => false,
+            'is_active' => false,
+        ]);
+        $localInactivo->registers()->sync([$register->id]);
+
+        $product = Product::query()->create([
+            'id' => (string) Str::uuid(),
+            'nome' => 'Produto Só Local Inactivo',
+            'codigo_barras' => '6666666666666',
+            'preco_compra' => 5,
+            'preco_venda' => 8,
+            'iva_tipo' => 'ISENTO',
+            'iva_valor' => 0,
+            'iva_percentual' => 0,
+            'stock' => 12,
+            'is_active' => true,
+        ]);
+
+        StockMovement::query()->create([
+            'id' => (string) Str::uuid(),
+            'product_id' => $product->id,
+            'to_location_id' => $localInactivo->id,
+            'type' => 'IN',
+            'quantity' => 12,
+            'unit_cost' => 5,
+            'reference_type' => 'STOCK_RELOAD',
+            'reference_id' => (string) Str::uuid(),
+            'created_at' => now(),
+        ]);
+
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $localInactivo->id,
+            'product_id' => $product->id,
+            'quantity' => 12,
+        ]);
+
+        $balance = app(BalanceSheetBuilder::class)->create([
+            'titulo' => 'Balanço Recarga Inactiva',
+            'data_referencia' => now()->toDateString(),
+            'periodo_inicio' => now()->startOfMonth()->toDateString(),
+            'periodo_fim' => now()->toDateString(),
+        ], $user->id);
+
+        $this->assertSame(0, $balance->lines()->count());
+        $this->assertSame(0, $balance->locationLines()->count());
+        $this->assertEquals(0.0, (float) $balance->total_recargas_valor);
+        $this->assertEquals(0.0, (float) $balance->total_stock_qtd);
+    }
+
+    public function test_listagem_balancos_do_mais_recente_para_o_mais_antigo(): void
+    {
+        $user = User::factory()->create(['role' => 'ADMIN']);
+        $user->assignRole('ADMIN');
+
+        $builder = app(BalanceSheetBuilder::class);
+
+        $antigo = $builder->create([
+            'titulo' => 'Balanço Antigo',
+            'data_referencia' => '2025-01-31',
+            'periodo_inicio' => '2025-01-01',
+            'periodo_fim' => '2025-01-31',
+        ], $user->id);
+
+        $recente = $builder->create([
+            'titulo' => 'Balanço Recente',
+            'data_referencia' => '2025-03-31',
+            'periodo_inicio' => '2025-03-01',
+            'periodo_fim' => '2025-03-31',
+        ], $user->id);
+
+        $response = $this->actingAs($user)->get(route('balance-sheets.index'));
+
+        $response->assertOk();
+        $response->assertSeeInOrder([
+            $recente->referencia,
+            $antigo->referencia,
+        ]);
     }
 
     public function test_pagina_balanco_requer_autenticacao(): void

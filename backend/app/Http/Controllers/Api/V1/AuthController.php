@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\Register;
-use App\Models\StockLocation;
+use App\Support\StoreFloorLocationResolver;
 use App\Models\User;
 use App\Services\ApiTwoFactorChallengeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Fortify;
 
@@ -97,7 +98,7 @@ class AuthController extends Controller
         $user = $request->user('api');
         abort_unless($user, 401);
 
-        $user->loadMissing(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation']);
+        $user->loadMissing(['registers.stockLocations', 'register.stockLocations', 'sourceLocation']);
 
         $registers = $user->assignedRegisters();
         $selectedRegister = $user->register_id
@@ -140,7 +141,7 @@ class AuthController extends Controller
         }
 
         $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation'])
+            ->with(['registers.stockLocations', 'register.stockLocations', 'sourceLocation'])
             ->find($challenge['user_id']);
 
         if (! $user || ! $user->is_active) {
@@ -229,10 +230,42 @@ class AuthController extends Controller
         ]);
     }
 
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user('api');
+        abort_unless($user, 401);
+
+        $dados = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'confirmed', Password::default()],
+        ], [
+            'current_password.required' => 'Informe a senha actual.',
+            'password.required' => 'Informe a nova senha.',
+            'password.confirmed' => 'A confirmação da nova senha não coincide.',
+        ]);
+
+        if (! Hash::check($dados['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'A senha actual está incorrecta.',
+                'errors' => [
+                    'current_password' => ['A senha actual está incorrecta.'],
+                ],
+            ], 422);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($dados['password']),
+        ])->save();
+
+        return response()->json([
+            'message' => 'Senha actualizada com sucesso.',
+        ]);
+    }
+
     private function findUserByCredentials(string $username, string $password): User|\Illuminate\Http\JsonResponse
     {
         $user = User::query()
-            ->with(['registers.sourceLocation', 'register.sourceLocation', 'sourceLocation'])
+            ->with(['registers.stockLocations', 'register.stockLocations', 'sourceLocation'])
             ->where(function ($q) use ($username) {
                 $q->where('username', $username)
                     ->orWhere('email', $username);
@@ -327,6 +360,10 @@ class AuthController extends Controller
 
     private function userCanAccessMobileAdmin(User $user): bool
     {
+        if ($user->isCashier()) {
+            return false;
+        }
+
         if (in_array((string) ($user->role ?? ''), ['ADMIN', 'MANAGER'], true)) {
             return true;
         }
@@ -399,7 +436,7 @@ class AuthController extends Controller
 
     private function serializeUser(User $user, Register $selectedRegister, $allRegisters): array
     {
-        $selectedRegister->loadMissing('sourceLocation');
+        $selectedRegister->loadMissing('stockLocations');
         $user->loadMissing('sourceLocation');
 
         $sourceLocation = $this->resolveSourceLocationPayload($user, $selectedRegister);
@@ -421,22 +458,12 @@ class AuthController extends Controller
     }
 
     /**
-     * Local de stock para o POS: caixa (stock_locations.register_id) ou campo do utilizador.
+     * Local de stock para o POS: piso de loja partilhado (supermercado) ou fallback legado por caixa.
      *
      * @return array{id: string, code: string, name: string}|null
      */
     private function resolveSourceLocationPayload(User $user, Register $register): ?array
     {
-        $location = $register->sourceLocation ?? $user->sourceLocation;
-
-        if (! $location instanceof StockLocation) {
-            return null;
-        }
-
-        return [
-            'id' => $location->id,
-            'code' => $location->code,
-            'name' => $location->name,
-        ];
+        return StoreFloorLocationResolver::payloadForPos($user, $register);
     }
 }

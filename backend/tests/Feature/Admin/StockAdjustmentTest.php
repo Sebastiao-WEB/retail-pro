@@ -2,14 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\StockReloadPage;
 use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Services\StockAdjustmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\Concerns\ApiTestHelpers;
@@ -82,7 +80,7 @@ class StockAdjustmentTest extends TestCase
         );
     }
 
-    public function test_pagina_recarga_permite_corrigir_via_livewire(): void
+    public function test_pagina_recarga_permite_corrigir_via_api_web(): void
     {
         $ambiente = $this->criarAmbienteApi();
         $admin = $ambiente['user'];
@@ -91,13 +89,14 @@ class StockAdjustmentTest extends TestCase
 
         $produto = $ambiente['product'];
 
-        Livewire::actingAs($admin)
-            ->test(StockReloadPage::class)
-            ->call('openAdjustModal', $produto->id)
-            ->set('adjustmentDelta', '-3')
-            ->set('note', 'Correção recarga')
-            ->call('applyAdjustment')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)
+            ->postJson(route('stock.reload.adjust'), [
+                'productId' => $produto->id,
+                'to_location_id' => $ambiente['location']->id,
+                'adjustmentDelta' => -3,
+                'note' => 'Correção recarga',
+            ])
+            ->assertOk();
 
         $movement = StockMovement::query()
             ->where('product_id', $produto->id)
@@ -107,5 +106,40 @@ class StockAdjustmentTest extends TestCase
 
         $this->assertNotNull($movement);
         $this->assertSame('Correção recarga', $movement->note);
+    }
+
+    public function test_paginas_recarga_e_ajuste_abrem_para_produto(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['stock.reload', 'products.view']);
+
+        $produto = $ambiente['product'];
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload.form', ['product' => $produto, 'search' => 'teste']))
+            ->assertOk()
+            ->assertSee($produto->nome)
+            ->assertDontSee('stock-reload-modal', false);
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload.adjust.form', ['product' => $produto, 'search' => 'teste']))
+            ->assertOk()
+            ->assertSee($produto->nome)
+            ->assertDontSee('stock-adjust-modal', false);
+    }
+
+    public function test_historico_recargas_abre_pagina_dedicada(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['stock.reload', 'products.view']);
+
+        $this->actingAs($admin)
+            ->get(route('stock.reload.history'))
+            ->assertOk()
+            ->assertSee(__('pages.stock_reload_history.title'));
     }
 }

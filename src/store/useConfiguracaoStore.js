@@ -31,6 +31,8 @@ const configuracoesPadrao = {
   abrirGavetaAutomatico: true,
   gavetaPin: 0,
   somToastsAtivo: true,
+  modoSupermercado: true,
+  modoRestaurante: false,
 };
 
 function construirPayloadPersistencia(estado) {
@@ -46,6 +48,10 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
     ...configuracoesPadrao,
     carregado: false,
   }),
+  getters: {
+    /** Mesas/comandas só fazem sentido com módulo de restaurante activo. */
+    mostrarModuloMesas: (state) => !!state.modoRestaurante,
+  },
   actions: {
     aplicarDadosEmpresa(dados = {}) {
       const empresa = {
@@ -133,6 +139,24 @@ export const useConfiguracaoStore = defineStore("configuracoes", {
     definirSomToastsAtivo(valor) {
       this.somToastsAtivo = !!valor;
       this.salvar();
+    },
+    definirModoSupermercado(valor) {
+      const activo = !!valor;
+      if (!activo && !this.modoRestaurante) {
+        return false;
+      }
+      this.modoSupermercado = activo;
+      this.salvar();
+      return true;
+    },
+    definirModoRestaurante(valor) {
+      const activo = !!valor;
+      if (!activo && !this.modoSupermercado) {
+        return false;
+      }
+      this.modoRestaurante = activo;
+      this.salvar();
+      return true;
     },
   },
 });

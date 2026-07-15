@@ -96,14 +96,8 @@ class PermissionCatalog
     /** @return list<string> */
     public static function cashierDefaultPermissions(): array
     {
-        return [
-            'dashboard.view',
-            'sales.view',
-            'customers.view',
-            'products.view',
-            'stock.reload',
-            'stock.movements.view',
-        ];
+        // Caixas operam apenas no POS — sem acesso ao painel administrativo web.
+        return [];
     }
 
     public static function sync(string $guard = 'web'): void

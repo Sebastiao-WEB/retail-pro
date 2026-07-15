@@ -1,8 +1,10 @@
 import { httpRequest } from './httpClient';
+import type { SaleDetail } from './salesApi';
 
 export type ReversalRequest = {
   id: string;
   saleId: string;
+  sale: SaleDetail | null;
   requestedBy: string;
   approvedBy: string | null;
   status: string;
@@ -11,8 +13,20 @@ export type ReversalRequest = {
   decidedAt: string | null;
 };
 
-export async function fetchReversalRequests() {
-  const response = await httpRequest<{ data: ReversalRequest[] }>('/sale-reversal-requests');
+export type ReversalRequestsResponse = {
+  items: ReversalRequest[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+};
+
+export async function fetchReversalRequests(page = 1, perPage = 10) {
+  const response = await httpRequest<{ data: ReversalRequestsResponse }>(
+    `/sale-reversal-requests?page=${page}&per_page=${perPage}`,
+  );
   return response.data;
 }
 

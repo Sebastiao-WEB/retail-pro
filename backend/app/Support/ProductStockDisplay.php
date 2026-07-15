@@ -4,8 +4,10 @@ namespace App\Support;
 
 use App\Models\Product;
 use App\Models\StockBalance;
+use App\Models\StockLocation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Stock efectivo para POS/API: saldo do local quando existir;
@@ -13,6 +15,67 @@ use Illuminate\Support\Str;
  */
 final class ProductStockDisplay
 {
+    public static function controlaEstoque(Product $product): bool
+    {
+        return $product->controlaEstoque();
+    }
+
+    public static function somaStockLocaisActivos(string $productId): float
+    {
+        return (float) StockBalance::query()
+            ->where('product_id', $productId)
+            ->inActiveLocations()
+            ->sum('quantity');
+    }
+
+    public static function sincronizarStockGlobal(string $productId): void
+    {
+        Product::query()->whereKey($productId)->update([
+            'stock' => self::somaStockLocaisActivos($productId),
+        ]);
+    }
+
+    public static function sincronizarStockGlobalDosProdutosDaLocalizacao(string $locationId): void
+    {
+        StockBalance::query()
+            ->where('location_id', $locationId)
+            ->distinct()
+            ->pluck('product_id')
+            ->each(fn (string $productId) => self::sincronizarStockGlobal($productId));
+    }
+
+    public static function stockParaExibicao(Product $product): float
+    {
+        $temSaldos = StockBalance::query()->where('product_id', $product->id)->exists();
+
+        if (! $temSaldos) {
+            return (float) $product->stock;
+        }
+
+        if (isset($product->stock_activo)) {
+            return (float) ($product->stock_activo ?? 0);
+        }
+
+        return self::somaStockLocaisActivos($product->id);
+    }
+
+    public static function localizacaoEstaActiva(string $locationId): bool
+    {
+        return StockLocation::query()
+            ->whereKey($locationId)
+            ->active()
+            ->exists();
+    }
+
+    public static function exigirLocalizacaoActiva(string $locationId, string $campo = 'location_id'): void
+    {
+        if (! self::localizacaoEstaActiva($locationId)) {
+            throw ValidationException::withMessages([
+                $campo => [__('validation.stock_location_inactive')],
+            ]);
+        }
+    }
+
     /**
      * @param  Collection<string, float>|array<string, float>  $saldoLocalPorProduto  quantity por product_id no local pedido
      */
@@ -21,10 +84,14 @@ final class ProductStockDisplay
         ?string $locationId,
         Collection|array $saldoLocalPorProduto = [],
     ): float {
-        $global = (float) $product->stock;
+        $global = self::stockParaExibicao($product);
 
         if ($locationId === null || $locationId === '') {
             return $global;
+        }
+
+        if (! self::localizacaoEstaActiva($locationId)) {
+            return 0.0;
         }
 
         $mapaLocal = $saldoLocalPorProduto instanceof Collection
@@ -35,7 +102,7 @@ final class ProductStockDisplay
             return (float) $mapaLocal[$product->id];
         }
 
-        return $global;
+        return 0.0;
     }
 
     /**
@@ -43,7 +110,11 @@ final class ProductStockDisplay
      */
     public static function quantidadeParaVenda(Product $product, string $locationId, ?StockBalance $balance = null): float
     {
-        $global = (float) $product->stock;
+        if (! self::localizacaoEstaActiva($locationId)) {
+            return 0.0;
+        }
+
+        $global = self::stockParaExibicao($product);
 
         if ($balance) {
             $local = (float) $balance->quantity;
@@ -72,12 +143,16 @@ final class ProductStockDisplay
         string $productId,
         float $quantidadeNecessaria = 0.0,
     ): ?StockBalance {
+        if (! self::localizacaoEstaActiva($locationId)) {
+            return null;
+        }
+
         $produto = Product::query()->whereKey($productId)->lockForUpdate()->first();
         if (! $produto) {
             return null;
         }
 
-        $global = (float) $produto->stock;
+        $global = self::stockParaExibicao($produto);
         if ($global <= 0) {
             return null;
         }

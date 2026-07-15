@@ -340,7 +340,10 @@ export function gerarBufferEscposRelatorioFecho(payload, opcoes = {}) {
     [labels.transferSales || "Vendas Transfer.", formatarMoeda(relatorio.vendasTransferencia)],
     [labels.expectedCash || "Dinheiro esperado", formatarMoeda(relatorio.dinheiroEsperado)],
     [labels.actualCash || "Dinheiro contado", formatarMoeda(relatorio.dinheiroReal)],
-    [labels.difference || "Diferenca", formatarMoeda(relatorio.diferenca)],
+    [labels.difference || "Diferenca caixa", formatarMoeda(relatorio.diferenca)],
+    [labels.expectedTransfers || "Transfer. esperadas", formatarMoeda(relatorio.transferenciasEsperadas)],
+    [labels.actualMobileWallets || "Carteiras moveis", formatarMoeda(relatorio.transferenciasReais)],
+    [labels.transferDifference || "Diferenca transfer.", formatarMoeda(relatorio.diferencaTransferencias)],
   ];
   for (const [rotulo, valor] of resumo) {
     partes.push(linhaResumo(rotulo, valor, largura));

@@ -44,6 +44,7 @@ const paginaAtual = computed(() => {
     "historico-vendas": { titulo: t("header.pages.historicoVendas.title"), subtitulo: t("header.pages.historicoVendas.subtitle") },
     "historico-fechos": { titulo: t("header.pages.historicoFechos.title"), subtitulo: t("header.pages.historicoFechos.subtitle") },
     configuracoes: { titulo: t("header.pages.configuracoes.title"), subtitulo: t("header.pages.configuracoes.subtitle") },
+    mesas: { titulo: t("header.pages.mesas.title"), subtitulo: t("header.pages.mesas.subtitle") },
     seguranca: { titulo: t("header.pages.seguranca.title"), subtitulo: t("header.pages.seguranca.subtitle") },
   };
   return chaves[route.name] || { titulo: t("header.defaultTitle"), subtitulo: t("header.defaultSubtitle") };

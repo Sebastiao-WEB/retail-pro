@@ -7,7 +7,7 @@ return [
     'product_saved' => 'Produto guardado com sucesso.',
     'product_updated' => 'Produto actualizado.',
     'product_created' => 'Produto criado.',
-    'product_created_reload' => 'Produto criado. Use Recarregar stock para entrar mercadoria.',
+    'product_created_reload' => 'Produto criado. Use Produtos para registar a entrada de mercadoria.',
     'customer_updated' => 'Cliente actualizado.',
     'customer_created' => 'Cliente criado.',
     'customer_disabled' => 'Cliente desactivado.',

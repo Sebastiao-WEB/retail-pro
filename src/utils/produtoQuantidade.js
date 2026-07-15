@@ -69,3 +69,10 @@ export function formatarStockExibicao(stock, unidadeVenda, locale = "pt-MZ") {
   }
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.floor(Number(stock) || 0));
 }
+
+export function produtoControlaEstoque(produto) {
+  if (!produto) return true;
+  const valor = produto.controlaEstoque ?? produto.controla_estoque;
+  if (valor === false || valor === 0 || valor === "0") return false;
+  return true;
+}

@@ -37,4 +37,39 @@ describe("useConfiguracaoStore", () => {
     expect(guardado).not.toHaveProperty("carregado");
     expect(guardado).not.toHaveProperty("$id");
   });
+
+  it("oculta mesas quando apenas supermercado", () => {
+    const store = useConfiguracaoStore();
+    store.hidratar();
+
+    expect(store.mostrarModuloMesas).toBe(false);
+
+    store.definirModoRestaurante(true);
+    expect(store.mostrarModuloMesas).toBe(true);
+
+    store.definirModoRestaurante(false);
+    expect(store.mostrarModuloMesas).toBe(false);
+  });
+
+  it("impede desactivar os dois modos de estabelecimento", () => {
+    const store = useConfiguracaoStore();
+    store.hidratar();
+
+    store.definirModoRestaurante(true);
+    expect(store.definirModoSupermercado(false)).toBe(true);
+    expect(store.modoSupermercado).toBe(false);
+    expect(store.modoRestaurante).toBe(true);
+
+    expect(store.definirModoRestaurante(false)).toBe(false);
+    expect(store.modoRestaurante).toBe(true);
+  });
+
+  it("persiste modos de estabelecimento no localStorage", () => {
+    const store = useConfiguracaoStore();
+    store.definirModoRestaurante(true);
+
+    const guardado = JSON.parse(localStorage.getItem("retailpro:configuracoes"));
+    expect(guardado.modoSupermercado).toBe(true);
+    expect(guardado.modoRestaurante).toBe(true);
+  });
 });

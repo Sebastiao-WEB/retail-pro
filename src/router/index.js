@@ -13,11 +13,17 @@ const routes = [
     redirect: "/pos",
     children: [
       { path: "pos", name: "pos", component: () => import("../views/pos/PosView.vue") },
+      { path: "mesas", name: "mesas", component: () => import("../views/mesas/MesasView.vue") },
       { path: "historico-vendas", name: "historico-vendas", component: () => import("../views/historico/HistoricoVendasView.vue") },
       { path: "historico-fechos", name: "historico-fechos", component: () => import("../views/historico/HistoricoFechosView.vue") },
       { path: "configuracoes", name: "configuracoes", component: () => import("../views/configuracoes/ConfiguracoesView.vue") },
       { path: "seguranca", name: "seguranca", component: () => import("../views/seguranca/SegurancaView.vue") },
     ],
+  },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    component: () => import("../views/errors/NotFoundView.vue"),
   },
 ];
 
@@ -25,6 +31,17 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes,
 });
+
+function mesasPermitidas() {
+  try {
+    const raw = localStorage.getItem("retailpro:configuracoes");
+    if (!raw) return false;
+    const dados = JSON.parse(raw);
+    return !!dados.modoRestaurante;
+  } catch {
+    return false;
+  }
+}
 
 router.beforeEach((to) => {
   const raw = localStorage.getItem("retailpro:sessao");
@@ -37,8 +54,9 @@ router.beforeEach((to) => {
   const modoApi = String(import.meta.env.VITE_API_MODE || "mock").toLowerCase() === "api";
   const token = localStorage.getItem("retailpro:token");
   const estaLogado = modoApi ? !!sessao?.utilizador && !!token : !!sessao?.utilizador;
-  if (to.name !== "login" && !estaLogado) return { name: "login" };
+  if (to.name !== "login" && to.name !== "not-found" && !estaLogado) return { name: "login" };
   if (to.name === "login" && estaLogado) return { name: "pos" };
+  if (to.name === "mesas" && !mesasPermitidas()) return { name: "pos" };
   return true;
 });
 

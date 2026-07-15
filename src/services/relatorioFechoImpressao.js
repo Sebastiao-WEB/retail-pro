@@ -1,4 +1,5 @@
 import { temApiConfigurada } from "../api/config";
+import { arredondarMoeda } from "./caixaMetricas.js";
 import { companyApi } from "../api/modules/companyApi";
 import { buildClosingReportLabels, t } from "./i18nHelper.js";
 import { getStoredLocale, intlLocale } from "./localeStorage.js";
@@ -59,15 +60,18 @@ export function montarPayloadRelatorioFecho(dados, configuracao, opcoes = {}) {
       operador: String(dados.utilizador || dados.operador || ""),
       aberturaFormatada: formatarDataHora(dados.aberturaEm),
       fechoFormatada: formatarDataHora(fechadoEm),
-      fundoInicial: Number(dados.fundoInicial || 0),
-      totalVendido: Number(dados.totalVendido || 0),
+      fundoInicial: arredondarMoeda(dados.fundoInicial),
+      totalVendido: arredondarMoeda(dados.totalVendido),
       totalTransacoes: Number(dados.totalTransacoes || 0),
-      ticketMedio: Number(dados.ticketMedio || 0),
-      vendasDinheiro: Number(dados.vendasDinheiro || 0),
-      vendasTransferencia: Number(dados.vendasTransferencia || 0),
-      dinheiroEsperado: Number(dados.dinheiroEsperado || 0),
-      dinheiroReal: Number(dados.dinheiroReal || 0),
-      diferenca: Number(dados.diferenca || 0),
+      ticketMedio: arredondarMoeda(dados.ticketMedio),
+      vendasDinheiro: arredondarMoeda(dados.vendasDinheiro),
+      vendasTransferencia: arredondarMoeda(dados.vendasTransferencia),
+      dinheiroEsperado: arredondarMoeda(dados.dinheiroEsperado),
+      dinheiroReal: arredondarMoeda(dados.dinheiroReal),
+      diferenca: arredondarMoeda(dados.diferenca),
+      transferenciasEsperadas: arredondarMoeda(dados.transferenciasEsperadas ?? dados.vendasTransferencia ?? 0),
+      transferenciasReais: arredondarMoeda(dados.transferenciasReais),
+      diferencaTransferencias: arredondarMoeda(dados.diferencaTransferencias),
       justificativaDiferenca: String(dados.justificativaDiferenca || "").trim(),
     },
   };

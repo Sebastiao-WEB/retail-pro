@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,7 +12,6 @@ import {
 } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import { ApiError } from '@/src/api/authApi';
-import { apiConfig } from '@/src/api/config';
 import { useAuthStore } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
 
@@ -58,10 +58,14 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.card}>
-        <Text style={styles.brand}>RetailPro</Text>
-        <Text style={styles.subtitle}>Gestão Mobile · Gerente / Admin</Text>
-
-        <Text style={styles.apiHint}>API: {apiConfig.baseUrl}</Text>
+        <View style={styles.logoSlot}>
+          <Image
+            source={require('@/assets/retailpos-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="RetailPOS"
+          />
+        </View>
 
         <Text style={styles.label}>Utilizador</Text>
         <TextInput
@@ -109,19 +113,15 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 8,
   },
-  brand: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: brand.dark,
+  logoSlot: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: -50,
   },
-  subtitle: {
-    color: brand.muted,
-    marginBottom: 8,
-  },
-  apiHint: {
-    color: brand.muted,
-    fontSize: 11,
-    marginBottom: 8,
+  logo: {
+    width: 330,
+    height: 150,
+    top: -30,
   },
   label: {
     fontSize: 12,

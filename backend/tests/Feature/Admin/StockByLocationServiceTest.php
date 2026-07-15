@@ -27,12 +27,12 @@ class StockByLocationServiceTest extends TestCase
         $location = StockLocation::query()->create([
             'id' => (string) Str::uuid(),
             'code' => 'LOC-TEST',
-            'register_id' => $register->id,
             'name' => 'Loja Teste',
             'type' => 'STORE_FLOOR',
             'is_saleable' => true,
             'is_active' => true,
         ]);
+        $location->registers()->sync([$register->id]);
 
         $product = Product::query()->create([
             'id' => (string) Str::uuid(),

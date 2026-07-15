@@ -1,0 +1,69 @@
+import { openModal, closeModal, clearFieldErrors } from './modal.js';
+import { submitJson } from './form.js';
+import http from './http.js';
+import { route } from './routes.js';
+import { showPreloader } from './preloader.js';
+import { reloadWithToast } from './utils.js';
+
+const FORM_MODAL_ID = 'customer-form-modal';
+const DELETE_MODAL_ID = 'customer-delete-modal';
+const FORM_ID = 'customer-form';
+const DELETE_ID_INPUT = 'customer-delete-id';
+function resetCustomerForm(form) {
+    form.reset();
+    form.querySelector('[name="is_active"]').checked = true;
+}
+
+export default function init() {
+    const form = document.getElementById(FORM_ID);
+    const deleteIdInput = document.getElementById(DELETE_ID_INPUT);
+
+    form?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        clearFieldErrors(form);
+
+        submitJson(form, {
+            method: 'POST',
+            url: route('store'),
+        });
+    });
+
+    document.addEventListener('click', async (event) => {
+        const pageLink = event.target instanceof Element ? event.target.closest('a[href][data-rp-page-nav]') : null;
+        if (pageLink) {
+            showPreloader();
+            return;
+        }
+
+        const trigger = event.target.closest('[data-action]');
+        if (!trigger) {
+            return;
+        }
+
+        const action = trigger.dataset.action;
+
+        if (action === 'open-create' && form) {
+            resetCustomerForm(form);
+            openModal(FORM_MODAL_ID);
+            return;
+        }
+
+        if (action === 'delete-customer' && deleteIdInput) {
+            const customerId = deleteIdInput.value;
+            if (!customerId || trigger.disabled) {
+                return;
+            }
+
+            trigger.disabled = true;
+
+            try {
+                const response = await http.delete(route('destroy', { customer: customerId }), { skipPreloader: true });
+                closeModal(DELETE_MODAL_ID);
+                reloadWithToast(response.data?.message);
+            } catch (error) {
+                window.retailToast?.(error.message, 'error');
+                trigger.disabled = false;
+            }
+        }
+    });
+}

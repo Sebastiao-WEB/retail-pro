@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -62,5 +63,10 @@ class StockMovement extends Model
         return $query
             ->where('type', 'IN')
             ->whereIn('reference_type', ['PURCHASE', 'STOCK_RELOAD']);
+    }
+
+    public function scopeToActiveLocations(Builder $query): Builder
+    {
+        return $query->whereHas('toLocation', fn (Builder $locationQuery) => $locationQuery->active());
     }
 }

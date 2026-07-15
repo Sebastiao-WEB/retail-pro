@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Support\ProductStockDisplay;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -31,6 +32,7 @@ class StockAdjustmentService
         }
 
         return DB::transaction(function () use ($productId, $locationId, $delta, $note, $performedBy, $unitCost) {
+            ProductStockDisplay::exigirLocalizacaoActiva($locationId);
             $product = Product::query()->lockForUpdate()->findOrFail($productId);
 
             $balance = StockBalance::query()
@@ -85,10 +87,8 @@ class StockAdjustmentService
                 'performed_by' => $performedBy,
             ]);
 
-            $product->stock = (float) StockBalance::query()
-                ->where('product_id', $productId)
-                ->sum('quantity');
-            $product->save();
+            ProductStockDisplay::sincronizarStockGlobal($productId);
+            $product->refresh();
 
             return $movement;
         });

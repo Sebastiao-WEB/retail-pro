@@ -17,7 +17,7 @@ import {
 } from "../../store/useVendaStore";
 import { useConfiguracaoStore } from "../../store/useConfiguracaoStore";
 import { useSessaoStore } from "../../store/useSessaoStore";
-import { calcularDiferencaProjetada } from "../../services/caixaMetricas";
+import { arredondarMoeda, calcularDiferencaProjetada } from "../../services/caixaMetricas";
 import { temApiConfigurada } from "../../api";
 import { temCatalogoOffline } from "../../services/offline/catalogCache";
 import { isErroRedeOuIndisponivel, redeDisponivel } from "../../services/offline/networkError";
@@ -38,6 +38,7 @@ import {
   normalizarQuantidadeVenda,
   parseQuantidadeTexto,
   passoQuantidade,
+  produtoControlaEstoque,
   quantidadeMinima,
   UNIDADE_VENDA_KG,
   vendidoPorPeso,
@@ -97,6 +98,7 @@ const modalAberturaCaixa = ref(false);
 const modalFechoCaixa = ref(false);
 const fundoInicialInput = ref(1000);
 const dinheiroRealFecho = ref(null);
+const transferenciasRealFecho = ref(null);
 const justificativaDiferenca = ref("");
 const modalSolicitarReversaoAberto = ref(false);
 const vendaParaReversao = ref(null);
@@ -259,7 +261,7 @@ async function processarLeituraCodigoBarras() {
   }
 
   if (!vendidoPorPeso(produtoAtualizado) && !podeAdicionarProduto(produtoAtualizado, 1)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
     } else {
       const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id));
@@ -275,7 +277,11 @@ async function processarLeituraCodigoBarras() {
     return;
   }
 
-  if (vendidoPorPeso(produtoAtualizado) && produtoAtualizado.stock <= 0) {
+  if (
+    vendidoPorPeso(produtoAtualizado) &&
+    produtoControlaEstoque(produtoAtualizado) &&
+    produtoAtualizado.stock <= 0
+  ) {
     mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
     limparCampoPesquisa();
     await focarCampoPesquisa();
@@ -405,27 +411,50 @@ const solicitacoesPendentesPorVenda = computed(() => {
   });
   return mapa;
 });
-const totalVendidoTurno = computed(() => vendasTurno.value.reduce((acc, venda) => acc + venda.total, 0));
+const totalVendidoTurno = computed(() =>
+  arredondarMoeda(vendasTurno.value.reduce((acc, venda) => acc + venda.total, 0))
+);
 const totalTransacoesTurno = computed(() => vendasTurno.value.length);
-const ticketMedioTurno = computed(() => (totalTransacoesTurno.value ? totalVendidoTurno.value / totalTransacoesTurno.value : 0));
+const ticketMedioTurno = computed(() =>
+  arredondarMoeda(totalTransacoesTurno.value ? totalVendidoTurno.value / totalTransacoesTurno.value : 0)
+);
 const totalDinheiroTurno = computed(() =>
-  vendasTurno.value
-    .filter((venda) => venda.metodoPagamento === "Dinheiro")
-    .reduce((acc, venda) => acc + venda.total, 0)
+  arredondarMoeda(
+    vendasTurno.value
+      .filter((venda) => venda.metodoPagamento === "Dinheiro")
+      .reduce((acc, venda) => acc + venda.total, 0)
+  )
 );
 const totalTransferenciaTurno = computed(() =>
-  vendasTurno.value
-    .filter((venda) => venda.metodoPagamento === "Transferência")
-    .reduce((acc, venda) => acc + venda.total, 0)
+  arredondarMoeda(
+    vendasTurno.value
+      .filter((venda) => venda.metodoPagamento === "Transferência")
+      .reduce((acc, venda) => acc + venda.total, 0)
+  )
 );
-const dinheiroEsperadoFecho = computed(() => Number(sessaoStore.fundoInicial || 0) + totalDinheiroTurno.value);
+const dinheiroEsperadoFecho = computed(() =>
+  arredondarMoeda(Number(sessaoStore.fundoInicial || 0) + totalDinheiroTurno.value)
+);
+const transferenciasEsperadasFecho = computed(() => arredondarMoeda(totalTransferenciaTurno.value));
 const diferencaFecho = computed(() =>
   calcularDiferencaProjetada({
     dinheiroReal: dinheiroRealFecho.value,
     dinheiroEsperado: dinheiroEsperadoFecho.value,
   })
 );
+const diferencaTransferenciasFecho = computed(() =>
+  calcularDiferencaProjetada({
+    dinheiroReal: transferenciasRealFecho.value,
+    dinheiroEsperado: transferenciasEsperadasFecho.value,
+  })
+);
 const diferencaFechoTemValor = computed(() => diferencaFecho.value !== null);
+const diferencaTransferenciasTemValor = computed(() => diferencaTransferenciasFecho.value !== null);
+const temDiferencaFecho = computed(
+  () =>
+    (diferencaFechoTemValor.value && diferencaFecho.value !== 0) ||
+    (diferencaTransferenciasTemValor.value && diferencaTransferenciasFecho.value !== 0)
+);
 const origemStockVenda = computed(() => ({
   id: sessaoStore.sourceLocationId,
   codigo: sessaoStore.sourceLocationCodigo || "",
@@ -455,7 +484,9 @@ async function garantirInventarioPosLocal() {
 function ajustarCarrinhoAoStock() {
   for (const item of [...carrinhoStore.itens]) {
     const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
-    if (!produto || produto.stock <= 0) {
+    if (!produto) continue;
+    if (!produtoControlaEstoque(produto)) continue;
+    if (produto.stock <= 0) {
       carrinhoStore.removerProduto(item.produtoId);
       continue;
     }
@@ -491,7 +522,8 @@ function obterProdutoAtualizado(produto) {
 function validarStockCarrinhoAtual() {
   for (const item of carrinhoStore.itens) {
     const produto = produtoStore.produtos.find((reg) => reg.id === item.produtoId);
-    if (!produto || produto.stock <= 0) {
+    if (!produto || !produtoControlaEstoque(produto)) continue;
+    if (produto.stock <= 0) {
       return { ok: false, erro: t("pos.toast.stockUnavailable", { name: item.nome }) };
     }
     if (item.quantidade > produto.stock) {
@@ -536,14 +568,35 @@ function quantidadeNoCarrinho(produtoId) {
 function podeAdicionarProduto(produto, quantidade = 1) {
   const quantidadeNormalizada =
     normalizarQuantidadeVenda(quantidade, produto.unidadeVenda) ?? quantidadeMinima(produto.unidadeVenda);
+  if (!sessaoStore.turnoAberto) return false;
+  if (!produtoControlaEstoque(produto)) return true;
   return (
-    sessaoStore.turnoAberto &&
     produto.stock > 0 &&
     quantidadeNoCarrinho(produto.id) + quantidadeNormalizada <= produto.stock + 0.0001
   );
 }
 
+function produtoDisponivelParaVenda(produto) {
+  return produtoControlaEstoque(produto) ? produto.stock > 0 : true;
+}
+
+function exibirStockProduto(produto) {
+  if (!produtoControlaEstoque(produto)) {
+    return t("pos.catalog.madeToOrder");
+  }
+  return formatarStockExibicao(produto.stock, produto.unidadeVenda, intlLocale(locale.value));
+}
+
+function limiteQuantidadeCarrinho(produtoId, unidadeVenda) {
+  const produto = produtoStore.produtos.find((p) => p.id === produtoId);
+  if (!produto || !produtoControlaEstoque(produto)) return undefined;
+  return produto.stock || quantidadeMinima(unidadeVenda);
+}
+
 function formatarDisponivelStock(produto, quantidadeDisponivel) {
+  if (!produtoControlaEstoque(produto)) {
+    return t("pos.catalog.madeToOrder");
+  }
   return formatarStockExibicao(quantidadeDisponivel, produto?.unidadeVenda, intlLocale(locale.value));
 }
 
@@ -584,7 +637,7 @@ async function solicitarAdicaoProduto(produto) {
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
   if (vendidoPorPeso(produtoAtualizado)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarToastSwal(t("pos.toast.noStock", { name: produtoAtualizado.nome }), "error");
       return;
     }
@@ -611,7 +664,7 @@ async function adicionarAoCarrinho(produto, quantidade = 1) {
   const produtoAtualizado = obterProdutoAtualizado(produto);
 
   if (!podeAdicionarProduto(produtoAtualizado, quantidadeNormalizada)) {
-    if (produtoAtualizado.stock <= 0) {
+    if (produtoControlaEstoque(produtoAtualizado) && produtoAtualizado.stock <= 0) {
       mostrarErroStock(t("pos.toast.noStockAvailable", { name: produtoAtualizado.nome }));
     } else if (quantidadeNoCarrinho(produtoAtualizado.id) + quantidadeNormalizada > produtoAtualizado.stock) {
       const disponivel = Math.max(0, produtoAtualizado.stock - quantidadeNoCarrinho(produtoAtualizado.id));
@@ -657,8 +710,8 @@ async function atualizarQuantidade(produtoId, valor, { normalizar = false } = {}
   if (!quantidadeFinal) return;
 
   const produto = produtoStore.produtos.find((reg) => reg.id === produtoId);
-  const limiteStock = produto?.stock ?? quantidadeFinal;
-  if (quantidadeFinal > limiteStock + 0.0001) {
+  const limiteStock = produtoControlaEstoque(produto) ? (produto?.stock ?? quantidadeFinal) : quantidadeFinal;
+  if (produtoControlaEstoque(produto) && quantidadeFinal > limiteStock + 0.0001) {
     carrinhoStore.definirQuantidade(produtoId, normalizarQuantidadeVenda(limiteStock, unidadeVenda) ?? minimo);
     mostrarErroStock(t("pos.toast.quantityAdjusted"));
     return;
@@ -1077,8 +1130,14 @@ async function abrirTurnoCaixa() {
   iniciarSincronizacaoStockPeriodica();
 }
 
+function normalizarMoedaFecho(campo) {
+  if (campo.value === null || campo.value === undefined || campo.value === "") return;
+  campo.value = arredondarMoeda(campo.value);
+}
+
 function abrirFechoCaixa() {
   dinheiroRealFecho.value = dinheiroEsperadoFecho.value;
+  transferenciasRealFecho.value = transferenciasEsperadasFecho.value;
   justificativaDiferenca.value = "";
   modalFechoCaixa.value = true;
 }
@@ -1089,10 +1148,16 @@ async function confirmarFechoCaixa() {
     mostrarToastSwal(t("pos.toast.enterActualCash"), "warning");
     return;
   }
-  if (diferencaFecho.value !== 0 && !justificativaDiferenca.value.trim()) {
+  if (diferencaTransferenciasFecho.value === null) {
+    mostrarToastSwal(t("pos.toast.enterActualMobileWallets"), "warning");
+    return;
+  }
+  if (temDiferencaFecho.value && !justificativaDiferenca.value.trim()) {
     mostrarToastSwal(t("pos.toast.enterDifferenceJustification"), "warning");
     return;
   }
+  normalizarMoedaFecho(dinheiroRealFecho);
+  normalizarMoedaFecho(transferenciasRealFecho);
   processandoFechoCaixa.value = true;
   const fechadoEm = new Date().toISOString();
   const relatorio = {
@@ -1100,13 +1165,16 @@ async function confirmarFechoCaixa() {
     caixa: sessaoStore.caixaAtribuido,
     aberturaEm: sessaoStore.aberturaEm,
     fechadoEm,
-    fundoInicial: sessaoStore.fundoInicial,
+    fundoInicial: arredondarMoeda(sessaoStore.fundoInicial),
     totalVendido: totalVendidoTurno.value,
     totalTransacoes: totalTransacoesTurno.value,
     ticketMedio: ticketMedioTurno.value,
     dinheiroEsperado: dinheiroEsperadoFecho.value,
-    dinheiroReal: Number(dinheiroRealFecho.value || 0),
+    dinheiroReal: arredondarMoeda(dinheiroRealFecho.value || 0),
     diferenca: diferencaFecho.value,
+    transferenciasEsperadas: transferenciasEsperadasFecho.value,
+    transferenciasReais: arredondarMoeda(transferenciasRealFecho.value || 0),
+    diferencaTransferencias: diferencaTransferenciasFecho.value,
     vendasDinheiro: totalDinheiroTurno.value,
     vendasTransferencia: totalTransferenciaTurno.value,
     justificativaDiferenca: justificativaDiferenca.value.trim(),
@@ -1226,17 +1294,23 @@ async function confirmarFechoCaixa() {
                 <td class="px-3 py-2">
                   <span
                     class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                    :class="produto.stock <= (vendidoPorPeso(produto) ? 1 : 10) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'"
+                    :class="
+                      !produtoControlaEstoque(produto)
+                        ? 'bg-sky-100 text-sky-800'
+                        : produto.stock <= (vendidoPorPeso(produto) ? 1 : 10)
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-slate-100 text-slate-700'
+                    "
                   >
-                    {{ formatarStockExibicao(produto.stock, produto.unidadeVenda, intlLocale(locale)) }}
+                    {{ exibirStockProduto(produto) }}
                   </span>
                 </td>
                 <td class="px-3 py-2 text-right">
                   <button
                     class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--gold)] text-black hover:brightness-95"
                     :title="t('pos.catalog.addToCart')"
-                    :disabled="!sessaoStore.turnoAberto || produto.stock <= 0"
-                    :class="!sessaoStore.turnoAberto || produto.stock <= 0 ? 'cursor-not-allowed opacity-40' : ''"
+                    :disabled="!sessaoStore.turnoAberto || !produtoDisponivelParaVenda(produto)"
+                    :class="!sessaoStore.turnoAberto || !produtoDisponivelParaVenda(produto) ? 'cursor-not-allowed opacity-40' : ''"
                     @click="void solicitarAdicaoProduto(produto)"
                   >
                     <span class="relative inline-flex h-4 w-4 items-center justify-center">
@@ -1330,7 +1404,7 @@ async function confirmarFechoCaixa() {
                       :min="quantidadeMinima(item.unidadeVenda)"
                       :step="passoQuantidade(item.unidadeVenda)"
                       :inputmode="item.unidadeVenda === 'KG' ? 'decimal' : 'numeric'"
-                      :max="produtoStore.produtos.find((p) => p.id === item.produtoId)?.stock || quantidadeMinima(item.unidadeVenda)"
+                      :max="limiteQuantidadeCarrinho(item.produtoId, item.unidadeVenda)"
                       class="w-20 rounded border border-slate-300 px-1.5 py-1 text-center text-xs font-semibold text-slate-900 focus:border-[var(--gold)] focus:outline-none"
                       autocomplete="off"
                       @focus="$event.target.select()"
@@ -1508,8 +1582,11 @@ async function confirmarFechoCaixa() {
       <p class="text-xs text-slate-500">
         {{ t("pos.weightModal.pricePerKg", { price: formatarMT(produtoPesoPendente.precoVendaComIva ?? produtoPesoPendente.precoVenda) }) }}
       </p>
-      <p class="text-xs text-slate-500">
+      <p v-if="produtoControlaEstoque(produtoPesoPendente)" class="text-xs text-slate-500">
         {{ t("pos.weightModal.stockAvailable", { stock: formatarStockExibicao(produtoPesoPendente.stock, 'KG', intlLocale(locale)) }) }}
+      </p>
+      <p v-else class="text-xs text-sky-700">
+        {{ t("pos.catalog.madeToOrder") }}
       </p>
       <div>
         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.weightModal.kgLabel") }}</label>
@@ -1574,18 +1651,52 @@ async function confirmarFechoCaixa() {
         <p><strong>{{ t("pos.closingModal.cashSales") }}</strong> {{ formatarMT(totalDinheiroTurno) }}</p>
         <p><strong>{{ t("pos.closingModal.transferSales") }}</strong> {{ formatarMT(totalTransferenciaTurno) }}</p>
         <p><strong>{{ t("pos.closingModal.expectedCash") }}</strong> {{ formatarMT(dinheiroEsperadoFecho) }}</p>
+        <p><strong>{{ t("pos.closingModal.expectedTransfers") }}</strong> {{ formatarMT(transferenciasEsperadasFecho) }}</p>
       </div>
 
-      <div>
-        <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualCashLabel") }}</label>
-        <input v-model.number="dinheiroRealFecho" type="number" min="0" class="rp-input" @keyup.enter="confirmarFechoCaixa" />
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualCashLabel") }}</label>
+          <input
+            v-model.number="dinheiroRealFecho"
+            type="number"
+            min="0"
+            step="0.01"
+            class="rp-input"
+            @blur="normalizarMoedaFecho(dinheiroRealFecho)"
+            @keyup.enter="confirmarFechoCaixa"
+          />
+          <div
+            v-if="diferencaFechoTemValor"
+            class="mt-2 rounded-lg p-2 text-xs"
+            :class="diferencaFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+          >
+            {{ t("pos.closingModal.cashDifference") }} <strong>{{ formatarMT(diferencaFecho) }}</strong>
+          </div>
+        </div>
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.actualMobileWalletsLabel") }}</label>
+          <input
+            v-model.number="transferenciasRealFecho"
+            type="number"
+            min="0"
+            step="0.01"
+            class="rp-input"
+            @blur="normalizarMoedaFecho(transferenciasRealFecho)"
+            @keyup.enter="confirmarFechoCaixa"
+          />
+          <p class="mt-1 text-[11px] text-slate-500">{{ t("pos.closingModal.mobileWalletsHint") }}</p>
+          <div
+            v-if="diferencaTransferenciasTemValor"
+            class="mt-2 rounded-lg p-2 text-xs"
+            :class="diferencaTransferenciasFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+          >
+            {{ t("pos.closingModal.transferDifference") }} <strong>{{ formatarMT(diferencaTransferenciasFecho) }}</strong>
+          </div>
+        </div>
       </div>
 
-      <div class="rounded-lg p-3 text-sm" :class="diferencaFecho >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">
-        {{ t("pos.closingModal.difference") }} <strong>{{ formatarMT(diferencaFecho) }}</strong>
-      </div>
-
-      <div v-if="diferencaFechoTemValor && diferencaFecho !== 0">
+      <div v-if="temDiferencaFecho">
         <label class="mb-1 block text-xs font-semibold text-slate-600">{{ t("pos.closingModal.justificationRequired") }}</label>
         <textarea
           v-model="justificativaDiferenca"

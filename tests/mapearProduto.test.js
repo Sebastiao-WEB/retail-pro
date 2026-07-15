@@ -28,4 +28,10 @@ describe("mapearProduto", () => {
     expect(mapearProduto({ id: "p3", unidadeVenda: "UN" }).unidadeVenda).toBe("UN");
     expect(mapearProduto({ id: "p4" }).unidadeVenda).toBe("UN");
   });
+
+  it("mapeia controlaEstoque da API", () => {
+    expect(mapearProduto({ id: "p5", controlaEstoque: false }).controlaEstoque).toBe(false);
+    expect(mapearProduto({ id: "p6", controla_estoque: false }).controlaEstoque).toBe(false);
+    expect(mapearProduto({ id: "p7" }).controlaEstoque).toBe(true);
+  });
 });

@@ -1,6 +1,21 @@
 {
+  "_chunk-Dk7t3yRR.js": {
+    "file": "assets/chunk-Dk7t3yRR.js",
+    "name": "chunk"
+  },
+  "_routes-CoarHjMD.js": {
+    "file": "assets/routes-CoarHjMD.js",
+    "name": "routes"
+  },
+  "_utils-K7eC73UA.js": {
+    "file": "assets/utils-K7eC73UA.js",
+    "name": "utils",
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
   "resources/css/app.css": {
-    "file": "assets/app-Ck-aris3.css",
+    "file": "assets/app-CIeEMHID.css",
     "name": "app",
     "names": [
       "app.css"
@@ -8,10 +23,250 @@
     "src": "resources/css/app.css",
     "isEntry": true
   },
+  "resources/js/admin.js": {
+    "file": "assets/admin-C_gKgP8Q.js",
+    "name": "admin",
+    "src": "resources/js/admin.js",
+    "isEntry": true,
+    "imports": [
+      "_chunk-Dk7t3yRR.js"
+    ],
+    "dynamicImports": [
+      "resources/js/admin/dashboard.js",
+      "resources/js/admin/products.js",
+      "resources/js/admin/products-edit.js",
+      "resources/js/admin/customers.js",
+      "resources/js/admin/customers-edit.js",
+      "resources/js/admin/sales.js",
+      "resources/js/admin/balance-sheets.js",
+      "resources/js/admin/balance-sheets-show.js",
+      "resources/js/admin/operator-reports.js",
+      "resources/js/admin/reversals.js",
+      "resources/js/admin/registers.js",
+      "resources/js/admin/registers-edit.js",
+      "resources/js/admin/stock-locations.js",
+      "resources/js/admin/stock-locations-edit.js",
+      "resources/js/admin/stock-locations-stock.js",
+      "resources/js/admin/stock-reload-adjust.js",
+      "resources/js/admin/stock-transfers.js",
+      "resources/js/admin/company-settings.js",
+      "resources/js/admin/security.js",
+      "resources/js/admin/users.js",
+      "resources/js/admin/users-edit.js",
+      "resources/js/admin/roles-permissions.js"
+    ]
+  },
+  "resources/js/admin/balance-sheets-show.js": {
+    "file": "assets/balance-sheets-show-BZ1WUCy3.js",
+    "name": "balance-sheets-show",
+    "src": "resources/js/admin/balance-sheets-show.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js",
+      "_utils-K7eC73UA.js"
+    ]
+  },
+  "resources/js/admin/balance-sheets.js": {
+    "file": "assets/balance-sheets-DW28Aohw.js",
+    "name": "balance-sheets",
+    "src": "resources/js/admin/balance-sheets.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js",
+      "_utils-K7eC73UA.js"
+    ]
+  },
+  "resources/js/admin/company-settings.js": {
+    "file": "assets/company-settings-D3wUBMGN.js",
+    "name": "company-settings",
+    "src": "resources/js/admin/company-settings.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/customers-edit.js": {
+    "file": "assets/customers-edit-B_GfdtzH.js",
+    "name": "customers-edit",
+    "src": "resources/js/admin/customers-edit.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/admin/customers.js": {
+    "file": "assets/customers-BRE3Vr1X.js",
+    "name": "customers",
+    "src": "resources/js/admin/customers.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js",
+      "_utils-K7eC73UA.js"
+    ]
+  },
+  "resources/js/admin/dashboard.js": {
+    "file": "assets/dashboard-DF2DC6YE.js",
+    "name": "dashboard",
+    "src": "resources/js/admin/dashboard.js",
+    "isDynamicEntry": true
+  },
+  "resources/js/admin/operator-reports.js": {
+    "file": "assets/operator-reports-Cg-tte1p.js",
+    "name": "operator-reports",
+    "src": "resources/js/admin/operator-reports.js",
+    "isDynamicEntry": true
+  },
+  "resources/js/admin/products-edit.js": {
+    "file": "assets/products-edit-Bgt0-Dfy.js",
+    "name": "products-edit",
+    "src": "resources/js/admin/products-edit.js",
+    "isDynamicEntry": true
+  },
+  "resources/js/admin/products.js": {
+    "file": "assets/products-MbUR0rmU.js",
+    "name": "products",
+    "src": "resources/js/admin/products.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/registers-edit.js": {
+    "file": "assets/registers-edit-DzvRb66j.js",
+    "name": "registers-edit",
+    "src": "resources/js/admin/registers-edit.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/admin/registers.js": {
+    "file": "assets/registers-QrPLNwCV.js",
+    "name": "registers",
+    "src": "resources/js/admin/registers.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js",
+      "_utils-K7eC73UA.js"
+    ]
+  },
+  "resources/js/admin/reversals.js": {
+    "file": "assets/reversals-Br8wgeDQ.js",
+    "name": "reversals",
+    "src": "resources/js/admin/reversals.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/roles-permissions.js": {
+    "file": "assets/roles-permissions-Bqo3Radf.js",
+    "name": "roles-permissions",
+    "src": "resources/js/admin/roles-permissions.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/sales.js": {
+    "file": "assets/sales-CfjamLxx.js",
+    "name": "sales",
+    "src": "resources/js/admin/sales.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/security.js": {
+    "file": "assets/security-H8dWlezX.js",
+    "name": "security",
+    "src": "resources/js/admin/security.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/stock-locations-edit.js": {
+    "file": "assets/stock-locations-edit-BWV5IY14.js",
+    "name": "stock-locations-edit",
+    "src": "resources/js/admin/stock-locations-edit.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/admin/stock-locations-stock.js": {
+    "file": "assets/stock-locations-stock-BoQi18kn.js",
+    "name": "stock-locations-stock",
+    "src": "resources/js/admin/stock-locations-stock.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/admin/stock-locations.js": {
+    "file": "assets/stock-locations-CVbdbahf.js",
+    "name": "stock-locations",
+    "src": "resources/js/admin/stock-locations.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js",
+      "_utils-K7eC73UA.js"
+    ]
+  },
+  "resources/js/admin/stock-reload-adjust.js": {
+    "file": "assets/stock-reload-adjust-BSOoNuuR.js",
+    "name": "stock-reload-adjust",
+    "src": "resources/js/admin/stock-reload-adjust.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
+  },
+  "resources/js/admin/stock-transfers.js": {
+    "file": "assets/stock-transfers-BTc5xXub.js",
+    "name": "stock-transfers",
+    "src": "resources/js/admin/stock-transfers.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js"
+    ]
+  },
+  "resources/js/admin/users-edit.js": {
+    "file": "assets/users-edit-iwqtwuBO.js",
+    "name": "users-edit",
+    "src": "resources/js/admin/users-edit.js",
+    "isDynamicEntry": true
+  },
+  "resources/js/admin/users.js": {
+    "file": "assets/users-DW-RBudn.js",
+    "name": "users",
+    "src": "resources/js/admin/users.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js",
+      "_routes-CoarHjMD.js",
+      "_utils-K7eC73UA.js"
+    ]
+  },
   "resources/js/app.js": {
-    "file": "assets/app-BimFaqCk.js",
+    "file": "assets/app-Dl8Ocb2u.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_chunk-Dk7t3yRR.js"
+    ]
   }
 }

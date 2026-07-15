@@ -98,6 +98,8 @@ return [
         'notas' => 'notas',
         'decisionReason' => 'motivo',
         'register_id' => 'caixa',
+        'register_ids' => 'caixas',
+        'stock_location_ids' => 'localizações de stock',
         'type' => 'tipo',
         'productId' => 'produto',
         'product_id' => 'produto',
@@ -118,4 +120,5 @@ return [
         'selectedUserRole' => 'perfil',
         'nuit' => 'NUIT',
     ],
+    'stock_location_inactive' => 'A localização de stock seleccionada está inactiva.',
 ];

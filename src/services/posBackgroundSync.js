@@ -4,6 +4,7 @@ import { useSessaoStore } from "../store/useSessaoStore";
 import { useProdutoStore } from "../store/useProdutoStore";
 import { useVendaStore } from "../store/useVendaStore";
 import { useOfflineStore } from "../store/useOfflineStore";
+import { useMesaStore } from "../store/useMesaStore";
 
 /** Sincronização periódica do POS (inventário, vendas pendentes, histórico). */
 export const INTERVALO_SYNC_POS_MS = 5 * 60 * 1000;
@@ -61,6 +62,13 @@ export async function executarSincronizacaoPosBackground() {
       }
     } catch {
       // Turno local não é bloqueado.
+    }
+
+    try {
+      const mesaStore = useMesaStore();
+      await mesaStore.sincronizarMesasBackground();
+    } catch {
+      // Comandas locais permanecem disponíveis.
     }
 
     if (typeof window !== "undefined") {

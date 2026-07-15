@@ -178,10 +178,28 @@ window.fetch = async (...args) => {
     }
 };
 
+function shouldSkipButtonLoading(button) {
+    if (!button) {
+        return true;
+    }
+
+    if (
+        button.hasAttribute('data-rp-ignore-loading')
+        || button.hasAttribute('data-action')
+        || button.hasAttribute('data-modal-close')
+        || button.closest('.rp-admin-modal')
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 document.addEventListener('click', (event) => {
     const button = event.target instanceof Element ? event.target.closest('button') : null;
     if (!button || button.disabled) return;
     if (button.type === 'submit' && button.form) return;
+    if (shouldSkipButtonLoading(button)) return;
     setButtonLoading(button);
     window.setTimeout(() => {
         if (pendingRequests === 0) syncLoadingState();
@@ -223,24 +241,19 @@ window.retailToast = function retailToast(message, type = 'info') {
 };
 
 document.addEventListener('DOMContentLoaded', renderLucideIcons);
-document.addEventListener('livewire:navigated', renderLucideIcons);
-document.addEventListener('livewire:initialized', () => {
-    if (window.Livewire?.hook) {
-        window.Livewire.hook('morph.updated', () => {
-            renderLucideIcons();
-        });
+
+window.rpRefreshIcons = renderLucideIcons;
+window.addEventListener('rp:admin-content-updated', renderLucideIcons);
+
+window.rpFocusField = function rpFocusField(field) {
+    const campo = String(field || '').trim();
+    if (!campo) return;
+
+    const input = document.getElementById(`campo-${campo}`);
+    if (!input) return;
+
+    input.focus();
+    if (typeof input.select === 'function' && input.type !== 'checkbox') {
+        input.select();
     }
-
-    Livewire.on('rp-focus-field', ({ field }) => {
-        const campo = String(field || '').trim();
-        if (!campo) return;
-
-        const input = document.getElementById(`campo-${campo}`);
-        if (!input) return;
-
-        input.focus();
-        if (typeof input.select === 'function' && input.type !== 'checkbox') {
-            input.select();
-        }
-    });
-});
+};

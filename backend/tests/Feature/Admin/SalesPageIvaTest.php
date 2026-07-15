@@ -2,13 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\SalesPage;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\Concerns\ApiTestHelpers;
 use Tests\TestCase;
@@ -69,10 +67,16 @@ class SalesPageIvaTest extends TestCase
             'subtotal' => 116,
         ]);
 
-        Livewire::actingAs($admin)
-            ->test(SalesPage::class)
-            ->call('openDetail', $sale->id)
-            ->assertSee('16,00%')
-            ->assertSee('16,00 MT');
+        $this->actingAs($admin)
+            ->getJson(route('sales.show', $sale))
+            ->assertOk()
+            ->assertJsonPath('data.itens.0.iva_percentual', '16,00')
+            ->assertJsonPath('data.itens.0.iva_total', '16,00');
+
+        $this->actingAs($admin)
+            ->get(route('sales.detail', $sale))
+            ->assertOk()
+            ->assertSee('VD-TEST-IVA')
+            ->assertSee('16,00');
     }
 }

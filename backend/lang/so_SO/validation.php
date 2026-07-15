@@ -98,6 +98,8 @@ return [
         'notas' => 'qoraallada',
         'decisionReason' => 'sababta',
         'register_id' => 'sanduuqa',
+        'register_ids' => 'sanduuqyada',
+        'stock_location_ids' => 'goobaha kaydka',
         'type' => 'nooca',
         'productId' => 'alaabta',
         'product_id' => 'alaabta',
@@ -118,4 +120,5 @@ return [
         'selectedUserRole' => 'doorka',
         'nuit' => 'NUIT',
     ],
+    'stock_location_inactive' => 'Goobta kaydka la doortay ma aha mid firfircoon.',
 ];

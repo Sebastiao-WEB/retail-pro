@@ -18,6 +18,7 @@ class CashSessionController extends Controller
         $dados = $request->validate([
             'register_id' => ['nullable', 'uuid'],
             'status' => ['nullable', 'in:OPEN,CLOSED'],
+            'search' => ['nullable', 'string', 'max:255'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
@@ -28,15 +29,34 @@ class CashSessionController extends Controller
         }
 
         $perPage = min(50, max(1, (int) ($dados['per_page'] ?? 10)));
+        $search = (string) ($dados['search'] ?? '');
+        $status = $dados['status'] ?? null;
 
         $userId = optional($request->user())->id;
+        $verTodos = $this->podeVerTodosFechosCaixa($request);
 
         $query = CashSession::query()
-            ->with(['register'])
+            ->with(['register', 'user'])
             ->where('register_id', $registerId)
-            ->when($userId, fn ($q) => $q->where('user_id', $userId))
-            ->when($dados['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
-            ->latest('created_at');
+            ->when(! $verTodos && $userId, fn ($q) => $q->where('user_id', $userId))
+            ->when($status, fn ($q, $valor) => $q->where('status', $valor))
+            ->when($search !== '', function ($q) use ($search, $status) {
+                $q->where(function ($inner) use ($search, $status) {
+                    if ($status === 'CLOSED') {
+                        $inner->where('note', 'like', "%{$search}%");
+                    }
+                    $inner->orWhereHas('register', fn ($reg) => $reg
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%"))
+                        ->orWhereHas('user', fn ($user) => $user->where('name', 'like', "%{$search}%"));
+                });
+            });
+
+        if ($status === 'CLOSED') {
+            $query->latest('closed_at');
+        } else {
+            $query->latest('created_at');
+        }
 
         $paginado = $query->paginate($perPage);
 
@@ -54,10 +74,13 @@ class CashSessionController extends Controller
 
     private function serializarSessao(CashSession $sessao): array
     {
+        $snapshot = is_array($sessao->report_snapshot) ? $sessao->report_snapshot : [];
+
         return [
             'id' => $sessao->id,
             'registerId' => $sessao->register_id,
-            'registerName' => $sessao->register?->name,
+            'registerName' => $sessao->register?->name ?? ($snapshot['caixa'] ?? null),
+            'operatorName' => $sessao->user?->name ?? ($snapshot['utilizador'] ?? null),
             'status' => $sessao->status,
             'openingBalance' => (float) $sessao->opening_balance,
             'closingBalance' => $sessao->closing_balance !== null ? (float) $sessao->closing_balance : null,
@@ -69,6 +92,17 @@ class CashSessionController extends Controller
             'note' => $sessao->note,
             'reportSnapshot' => $sessao->report_snapshot,
         ];
+    }
+
+    private function podeVerTodosFechosCaixa(Request $request): bool
+    {
+        $authUser = $request->user('api');
+        abort_unless($authUser, 401);
+
+        $allowedByRole = in_array((string) ($authUser->role ?? ''), ['ADMIN', 'MANAGER'], true);
+        $allowedByPermission = $authUser->can('cash_sessions.view');
+
+        return $allowedByRole || $allowedByPermission;
     }
 
     public function active(Request $request)

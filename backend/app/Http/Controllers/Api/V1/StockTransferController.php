@@ -8,6 +8,7 @@ use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
 use App\Models\StockTransferItem;
+use App\Support\ProductStockDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -52,6 +53,9 @@ class StockTransferController extends Controller
             'quantity' => ['required', 'numeric', 'gt:0'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
+
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['from_location_id'], 'from_location_id');
+        ProductStockDisplay::exigirLocalizacaoActiva($dados['to_location_id'], 'to_location_id');
 
         $payload = DB::transaction(function () use ($dados) {
             $produto = Product::query()->findOrFail($dados['product_id']);
@@ -114,10 +118,8 @@ class StockTransferController extends Controller
                 'performed_by' => auth('api')->id(),
             ]);
 
-            $produto->stock = (float) StockBalance::query()
-                ->where('product_id', $produto->id)
-                ->sum('quantity');
-            $produto->save();
+            ProductStockDisplay::sincronizarStockGlobal($produto->id);
+            $produto->refresh();
 
             return $transfer;
         });

@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Livewire\Admin\ProductsPage;
 use App\Models\Product;
+use App\Models\StockBalance;
+use App\Models\StockLocation;
+use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\Concerns\ApiTestHelpers;
@@ -24,6 +26,123 @@ class ProductsPageTest extends TestCase
         Permission::findOrCreate('products.view', 'web');
         $role = Role::findOrCreate('ADMIN', 'web');
         $role->givePermissionTo(['products.manage', 'products.view']);
+    }
+
+    public function test_pagina_produtos_carrega_com_tabela_e_modal(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        $this->actingAs($admin)
+            ->get(route('products.index'))
+            ->assertOk()
+            ->assertSee(__('pages.products.title'))
+            ->assertSee(__('pages.products.new'))
+            ->assertSee('product-form-modal', false)
+            ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.category').'</th>', false)
+            ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.sale_unit').'</th>', false)
+            ->assertDontSee('<th class="px-3 py-2">'.__('app.fields.iva').'</th>', false);
+    }
+
+    public function test_listagem_produtos_nao_conta_stock_de_localizacao_inactiva(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.view']);
+
+        $produto = $ambiente['product'];
+        $localActivo = $ambiente['location'];
+
+        $localInactivo = StockLocation::query()->create([
+            'id' => (string) Str::uuid(),
+            'code' => 'LOC-OFF',
+            'name' => 'Armazém Inactivo',
+            'type' => 'WAREHOUSE',
+            'is_saleable' => false,
+            'is_active' => false,
+        ]);
+
+        StockBalance::query()->create([
+            'id' => (string) Str::uuid(),
+            'location_id' => $localInactivo->id,
+            'product_id' => $produto->id,
+            'quantity' => 50,
+        ]);
+
+        $produto->update(['stock' => 150]);
+
+        $this->actingAs($admin)
+            ->get(route('products.index'))
+            ->assertOk()
+            ->assertSee('100,00')
+            ->assertDontSee('150,00');
+    }
+
+    public function test_pagina_produtos_mostra_acoes_stock_com_permissao(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view', 'stock.reload']);
+
+        $this->actingAs($admin)
+            ->get(route('products.index'))
+            ->assertOk()
+            ->assertSee(route('stock.reload.form', [
+                'product' => $ambiente['product'],
+                'return_to' => 'products',
+            ]), false)
+            ->assertSee(route('stock.reload.adjust.form', [
+                'product' => $ambiente['product'],
+                'return_to' => 'products',
+            ]), false)
+            ->assertSee('package-plus', false)
+            ->assertSee('sliders-horizontal', false);
+    }
+
+    public function test_pagina_editar_produto_mostra_formulario(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        $produto = $ambiente['product'];
+
+        $this->actingAs($admin)
+            ->get(route('products.edit', ['product' => $produto, 'search' => 'teste']))
+            ->assertOk()
+            ->assertSee($produto->nome)
+            ->assertSee('product-edit-form', false)
+            ->assertSee(route('products.update', $produto), false);
+    }
+
+    public function test_editar_produto_via_formulario_redireciona_para_lista(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $admin = $ambiente['user'];
+        $admin->assignRole('ADMIN');
+        $admin->givePermissionTo(['products.manage', 'products.view']);
+
+        $produto = $ambiente['product'];
+
+        $this->actingAs($admin)
+            ->put(route('products.update', $produto), [
+                'nome' => 'Produto Actualizado',
+                'codigo_barras' => $produto->codigo_barras,
+                'unidade_venda' => 'UN',
+                'preco_compra' => '50',
+                'preco_venda' => '100',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => '1',
+                'return_search' => 'teste',
+            ])
+            ->assertRedirect(route('products.index', ['search' => 'teste']));
+
+        $this->assertSame('Produto Actualizado', $produto->fresh()->nome);
     }
 
     public function test_rejeita_codigo_barras_duplicado_com_validacao_no_campo(): void
@@ -46,15 +165,17 @@ class ProductsPageTest extends TestCase
             'is_active' => true,
         ]);
 
-        Livewire::actingAs($admin)
-            ->test(ProductsPage::class)
-            ->call('openCreateModal')
-            ->set('nome', 'Bolacha')
-            ->set('codigo_barras', '1234567890123')
-            ->set('preco_compra', '1')
-            ->set('preco_venda', '2')
-            ->call('save')
-            ->assertHasErrors(['codigo_barras']);
+        $this->actingAs($admin)
+            ->postJson(route('products.store'), [
+                'nome' => 'Bolacha',
+                'codigo_barras' => '1234567890123',
+                'preco_compra' => '1',
+                'preco_venda' => '2',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => true,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['codigo_barras']);
 
         $this->assertDatabaseMissing('products', ['nome' => 'Bolacha']);
         $this->assertDatabaseHas('products', ['nome' => 'Pão', 'codigo_barras' => '1234567890123']);
@@ -67,15 +188,16 @@ class ProductsPageTest extends TestCase
         $admin->assignRole('ADMIN');
         $admin->givePermissionTo(['products.manage', 'products.view']);
 
-        Livewire::actingAs($admin)
-            ->test(ProductsPage::class)
-            ->call('openCreateModal')
-            ->set('nome', 'Peixe fresco')
-            ->set('unidade_venda', 'KG')
-            ->set('preco_compra', '200')
-            ->set('preco_venda', '450')
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)
+            ->postJson(route('products.store'), [
+                'nome' => 'Peixe fresco',
+                'unidade_venda' => 'KG',
+                'preco_compra' => '200',
+                'preco_venda' => '450',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => true,
+            ])
+            ->assertCreated();
 
         $this->assertDatabaseHas('products', [
             'nome' => 'Peixe fresco',
@@ -103,12 +225,17 @@ class ProductsPageTest extends TestCase
             'is_active' => true,
         ]);
 
-        Livewire::actingAs($admin)
-            ->test(ProductsPage::class)
-            ->call('openEditModal', $produto->id)
-            ->set('nome', 'Pão especial')
-            ->call('save')
-            ->assertHasNoErrors();
+        $this->actingAs($admin)
+            ->putJson(route('products.update', $produto), [
+                'nome' => 'Pão especial',
+                'codigo_barras' => '1234567890123',
+                'unidade_venda' => 'UN',
+                'preco_compra' => '1',
+                'preco_venda' => '2',
+                'iva_tipo' => 'ISENTO',
+                'is_active' => true,
+            ])
+            ->assertOk();
 
         $this->assertSame('Pão especial', $produto->fresh()->nome);
     }
