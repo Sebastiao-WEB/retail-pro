@@ -73,16 +73,46 @@ function buildFilterUrl(form) {
     const params = new URLSearchParams();
 
     new FormData(form).forEach((value, key) => {
-        const text = String(value ?? '').trim();
-        if (text === '') {
+        const raw = String(value ?? '');
+        // Não fazer trim no valor enviado — o utilizador pode estar a escrever um espaço
+        // no meio do termo (ex.: "Agua mineral").
+        if (raw.trim() === '') {
             return;
         }
-        params.append(key, text);
+        params.append(key, raw);
     });
 
     url.search = params.toString();
 
     return url;
+}
+
+/** Valores de texto mais recentes, para não perder espaços ao substituir o HTML. */
+const latestTextFieldValues = {};
+
+function captureTextFieldValues(form) {
+    const values = {};
+    form.querySelectorAll('input[type="text"], input[type="search"], textarea').forEach((input) => {
+        if (!input.name) {
+            return;
+        }
+        values[input.name] = input.value;
+        latestTextFieldValues[input.name] = input.value;
+    });
+    return values;
+}
+
+function restoreTextFieldValues(values) {
+    const merged = { ...values, ...latestTextFieldValues };
+    Object.entries(merged).forEach(([name, value]) => {
+        const field = document.querySelector(`[name="${CSS.escape(name)}"]`);
+        if (
+            field instanceof HTMLInputElement ||
+            field instanceof HTMLTextAreaElement
+        ) {
+            field.value = value;
+        }
+    });
 }
 
 function captureFocusState() {
@@ -91,9 +121,14 @@ function captureFocusState() {
         return null;
     }
 
+    if (active.name) {
+        latestTextFieldValues[active.name] = active.value;
+    }
+
     return {
         name: active.getAttribute('name'),
         id: active.id || null,
+        value: active.value,
         selectionStart: typeof active.selectionStart === 'number' ? active.selectionStart : null,
         selectionEnd: typeof active.selectionEnd === 'number' ? active.selectionEnd : null,
     };
@@ -115,6 +150,19 @@ function restoreFocusState(state) {
         return;
     }
 
+    if (
+        (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) &&
+        state.name &&
+        Object.prototype.hasOwnProperty.call(latestTextFieldValues, state.name)
+    ) {
+        field.value = latestTextFieldValues[state.name];
+    } else if (
+        (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) &&
+        typeof state.value === 'string'
+    ) {
+        field.value = state.value;
+    }
+
     field.focus({ preventScroll: true });
     if (
         (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) &&
@@ -125,7 +173,10 @@ function restoreFocusState(state) {
         field.type !== 'radio'
     ) {
         try {
-            field.setSelectionRange(state.selectionStart, state.selectionEnd);
+            const length = field.value.length;
+            const start = Math.min(state.selectionStart, length);
+            const end = Math.min(state.selectionEnd, length);
+            field.setSelectionRange(start, end);
         } catch {
             // ignore unsupported input types
         }
@@ -156,6 +207,7 @@ const autoSubmitControllers = new WeakMap();
 
 async function ajaxFilterSubmit(form) {
     const seq = ++autoSubmitSeq;
+    const typedValues = captureTextFieldValues(form);
     const focusState = captureFocusState();
     const url = buildFilterUrl(form);
 
@@ -195,6 +247,7 @@ async function ajaxFilterSubmit(form) {
         history.replaceState({}, '', url.toString());
         refreshAdminIcons();
         bindAutoSubmitForms();
+        restoreTextFieldValues(typedValues);
         restoreFocusState(focusState);
     } catch (error) {
         if (isRequestCanceled(error) || seq !== autoSubmitSeq) {
@@ -229,7 +282,12 @@ export function bindAutoSubmitForms() {
         });
 
         form.querySelectorAll('input[type="text"], input[type="search"]').forEach((input) => {
-            input.addEventListener('input', submitAjax);
+            input.addEventListener('input', () => {
+                if (input.name) {
+                    latestTextFieldValues[input.name] = input.value;
+                }
+                submitAjax();
+            });
         });
 
         form.querySelectorAll('select, input[type="date"], input[type="checkbox"]').forEach((element) => {
