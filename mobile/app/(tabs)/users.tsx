@@ -9,12 +9,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Redirect } from 'expo-router';
 import { ApiError } from '@/src/api/httpClient';
 import { fetchUsers, type AppUser, type UsersListResponse } from '@/src/api/usersApi';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
 import UserEditModal from '@/src/components/UserEditModal';
 import { useAuthStore } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 const PER_PAGE = 10;
 
@@ -29,7 +31,7 @@ function traduzirPerfil(role?: string) {
 }
 
 export default function UsersScreen() {
-  const { user: authUser } = useAuthStore();
+  const { user: authUser, client } = useAuthStore();
   const [data, setData] = useState<UsersListResponse | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -97,6 +99,10 @@ export default function UsersScreen() {
 
   const items = data?.items ?? [];
   const totalPaginas = data?.meta.last_page ?? 1;
+
+  if (client === 'pos') {
+    return <Redirect href={homeForClient(client)} />;
+  }
 
   return (
     <>

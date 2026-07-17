@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Redirect } from 'expo-router';
 import { ApiError } from '@/src/api/httpClient';
 import { fetchProducts, type Product, type ProductsListResponse } from '@/src/api/productsApi';
 import {
@@ -24,6 +25,7 @@ import StockActionModal, { type StockActionMode } from '@/src/components/StockAc
 import { useAuthStore } from '@/src/store/authStore';
 import type { AuthUser } from '@/src/types/auth';
 import { brand } from '@/src/theme/brand';
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 const PER_PAGE = 10;
 
@@ -67,7 +69,7 @@ function formatarData(iso?: string | null) {
 }
 
 export default function StockScreen() {
-  const { user } = useAuthStore();
+  const { user, client } = useAuthStore();
   const podeRecarregar = temPermissao(user, 'stock.reload');
   const podeTransferir = temPermissao(user, 'stock.transfers.manage');
   const podeVerMovimentos = temPermissao(user, 'stock.movements.view');
@@ -230,6 +232,10 @@ export default function StockScreen() {
       (item.note ?? '').toLowerCase().includes(termo)
     );
   });
+
+  if (client === 'pos') {
+    return <Redirect href={homeForClient(client)} />;
+  }
 
   return (
     <>

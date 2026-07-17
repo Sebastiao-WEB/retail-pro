@@ -17,10 +17,7 @@ import { ApiError } from '@/src/api/authApi';
 import { useAuthStore } from '@/src/store/authStore';
 import type { LoginMode } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
-
-function destinoAposLogin(client: 'admin' | 'pos' | null) {
-  return client === 'pos' ? '/(tabs)/pos' : '/(tabs)';
-}
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 export default function LoginScreen() {
   const {
@@ -42,7 +39,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
 
   if (hydrated && user) {
-    return <Redirect href={destinoAposLogin(client)} />;
+    return <Redirect href={homeForClient(client)} />;
   }
 
   if (twoFactorToken) {
@@ -64,7 +61,7 @@ export default function LoginScreen() {
         return;
       }
       if (state.user) {
-        router.replace(destinoAposLogin(state.client));
+        router.replace(homeForClient(state.client));
       }
     } catch (err) {
       const message =

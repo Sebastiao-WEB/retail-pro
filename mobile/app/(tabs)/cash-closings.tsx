@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Redirect } from 'expo-router';
 import { ApiError } from '@/src/api/httpClient';
 import {
   fetchClosedCashSessions,
@@ -19,6 +20,7 @@ import CashSessionDetailModal from '@/src/components/CashSessionDetailModal';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
 import { useAuthStore } from '@/src/store/authStore';
 import { brand, formatMt } from '@/src/theme/brand';
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 const PER_PAGE = 10;
 
@@ -46,7 +48,7 @@ function diferenca(session: CashSession) {
 }
 
 export default function CashClosingsScreen() {
-  const { user } = useAuthStore();
+  const { user, client } = useAuthStore();
   const [data, setData] = useState<CashSessionsListResponse | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -113,6 +115,10 @@ export default function CashClosingsScreen() {
 
   const items = data?.items ?? [];
   const totalPaginas = data?.meta.last_page ?? 1;
+
+  if (client === 'pos') {
+    return <Redirect href={homeForClient(client)} />;
+  }
 
   return (
     <>

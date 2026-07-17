@@ -5,6 +5,7 @@ import { useAuthStore } from '@/src/store/authStore';
 import { initDatabase } from '@/src/services/database/db';
 import { hasConfiguredServer, hydrateServerConfigFromEnv } from '@/src/services/serverConfig';
 import { brand } from '@/src/theme/brand';
+import { homeForClient, isScreenAllowedForClient } from '@/src/utils/clientRoutes';
 
 export default function RootLayout() {
   const { hydrate, hydrated } = useAuthStore();
@@ -83,7 +84,16 @@ function AuthGate({
       }
 
       if (user && inAuth && !onServerScreen) {
-        router.replace(client === 'pos' ? '/(tabs)/pos' : '/(tabs)');
+        router.replace(homeForClient(client));
+        return;
+      }
+
+      // Impede acesso cruzado: admin não abre POS; POS não abre gestão.
+      if (user && segments[0] === '(tabs)') {
+        const screen = typeof segments[1] === 'string' ? segments[1] : 'index';
+        if (!isScreenAllowedForClient(client, screen)) {
+          router.replace(homeForClient(client));
+        }
       }
     })();
   }, [user, client, twoFactorToken, segments, router, serverConfigured, markServerConfigured]);

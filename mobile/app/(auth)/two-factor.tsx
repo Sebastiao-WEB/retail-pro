@@ -11,10 +11,7 @@ import { Redirect, router } from 'expo-router';
 import { ApiError } from '@/src/api/authApi';
 import { useAuthStore } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
-
-function destinoAposLogin(client: 'admin' | 'pos' | null) {
-  return client === 'pos' ? '/(tabs)/pos' : '/(tabs)';
-}
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 export default function TwoFactorScreen() {
   const { user, client, hydrated, loading, twoFactorToken, confirmTwoFactor, cancelTwoFactor } = useAuthStore();
@@ -23,7 +20,7 @@ export default function TwoFactorScreen() {
   const [error, setError] = useState('');
 
   if (hydrated && user) {
-    return <Redirect href={destinoAposLogin(client)} />;
+    return <Redirect href={homeForClient(client)} />;
   }
 
   if (!twoFactorToken) {
@@ -34,7 +31,7 @@ export default function TwoFactorScreen() {
     setError('');
     try {
       await confirmTwoFactor(code.trim(), recoveryMode);
-      router.replace(destinoAposLogin(useAuthStore.getState().client));
+      router.replace(homeForClient(useAuthStore.getState().client));
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Código inválido.';
       setError(message);

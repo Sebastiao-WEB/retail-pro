@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Redirect } from 'expo-router';
 import { ApiError } from '@/src/api/httpClient';
 import {
   fetchProducts,
@@ -17,7 +18,9 @@ import {
 } from '@/src/api/productsApi';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
 import ProductEditModal from '@/src/components/ProductEditModal';
+import { useAuthStore } from '@/src/store/authStore';
 import { brand, formatMt } from '@/src/theme/brand';
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 const PER_PAGE = 10;
 const SEARCH_DEBOUNCE_MS = 3000;
@@ -32,6 +35,7 @@ function formatarStock(stock: number, unidade: Product['unidadeVenda']) {
 }
 
 export default function ProductsScreen() {
+  const client = useAuthStore((state) => state.client);
   const [data, setData] = useState<ProductsListResponse | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -41,6 +45,7 @@ export default function ProductsScreen() {
   const [error, setError] = useState('');
   const [produtoSelecionado, setProdutoSelecionado] = useState<Product | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [modoModal, setModoModal] = useState<'create' | 'edit'>('edit');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,14 +77,22 @@ export default function ProductsScreen() {
     load();
   }, [load]);
 
+  function abrirCriacao() {
+    setProdutoSelecionado(null);
+    setModoModal('create');
+    setModalAberto(true);
+  }
+
   function abrirEdicao(produto: Product) {
     setProdutoSelecionado(produto);
+    setModoModal('edit');
     setModalAberto(true);
   }
 
   function fecharEdicao() {
     setModalAberto(false);
     setProdutoSelecionado(null);
+    setModoModal('edit');
   }
 
   function irParaPagina(pagina: number) {
@@ -91,6 +104,10 @@ export default function ProductsScreen() {
   const items = data?.items ?? [];
   const totalPaginas = data?.meta.last_page ?? 1;
 
+  if (client === 'pos') {
+    return <Redirect href={homeForClient(client)} />;
+  }
+
   return (
     <>
       <ScrollView
@@ -99,10 +116,15 @@ export default function ProductsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.section}>
-            {data ? `${data.meta.total} produto(s)` : 'Produtos'}
-          </Text>
-          <Text style={styles.sectionMeta}>{PER_PAGE} por página</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.section}>
+              {data ? `${data.meta.total} produto(s)` : 'Produtos'}
+            </Text>
+            <Text style={styles.sectionMeta}>{PER_PAGE} por página</Text>
+          </View>
+          <Pressable style={styles.newButton} onPress={abrirCriacao}>
+            <Text style={styles.newButtonText}>+ Novo</Text>
+          </Pressable>
         </View>
 
         <TextInput
@@ -167,6 +189,7 @@ export default function ProductsScreen() {
       <ProductEditModal
         visible={modalAberto}
         product={produtoSelecionado}
+        mode={modoModal}
         onClose={fecharEdicao}
         onSaved={() => {
           load();
@@ -179,9 +202,25 @@ export default function ProductsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: brand.background },
-  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 2 },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerText: { flex: 1, gap: 2 },
   section: { fontWeight: '700', color: brand.dark },
   sectionMeta: { fontSize: 12, color: brand.muted },
+  newButton: {
+    backgroundColor: brand.gold,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  newButtonText: { fontWeight: '700', color: brand.dark, fontSize: 14 },
   searchInput: {
     marginHorizontal: 16,
     marginBottom: 12,

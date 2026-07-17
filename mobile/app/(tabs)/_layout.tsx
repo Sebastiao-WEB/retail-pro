@@ -111,6 +111,7 @@ export default function TabLayout() {
   return (
     <>
       <Tabs
+        initialRouteName={modoPos ? 'pos' : 'index'}
         screenOptions={{
           tabBarActiveTintColor: brand.gold,
           tabBarInactiveTintColor: brand.muted,
@@ -126,20 +127,6 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="pos"
-          options={{
-            title: 'POS',
-            href: modoPos ? undefined : null,
-            tabBarIcon: ({ color }) => (
-              <SymbolView
-                name={{ ios: 'barcode.viewfinder', android: 'qr_code_scanner', web: 'qr_code_scanner' }}
-                tintColor={color}
-                size={24}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="index"
           options={{
             title: 'Dashboard',
@@ -147,6 +134,20 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => (
               <SymbolView
                 name={{ ios: 'chart.bar', android: 'bar_chart', web: 'bar_chart' }}
+                tintColor={color}
+                size={24}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="pos"
+          options={{
+            title: 'POS',
+            href: modoPos ? undefined : null,
+            tabBarIcon: ({ color }) => (
+              <SymbolView
+                name={{ ios: 'barcode.viewfinder', android: 'qr_code_scanner', web: 'qr_code_scanner' }}
                 tintColor={color}
                 size={24}
               />

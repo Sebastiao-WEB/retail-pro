@@ -10,18 +10,23 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { ApiError } from '@/src/api/httpClient';
 import {
+  createProduct,
   updateProduct,
   type IvaTipo,
   type Product,
   type SaleUnit,
 } from '@/src/api/productsApi';
+import BarcodeCaptureModal from '@/src/components/BarcodeCaptureModal';
 import { brand, formatMt } from '@/src/theme/brand';
 
 type Props = {
   visible: boolean;
+  /** null = criar produto novo */
   product: Product | null;
+  mode?: 'create' | 'edit';
   onClose: () => void;
   onSaved: () => void;
 };
@@ -42,23 +47,85 @@ function formatarStock(stock: number, unidade: SaleUnit) {
   return unidade === 'KG' ? `${valor} kg` : String(valor);
 }
 
-export default function ProductEditModal({ visible, product, onClose, onSaved }: Props) {
+function resetFormDefaults(
+  setters: {
+    setNome: (v: string) => void;
+    setCodigoBarras: (v: string) => void;
+    setCategoria: (v: string) => void;
+    setUnidadeVenda: (v: SaleUnit) => void;
+    setPrecoCompra: (v: string) => void;
+    setPrecoVenda: (v: string) => void;
+    setIvaTipo: (v: IvaTipo) => void;
+    setIvaPercentual: (v: string) => void;
+    setIvaValor: (v: string) => void;
+    setStockInicial: (v: string) => void;
+    setIsActive: (v: boolean) => void;
+    setControlaEstoque: (v: boolean) => void;
+    setError: (v: string) => void;
+  },
+) {
+  setters.setNome('');
+  setters.setCodigoBarras('');
+  setters.setCategoria('');
+  setters.setUnidadeVenda('UN');
+  setters.setPrecoCompra('0');
+  setters.setPrecoVenda('');
+  setters.setIvaTipo('ISENTO');
+  setters.setIvaPercentual('0');
+  setters.setIvaValor('0');
+  setters.setStockInicial('0');
+  setters.setIsActive(true);
+  setters.setControlaEstoque(true);
+  setters.setError('');
+}
+
+export default function ProductEditModal({
+  visible,
+  product,
+  mode = product ? 'edit' : 'create',
+  onClose,
+  onSaved,
+}: Props) {
+  const isCreate = mode === 'create' || !product;
   const [nome, setNome] = useState('');
   const [codigoBarras, setCodigoBarras] = useState('');
   const [categoria, setCategoria] = useState('');
   const [unidadeVenda, setUnidadeVenda] = useState<SaleUnit>('UN');
-  const [precoCompra, setPrecoCompra] = useState('');
+  const [precoCompra, setPrecoCompra] = useState('0');
   const [precoVenda, setPrecoVenda] = useState('');
   const [ivaTipo, setIvaTipo] = useState<IvaTipo>('ISENTO');
-  const [ivaPercentual, setIvaPercentual] = useState('');
-  const [ivaValor, setIvaValor] = useState('');
+  const [ivaPercentual, setIvaPercentual] = useState('0');
+  const [ivaValor, setIvaValor] = useState('0');
+  const [stockInicial, setStockInicial] = useState('0');
   const [isActive, setIsActive] = useState(true);
   const [controlaEstoque, setControlaEstoque] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
 
   useEffect(() => {
-    if (!visible || !product) return;
+    if (!visible) return;
+
+    if (isCreate) {
+      resetFormDefaults({
+        setNome,
+        setCodigoBarras,
+        setCategoria,
+        setUnidadeVenda,
+        setPrecoCompra,
+        setPrecoVenda,
+        setIvaTipo,
+        setIvaPercentual,
+        setIvaValor,
+        setStockInicial,
+        setIsActive,
+        setControlaEstoque,
+        setError,
+      });
+      return;
+    }
+
+    if (!product) return;
 
     setNome(product.nome);
     setCodigoBarras(product.codigoBarras ?? '');
@@ -69,13 +136,14 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
     setIvaTipo(product.ivaTipo ?? 'ISENTO');
     setIvaPercentual(String(product.ivaPercentual ?? 0));
     setIvaValor(String(product.ivaValor ?? 0));
+    setStockInicial(String(product.stock ?? 0));
     setIsActive(product.isActive);
     setControlaEstoque(product.controlaEstoque !== false);
     setError('');
-  }, [visible, product]);
+  }, [visible, product, isCreate]);
 
   async function handleSave() {
-    if (!product || submitting) return;
+    if (submitting) return;
 
     setError('');
 
@@ -83,6 +151,7 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
     const venda = Number(precoVenda.replace(',', '.'));
     const ivaPerc = Number(ivaPercentual.replace(',', '.'));
     const ivaMon = Number(ivaValor.replace(',', '.'));
+    const stock = Number(stockInicial.replace(',', '.'));
 
     if (!nome.trim()) {
       setError('Informe o nome do produto.');
@@ -104,59 +173,107 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
       return;
     }
 
+    if (isCreate && (!Number.isFinite(stock) || stock < 0)) {
+      setError('Stock inicial inválido.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await updateProduct(product.id, {
-        nome: nome.trim(),
-        codigoBarras: codigoBarras.trim() || null,
-        categoria: categoria.trim() || null,
-        unidadeVenda,
-        precoCompra: compra,
-        precoVenda: venda,
-        ivaTipo,
-        ivaPercentual: ivaTipo === 'PERCENTUAL' ? ivaPerc : 0,
-        ivaValor: ivaTipo === 'MONETARIO' ? ivaMon : 0,
-        is_active: isActive,
-        controlaEstoque,
-      });
+      if (isCreate) {
+        await createProduct({
+          nome: nome.trim(),
+          codigoBarras: codigoBarras.trim() || null,
+          categoria: categoria.trim() || null,
+          unidadeVenda,
+          precoCompra: compra,
+          precoVenda: venda,
+          ivaTipo,
+          ivaPercentual: ivaTipo === 'PERCENTUAL' ? ivaPerc : 0,
+          ivaValor: ivaTipo === 'MONETARIO' ? ivaMon : 0,
+          stock: controlaEstoque ? stock : 0,
+          controlaEstoque,
+        });
+        Alert.alert('Sucesso', 'Produto criado com sucesso.');
+      } else if (product) {
+        await updateProduct(product.id, {
+          nome: nome.trim(),
+          codigoBarras: codigoBarras.trim() || null,
+          categoria: categoria.trim() || null,
+          unidadeVenda,
+          precoCompra: compra,
+          precoVenda: venda,
+          ivaTipo,
+          ivaPercentual: ivaTipo === 'PERCENTUAL' ? ivaPerc : 0,
+          ivaValor: ivaTipo === 'MONETARIO' ? ivaMon : 0,
+          is_active: isActive,
+          controlaEstoque,
+        });
+        Alert.alert('Sucesso', 'Produto actualizado com sucesso.');
+      }
 
       onSaved();
-      Alert.alert('Sucesso', 'Produto actualizado com sucesso.');
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Não foi possível guardar o produto.');
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : isCreate
+            ? 'Não foi possível criar o produto.'
+            : 'Não foi possível guardar o produto.',
+      );
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Editar produto</Text>
-            <Pressable onPress={onClose} style={styles.closeButton} disabled={submitting}>
-              <Text style={styles.closeText}>Fechar</Text>
-            </Pressable>
-          </View>
+    <>
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+        <View style={styles.overlay}>
+          <View style={styles.sheet}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{isCreate ? 'Novo produto' : 'Editar produto'}</Text>
+              <Pressable onPress={onClose} style={styles.closeButton} disabled={submitting}>
+                <Text style={styles.closeText}>Fechar</Text>
+              </Pressable>
+            </View>
 
-          {product ? (
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
               <Text style={styles.label}>Nome</Text>
               <TextInput value={nome} onChangeText={setNome} style={styles.input} editable={!submitting} />
 
               <Text style={styles.label}>Código de barras</Text>
-              <TextInput
-                value={codigoBarras}
-                onChangeText={setCodigoBarras}
-                style={styles.input}
-                autoCapitalize="none"
-                editable={!submitting}
-              />
+              <View style={styles.barcodeRow}>
+                <TextInput
+                  value={codigoBarras}
+                  onChangeText={setCodigoBarras}
+                  style={[styles.input, styles.barcodeInput]}
+                  autoCapitalize="none"
+                  editable={!submitting}
+                  placeholder="Escanear ou digitar"
+                />
+                <Pressable
+                  style={[styles.scanBtn, submitting && styles.saveButtonDisabled]}
+                  onPress={() => setScannerVisible(true)}
+                  disabled={submitting}
+                  accessibilityLabel="Escanear código de barras"
+                >
+                  <SymbolView
+                    name={{ ios: 'barcode.viewfinder', android: 'qr_code_scanner', web: 'qr_code_scanner' }}
+                    tintColor={brand.dark}
+                    size={22}
+                  />
+                </Pressable>
+              </View>
 
               <Text style={styles.label}>Categoria</Text>
-              <TextInput value={categoria} onChangeText={setCategoria} style={styles.input} editable={!submitting} />
+              <TextInput
+                value={categoria}
+                onChangeText={setCategoria}
+                style={styles.input}
+                editable={!submitting}
+              />
 
               <Text style={styles.label}>Unidade de venda</Text>
               <View style={styles.chipRow}>
@@ -241,16 +358,34 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
                 </>
               ) : null}
 
-              <View style={styles.infoCard}>
-                <Text style={styles.infoLine}>
-                  <Text style={styles.infoLabel}>Stock actual: </Text>
-                  {controlaEstoque ? formatarStock(product.stock, unidadeVenda) : 'Sob pedido'}
-                </Text>
-                <Text style={styles.infoLine}>
-                  <Text style={styles.infoLabel}>Preço actual: </Text>
-                  {formatMt(product.precoVenda)}
-                </Text>
-              </View>
+              {isCreate ? (
+                <>
+                  <Text style={styles.label}>
+                    {unidadeVenda === 'KG' ? 'Stock inicial (kg)' : 'Stock inicial'}
+                  </Text>
+                  <TextInput
+                    value={stockInicial}
+                    onChangeText={setStockInicial}
+                    keyboardType="decimal-pad"
+                    style={[styles.input, !controlaEstoque && styles.inputDisabled]}
+                    editable={!submitting && controlaEstoque}
+                  />
+                  {!controlaEstoque ? (
+                    <Text style={styles.hint}>Produto sob pedido — stock inicial não é obrigatório.</Text>
+                  ) : null}
+                </>
+              ) : product ? (
+                <View style={styles.infoCard}>
+                  <Text style={styles.infoLine}>
+                    <Text style={styles.infoLabel}>Stock actual: </Text>
+                    {controlaEstoque ? formatarStock(product.stock, unidadeVenda) : 'Sob pedido'}
+                  </Text>
+                  <Text style={styles.infoLine}>
+                    <Text style={styles.infoLabel}>Preço actual: </Text>
+                    {formatMt(product.precoVenda)}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.switchRow}>
                 <Text style={styles.label}>Controlar stock</Text>
@@ -263,16 +398,18 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
                 />
               </View>
 
-              <View style={styles.switchRow}>
-                <Text style={styles.label}>Produto activo</Text>
-                <Switch
-                  value={isActive}
-                  onValueChange={setIsActive}
-                  disabled={submitting}
-                  trackColor={{ false: brand.border, true: brand.gold }}
-                  thumbColor={brand.white}
-                />
-              </View>
+              {!isCreate ? (
+                <View style={styles.switchRow}>
+                  <Text style={styles.label}>Produto activo</Text>
+                  <Switch
+                    value={isActive}
+                    onValueChange={setIsActive}
+                    disabled={submitting}
+                    trackColor={{ false: brand.border, true: brand.gold }}
+                    thumbColor={brand.white}
+                  />
+                </View>
+              ) : null}
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -281,13 +418,27 @@ export default function ProductEditModal({ visible, product, onClose, onSaved }:
                 onPress={handleSave}
                 disabled={submitting}
               >
-                <Text style={styles.saveButtonText}>{submitting ? 'A guardar...' : 'Guardar alterações'}</Text>
+                <Text style={styles.saveButtonText}>
+                  {submitting
+                    ? isCreate
+                      ? 'A criar...'
+                      : 'A guardar...'
+                    : isCreate
+                      ? 'Criar produto'
+                      : 'Guardar alterações'}
+                </Text>
               </Pressable>
             </ScrollView>
-          ) : null}
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <BarcodeCaptureModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onCapture={(code) => setCodigoBarras(code)}
+      />
+    </>
   );
 }
 
@@ -326,6 +477,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: brand.white,
+  },
+  inputDisabled: { backgroundColor: brand.background, color: brand.muted },
+  barcodeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  barcodeInput: { flex: 1 },
+  scanBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: brand.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {

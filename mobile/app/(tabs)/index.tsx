@@ -16,6 +16,7 @@ import FullScreenLoader from '@/src/components/FullScreenLoader';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
 import { useAuthStore } from '@/src/store/authStore';
 import { brand, formatMt } from '@/src/theme/brand';
+import { homeForClient } from '@/src/utils/clientRoutes';
 
 const periods = [
   { key: 'today', label: 'Hoje' },
@@ -83,7 +84,7 @@ export default function DashboardScreen() {
   const totalPaginas = salesData?.meta.last_page ?? 1;
 
   if (client === 'pos') {
-    return <Redirect href="/(tabs)/pos" />;
+    return <Redirect href={homeForClient(client)} />;
   }
 
   return (

@@ -47,6 +47,20 @@ export type ProductUpdatePayload = {
   controlaEstoque: boolean;
 };
 
+export type ProductCreatePayload = {
+  nome: string;
+  codigoBarras: string | null;
+  categoria: string | null;
+  unidadeVenda: SaleUnit;
+  precoCompra: number;
+  precoVenda: number;
+  ivaTipo: IvaTipo;
+  ivaValor: number;
+  ivaPercentual: number;
+  stock?: number;
+  controlaEstoque: boolean;
+};
+
 export async function fetchProducts(page = 1, perPage = 10, search = '') {
   const params = new URLSearchParams({
     page: String(page),
@@ -107,6 +121,13 @@ export async function fetchProductByBarcode(
   if (filters.source_location_id) params.set('source_location_id', filters.source_location_id);
   const response = await httpRequest<{ data: Product[] }>(`/products?${params.toString()}`);
   return response.data?.[0] ?? null;
+}
+
+export async function createProduct(payload: ProductCreatePayload) {
+  return httpRequest<{ message: string; data: { id: string } }>('/products', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function updateProduct(id: string, payload: ProductUpdatePayload) {

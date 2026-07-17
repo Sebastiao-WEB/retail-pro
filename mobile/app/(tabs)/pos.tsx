@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Redirect } from 'expo-router';
 import type { Product } from '@/src/api/productsApi';
 import { ApiError } from '@/src/api/httpClient';
 import type { SaleDetail } from '@/src/api/salesApi';
@@ -19,6 +20,7 @@ import OpenShiftModal from '@/src/components/pos/OpenShiftModal';
 import RequestReversalModal from '@/src/components/pos/RequestReversalModal';
 import WeightQuantityModal from '@/src/components/pos/WeightQuantityModal';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
+import { useAuthStore } from '@/src/store/authStore';
 import { useCartStore } from '@/src/store/cartStore';
 import { useOfflineStore } from '@/src/store/offlineStore';
 import { useProductStore } from '@/src/store/productStore';
@@ -40,6 +42,7 @@ import {
   getCartQuantity,
   validateCartStock,
 } from '@/src/utils/cartStock';
+import { homeForClient } from '@/src/utils/clientRoutes';
 import { debugLog, debugTimed } from '@/src/utils/debugLog';
 
 type Section = 'venda' | 'caixa';
@@ -55,6 +58,7 @@ function formatarData(valor: string | null | undefined) {
 }
 
 export default function PosScreen() {
+  const client = useAuthStore((state) => state.client);
   const sourceLocationId = useSessionStore((state) => state.sourceLocationId);
   const assignedRegister = useSessionStore((state) => state.assignedRegister);
   const registerCode = useSessionStore((state) => state.registerCode);
@@ -383,6 +387,10 @@ export default function PosScreen() {
         ) : null}
       </Pressable>
     );
+  }
+
+  if (client !== 'pos') {
+    return <Redirect href={homeForClient(client)} />;
   }
 
   if (booting) {
