@@ -7,7 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "retailpro-mobile",
     "userInterfaceStyle": "light",
-    "extra": {},
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0a387ce8-5067-4e84-b079-454bd23bded5"
+      }
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -18,7 +23,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.emusana.retailpromobile"
+      "package": "com.emusana.retailpromobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",

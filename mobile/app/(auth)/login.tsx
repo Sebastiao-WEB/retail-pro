@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -12,11 +12,11 @@ import {
   View,
 } from 'react-native';
 import { Redirect, router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { ApiError } from '@/src/api/authApi';
 import { useAuthStore } from '@/src/store/authStore';
 import type { LoginMode } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
-import { displayServerLabel, getStoredApiBaseUrl } from '@/src/services/serverConfig';
 
 function destinoAposLogin(client: 'admin' | 'pos' | null) {
   return client === 'pos' ? '/(tabs)/pos' : '/(tabs)';
@@ -40,11 +40,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [registerCode, setRegisterCode] = useState('');
   const [error, setError] = useState('');
-  const [serverLabel, setServerLabel] = useState('…');
-
-  useEffect(() => {
-    void getStoredApiBaseUrl().then((url) => setServerLabel(displayServerLabel(url)));
-  }, []);
 
   if (hydrated && user) {
     return <Redirect href={destinoAposLogin(client)} />;
@@ -89,123 +84,128 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <View style={styles.logoSlot}>
-            <Image
-              source={require('@/assets/retailpos-logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel="RetailPOS"
-            />
-          </View>
-
-          <View style={styles.modeRow}>
-            <Pressable
-              style={[styles.modeButton, loginMode === 'pos' && styles.modeButtonActive]}
-              onPress={() => alterarModo('pos')}
-            >
-              <Text style={[styles.modeButtonText, loginMode === 'pos' && styles.modeButtonTextActive]}>
-                Vendas (POS)
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modeButton, loginMode === 'admin' && styles.modeButtonActive]}
-              onPress={() => alterarModo('admin')}
-            >
-              <Text style={[styles.modeButtonText, loginMode === 'admin' && styles.modeButtonTextActive]}>
-                Gestão
-              </Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.hint}>
-            {loginMode === 'pos'
-              ? 'Para caixas e operadores de venda no balcão.'
-              : 'Para gerentes e administradores.'}
-          </Text>
-
-          <Pressable style={styles.serverRow} onPress={() => router.push('/server?edit=1')}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.serverLabel}>Servidor</Text>
-              <Text style={styles.serverValue} numberOfLines={1}>
-                {serverLabel}
-              </Text>
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.card}>
+            <View style={styles.logoSlot}>
+              <Image
+                source={require('@/assets/retailpos-logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel="RetailPOS"
+              />
             </View>
-            <Text style={styles.serverChange}>Alterar</Text>
-          </Pressable>
 
-          {awaitingRegisterSelection ? (
-            <View style={styles.registerBlock}>
-              <Text style={styles.registerTitle}>Selecione o caixa</Text>
-              {availableRegisters.map((register) => (
-                <Pressable
-                  key={register.id}
-                  style={styles.registerOption}
-                  onPress={() => handleLogin(register.code)}
-                  disabled={loading}
-                >
-                  <Text style={styles.registerName}>{register.name}</Text>
-                  <Text style={styles.registerCode}>{register.code}</Text>
+            <View style={styles.modeRow}>
+              <Pressable
+                style={[styles.modeButton, loginMode === 'pos' && styles.modeButtonActive]}
+                onPress={() => alterarModo('pos')}
+              >
+                <Text style={[styles.modeButtonText, loginMode === 'pos' && styles.modeButtonTextActive]}>
+                  Vendas (POS)
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modeButton, loginMode === 'admin' && styles.modeButtonActive]}
+                onPress={() => alterarModo('admin')}
+              >
+                <Text style={[styles.modeButtonText, loginMode === 'admin' && styles.modeButtonTextActive]}>
+                  Gestão
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.hint}>
+              {loginMode === 'pos'
+                ? 'Para caixas e operadores de venda no balcão.'
+                : 'Para gerentes e administradores.'}
+            </Text>
+
+            {awaitingRegisterSelection ? (
+              <View style={styles.registerBlock}>
+                <Text style={styles.registerTitle}>Selecione o caixa</Text>
+                {availableRegisters.map((register) => (
+                  <Pressable
+                    key={register.id}
+                    style={styles.registerOption}
+                    onPress={() => handleLogin(register.code)}
+                    disabled={loading}
+                  >
+                    <Text style={styles.registerName}>{register.name}</Text>
+                    <Text style={styles.registerCode}>{register.code}</Text>
+                  </Pressable>
+                ))}
+                <Pressable onPress={clearRegisterSelection}>
+                  <Text style={styles.linkMuted}>Voltar</Text>
                 </Pressable>
-              ))}
-              <Pressable onPress={clearRegisterSelection}>
-                <Text style={styles.linkMuted}>Voltar</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.label}>Utilizador</Text>
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="username ou email"
-                style={styles.input}
-              />
+              </View>
+            ) : (
+              <>
+                <Text style={styles.label}>Utilizador</Text>
+                <TextInput
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="username ou email"
+                  style={styles.input}
+                />
 
-              <Text style={styles.label}>Palavra-passe</Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder="••••••••"
-                style={styles.input}
-              />
+                <Text style={styles.label}>Palavra-passe</Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  placeholder="••••••••"
+                  style={styles.input}
+                />
 
-              {loginMode === 'pos' ? (
-                <>
-                  <Text style={styles.label}>Código do caixa (opcional)</Text>
-                  <TextInput
-                    value={registerCode}
-                    onChangeText={setRegisterCode}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    placeholder="ex.: CX-01"
-                    style={styles.input}
-                  />
-                </>
-              ) : null}
+                {loginMode === 'pos' ? (
+                  <>
+                    <Text style={styles.label}>Código do caixa (opcional)</Text>
+                    <TextInput
+                      value={registerCode}
+                      onChangeText={setRegisterCode}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      placeholder="ex.: CX-01"
+                      style={styles.input}
+                    />
+                  </>
+                ) : null}
 
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+                {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <Pressable style={styles.button} onPress={() => handleLogin()} disabled={loading}>
-                {loading ? (
-                  <ActivityIndicator color={brand.dark} />
-                ) : (
-                  <Text style={styles.buttonText}>Entrar</Text>
-                )}
-              </Pressable>
-            </>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+                <Pressable style={styles.button} onPress={() => handleLogin()} disabled={loading}>
+                  {loading ? (
+                    <ActivityIndicator color={brand.dark} />
+                  ) : (
+                    <Text style={styles.buttonText}>Entrar</Text>
+                  )}
+                </Pressable>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Pressable
+        style={styles.fab}
+        onPress={() => router.push('/server?edit=1')}
+        accessibilityRole="button"
+        accessibilityLabel="Configurar servidor"
+      >
+        <SymbolView
+          name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
+          tintColor={brand.dark}
+          size={24}
+        />
+      </Pressable>
+    </View>
   );
 }
 
@@ -214,6 +214,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: brand.dark,
   },
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -264,33 +265,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: brand.muted,
     marginBottom: 4,
-  },
-  serverRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: brand.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: brand.background,
-    marginBottom: 4,
-  },
-  serverLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: brand.muted,
-  },
-  serverValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: brand.dark,
-  },
-  serverChange: {
-    fontWeight: '700',
-    color: brand.gold,
-    fontSize: 13,
   },
   label: {
     fontSize: 12,
@@ -353,5 +327,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: brand.muted,
     marginTop: 8,
+  },
+  fab: {
+    position: 'absolute',
+    left: 20,
+    bottom: 28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: brand.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 5,
+    zIndex: 20,
   },
 });
