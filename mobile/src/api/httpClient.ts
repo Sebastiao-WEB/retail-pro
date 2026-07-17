@@ -1,4 +1,4 @@
-import { apiConfig } from './config';
+import { apiConfig, getApiBaseUrl } from './config';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '../services/tokenStorage';
 import { debugLog } from '../utils/debugLog';
 
@@ -23,7 +23,8 @@ async function tryRefreshToken() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const response = await fetch(`${apiConfig.baseUrl}/auth/refresh`, {
+        const baseUrl = await getApiBaseUrl();
+        const response = await fetch(`${baseUrl}/auth/refresh`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -51,6 +52,16 @@ export async function httpRequest<T = unknown>(
   options: RequestInit = {},
   context: { refreshTried?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
+  let baseUrl: string;
+  try {
+    baseUrl = await getApiBaseUrl();
+  } catch (error) {
+    throw new ApiError(
+      error instanceof Error ? error.message : 'Servidor não configurado.',
+      0,
+    );
+  }
+
   const token = await getAccessToken();
   const controller = new AbortController();
   const timeoutMs = context.timeoutMs ?? apiConfig.timeoutMs;
@@ -61,7 +72,7 @@ export async function httpRequest<T = unknown>(
   debugLog('HTTP', `${method} ${path} (timeout ${timeoutMs}ms)`);
 
   try {
-    const response = await fetch(`${apiConfig.baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -109,7 +120,7 @@ export async function httpRequest<T = unknown>(
       throw new ApiError('Tempo de ligação ao servidor esgotado.', 0);
     }
     throw new ApiError(
-      `Sem ligação ao servidor (${apiConfig.baseUrl}). Verifique internet/Wi‑Fi e a URL em mobile/.env.`,
+      `Sem ligação ao servidor (${baseUrl}). Verifique a internet e a configuração do servidor no app.`,
       0,
     );
   } finally {

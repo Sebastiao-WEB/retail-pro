@@ -10,12 +10,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 import { ApiError, fetchMe, updatePassword } from '@/src/api/authApi';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
 import { useConfirmLogout } from '@/src/hooks/useConfirmLogout';
 import { useAuthStore } from '@/src/store/authStore';
 import type { AuthUser } from '@/src/types/auth';
 import { brand } from '@/src/theme/brand';
+import { displayServerLabel, getStoredApiBaseUrl } from '@/src/services/serverConfig';
 
 function traduzirPerfil(role?: string) {
   if (role === 'ADMIN') return 'Administrador';
@@ -47,6 +49,7 @@ export default function MoreScreen() {
   const [novaSenha, setNovaSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [serverLabel, setServerLabel] = useState('…');
 
   const loadProfile = useCallback(async () => {
     try {
@@ -60,6 +63,10 @@ export default function MoreScreen() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    void getStoredApiBaseUrl().then((url) => setServerLabel(displayServerLabel(url)));
+  }, []);
 
   async function handleUpdatePassword() {
     setPasswordError('');
@@ -110,6 +117,29 @@ export default function MoreScreen() {
             <ReadOnlyField label="Perfil" value={traduzirPerfil(dados?.role)} />
             <ReadOnlyField label="Caixa(s)" value={caixas} />
             <ReadOnlyField label="Sessão" value={client === 'admin' ? 'Mobile admin' : 'POS'} />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Servidor</Text>
+            <ReadOnlyField label="Cliente / API" value={serverLabel} />
+            <Pressable
+              style={styles.serverButton}
+              onPress={() => {
+                Alert.alert(
+                  'Alterar servidor',
+                  'Ao mudar de cliente, a sessão actual será terminada. Continuar?',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Continuar',
+                      onPress: () => router.push('/server?edit=1'),
+                    },
+                  ],
+                );
+              }}
+            >
+              <Text style={styles.serverButtonText}>Configurar servidor do cliente</Text>
+            </Pressable>
           </View>
 
           <View style={styles.card}>
@@ -237,6 +267,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: brand.dark,
     fontSize: 15,
+  },
+  serverButton: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: brand.border,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: brand.background,
+  },
+  serverButtonText: {
+    fontWeight: '700',
+    color: brand.dark,
+    fontSize: 14,
   },
   error: {
     color: brand.danger,

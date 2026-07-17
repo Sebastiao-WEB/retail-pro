@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
-import { apiConfig } from '../api/config';
+import { getApiBaseUrl } from '../api/config';
 import { countPendingQueue } from '../services/offline/pendingQueue';
 import { syncOfflineQueue } from '../services/offline/offlineSync';
 import { setNetworkOnline } from '../services/offline/networkError';
@@ -22,7 +22,6 @@ function resolveOnline(state: NetInfoState) {
   if (state.isInternetReachable === null || state.isInternetReachable === undefined) {
     return true;
   }
-  // Ligado por Wi‑Fi/dados: tentar API mesmo se o reachability do SO falhar.
   return state.type === 'wifi' || state.type === 'cellular' || state.type === 'ethernet';
 }
 
@@ -32,16 +31,25 @@ export const useOfflineStore = create<OfflineStore>((set, get) => ({
   syncing: false,
 
   init: () => {
-    NetInfo.configure({
-      reachabilityUrl: `${apiConfig.baseUrl}/products?page=1&per_page=1`,
-      reachabilityTest: async (response) => response.status < 500,
-      reachabilityLongTimeout: 30 * 1000,
-      reachabilityShortTimeout: 5 * 1000,
-    });
+    void getApiBaseUrl()
+      .then((baseUrl) => {
+        NetInfo.configure({
+          reachabilityUrl: `${baseUrl}/products?page=1&per_page=1`,
+          reachabilityTest: async (response) => response.status < 500,
+          reachabilityLongTimeout: 30 * 1000,
+          reachabilityShortTimeout: 5 * 1000,
+        });
+      })
+      .catch(() => {
+        // Sem servidor configurado ainda.
+      });
 
     const unsubscribe = NetInfo.addEventListener((state) => {
       const online = resolveOnline(state);
-      debugLog('Net', `estado: connected=${String(state.isConnected)} reachable=${String(state.isInternetReachable)} type=${state.type} → online=${online}`);
+      debugLog(
+        'Net',
+        `estado: connected=${String(state.isConnected)} reachable=${String(state.isInternetReachable)} type=${state.type} → online=${online}`,
+      );
       const wasOffline = !get().online;
       setNetworkOnline(online);
       set({ online });

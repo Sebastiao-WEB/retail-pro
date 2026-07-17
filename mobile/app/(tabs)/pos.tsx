@@ -33,6 +33,13 @@ import {
   soldByWeight,
 } from '@/src/utils/productQuantity';
 import { looksLikeBarcode } from '@/src/utils/productSearch';
+import {
+  buildStockErrorMessage,
+  canAddProductToCart,
+  getAvailableStock,
+  getCartQuantity,
+  validateCartStock,
+} from '@/src/utils/cartStock';
 import { debugLog, debugTimed } from '@/src/utils/debugLog';
 
 type Section = 'venda' | 'caixa';
@@ -211,17 +218,37 @@ export default function PosScreen() {
     Alert.alert('Turno fechado', 'O caixa foi fechado com sucesso.');
   }
 
+  function getFreshProduct(product: Product) {
+    return useProductStore.getState().products.find((entry) => entry.id === product.id) ?? product;
+  }
+
+  function addToCartWithStockCheck(product: Product, quantity: number) {
+    const fresh = getFreshProduct(product);
+    const cartQty = getCartQuantity(cart.items, fresh.id);
+    const check = canAddProductToCart(fresh, quantity, cartQty);
+    if (!check.ok) {
+      Alert.alert('Stock', buildStockErrorMessage(fresh, check));
+      return false;
+    }
+    cart.addProduct(fresh, check.quantity);
+    return true;
+  }
+
   function tryAddProduct(product: Product) {
     if (!shiftOpen) {
       Alert.alert('Caixa fechado', 'Abra o turno antes de registar vendas.');
       setOpenShiftVisible(true);
       return;
     }
-    if (productControlsStock(product) && Number(product.stock || 0) <= 0) {
-      Alert.alert('Sem stock', `${product.nome} não está disponível.`);
+
+    const fresh = getFreshProduct(product);
+    const available = getAvailableStock(fresh, getCartQuantity(cart.items, fresh.id));
+    if (available !== null && available <= 0) {
+      Alert.alert('Sem stock', buildStockErrorMessage(fresh, { ok: false, reason: 'no_stock', available: 0 }));
       return;
     }
-    setQuantityProduct(product);
+
+    setQuantityProduct(fresh);
   }
 
   async function handleBarcode(code: string) {
@@ -258,6 +285,13 @@ export default function PosScreen() {
 
   async function handleCheckout(payload: { cliente: string; valorPago: number; troco: number }) {
     if (!shiftOpen) return;
+
+    const stockCheck = validateCartStock(cart.items, productStore.products);
+    if (!stockCheck.ok) {
+      Alert.alert('Stock', stockCheck.error);
+      return;
+    }
+
     setProcessing(true);
     try {
       const itens = cart.items.map((item) => ({
@@ -562,8 +596,9 @@ export default function PosScreen() {
         visible={!!quantityProduct}
         product={quantityProduct}
         onConfirm={(quantity) => {
-          if (quantityProduct) cart.addProduct(quantityProduct, quantity);
-          setQuantityProduct(null);
+          if (quantityProduct && addToCartWithStockCheck(quantityProduct, quantity)) {
+            setQuantityProduct(null);
+          }
         }}
         onClose={() => setQuantityProduct(null)}
       />

@@ -11,8 +11,14 @@ import {
   View,
 } from 'react-native';
 import { useCartStore } from '../../store/cartStore';
+import { useProductStore } from '../../store/productStore';
 import { brand, formatMt } from '../../theme/brand';
-import { parseQuantityText } from '../../utils/productQuantity';
+import {
+  buildStockErrorMessage,
+  canAddProductToCart,
+  canSetCartQuantity,
+} from '../../utils/cartStock';
+import { formatStockDisplay, parseQuantityText, quantityStep } from '../../utils/productQuantity';
 import { roundMoney } from '../../utils/saleShift';
 
 type Props = {
@@ -35,6 +41,7 @@ function formatQuantityLabel(quantity: number, unit: 'UN' | 'KG') {
 
 export default function CheckoutModal({ visible, loading = false, onConfirm, onClose }: Props) {
   const cart = useCartStore();
+  const products = useProductStore((state) => state.products);
   const [cliente, setCliente] = useState('Cliente Geral');
   const [valorPago, setValorPago] = useState('');
   const [discountInput, setDiscountInput] = useState('');
@@ -55,13 +62,67 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
     cart.setDiscount('valor', value);
   }
 
+  function findProduct(productId: string) {
+    return products.find((product) => product.id === productId) ?? null;
+  }
+
+  function applyCartQuantity(productId: string, quantity: number) {
+    const product = findProduct(productId);
+    if (!product) {
+      cart.setQuantity(productId, quantity);
+      return;
+    }
+
+    const check = canSetCartQuantity(product, quantity);
+    if (!check.ok) {
+      if (check.reason === 'insufficient' && check.maxQuantity) {
+        cart.setQuantity(productId, check.maxQuantity);
+        Alert.alert(
+          'Stock',
+          `Quantidade ajustada ao stock disponível (${formatStockDisplay(check.maxQuantity, product.unidadeVenda)}).`,
+        );
+        return;
+      }
+      Alert.alert('Stock', buildStockErrorMessage(product, check));
+      if (check.reason === 'invalid') {
+        cart.removeProduct(productId);
+      }
+      return;
+    }
+
+    cart.setQuantity(productId, check.quantity);
+  }
+
+  function handleIncreaseQuantity(productId: string) {
+    const item = cart.items.find((entry) => entry.produtoId === productId);
+    const product = findProduct(productId);
+    if (!item || !product) {
+      cart.increaseQuantity(productId);
+      return;
+    }
+
+    const check = canAddProductToCart(product, quantityStep(item.unidadeVenda), item.quantidade);
+    if (!check.ok) {
+      Alert.alert('Stock', buildStockErrorMessage(product, check));
+      return;
+    }
+
+    cart.increaseQuantity(productId);
+  }
+
   function handleQuantityBlur(productId: string, text: string, unit: 'UN' | 'KG') {
     const parsed = parseQuantityText(text, unit);
     if (!parsed) {
       cart.removeProduct(productId);
       return;
     }
-    cart.setQuantity(productId, parsed);
+    applyCartQuantity(productId, parsed);
+  }
+
+  function handleQuantityChange(productId: string, text: string, unit: 'UN' | 'KG') {
+    const parsed = parseQuantityText(text, unit);
+    if (!parsed) return;
+    applyCartQuantity(productId, parsed);
   }
 
   function confirmRemoveProduct(productId: string, productName: string) {
@@ -135,10 +196,7 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
                     </Pressable>
                     <TextInput
                       value={formatQuantityLabel(item.quantidade, item.unidadeVenda)}
-                      onChangeText={(text) => {
-                        const parsed = parseQuantityText(text, item.unidadeVenda);
-                        if (parsed) cart.setQuantity(item.produtoId, parsed);
-                      }}
+                      onChangeText={(text) => handleQuantityChange(item.produtoId, text, item.unidadeVenda)}
                       onBlur={(event) =>
                         handleQuantityBlur(item.produtoId, event.nativeEvent.text, item.unidadeVenda)
                       }
@@ -148,7 +206,7 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
                     />
                     <Pressable
                       style={styles.qtyBtn}
-                      onPress={() => cart.increaseQuantity(item.produtoId)}
+                      onPress={() => handleIncreaseQuantity(item.produtoId)}
                       disabled={loading}
                     >
                       <Text style={styles.qtyBtnText}>+</Text>

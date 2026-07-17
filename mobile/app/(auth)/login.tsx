@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,6 +16,7 @@ import { ApiError } from '@/src/api/authApi';
 import { useAuthStore } from '@/src/store/authStore';
 import type { LoginMode } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
+import { displayServerLabel, getStoredApiBaseUrl } from '@/src/services/serverConfig';
 
 function destinoAposLogin(client: 'admin' | 'pos' | null) {
   return client === 'pos' ? '/(tabs)/pos' : '/(tabs)';
@@ -39,6 +40,11 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [registerCode, setRegisterCode] = useState('');
   const [error, setError] = useState('');
+  const [serverLabel, setServerLabel] = useState('…');
+
+  useEffect(() => {
+    void getStoredApiBaseUrl().then((url) => setServerLabel(displayServerLabel(url)));
+  }, []);
 
   if (hydrated && user) {
     return <Redirect href={destinoAposLogin(client)} />;
@@ -122,6 +128,16 @@ export default function LoginScreen() {
               ? 'Para caixas e operadores de venda no balcão.'
               : 'Para gerentes e administradores.'}
           </Text>
+
+          <Pressable style={styles.serverRow} onPress={() => router.push('/server?edit=1')}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.serverLabel}>Servidor</Text>
+              <Text style={styles.serverValue} numberOfLines={1}>
+                {serverLabel}
+              </Text>
+            </View>
+            <Text style={styles.serverChange}>Alterar</Text>
+          </Pressable>
 
           {awaitingRegisterSelection ? (
             <View style={styles.registerBlock}>
@@ -248,6 +264,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: brand.muted,
     marginBottom: 4,
+  },
+  serverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: brand.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: brand.background,
+    marginBottom: 4,
+  },
+  serverLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: brand.muted,
+  },
+  serverValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: brand.dark,
+  },
+  serverChange: {
+    fontWeight: '700',
+    color: brand.gold,
+    fontSize: 13,
   },
   label: {
     fontSize: 12,
