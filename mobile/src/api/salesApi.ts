@@ -68,6 +68,39 @@ export async function fetchSales(page = 1, perPage = 10, period: SalesPeriod = '
   };
 }
 
+export type CreateSalePayload = {
+  id: string;
+  cliente: string;
+  caixa?: string;
+  operador?: string;
+  register_id?: string;
+  registerId?: string;
+  source_location_id?: string;
+  sourceLocationId?: string;
+  cash_session_id?: string;
+  cashSessionId?: string;
+  metodoPagamento: string;
+  subtotal: number;
+  descontoAplicado?: number;
+  total: number;
+  valorPago?: number;
+  troco?: number;
+  data?: string;
+  itens: SaleItem[];
+  stockVersions?: Record<string, string>;
+};
+
+export async function createSale(payload: CreateSalePayload) {
+  return httpRequest<{ message: string; data: SaleDetail & { status?: string } }>('/sales', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchSaleById(id: string) {
+  return httpRequest<{ data: SaleDetail }>(`/sales/${id}`);
+}
+
 export function calcularIvaTotalItem(item: SaleItem) {
   const quantidade = Number(item.quantidade || 0);
   const valorIvaUnitario = Number(item.valorIvaUnitario || 0);

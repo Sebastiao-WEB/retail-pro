@@ -76,3 +76,37 @@ export async function fetchClosedCashSessions(
     meta: response.meta,
   };
 }
+
+export async function fetchActiveCashSession(registerId: string) {
+  const params = new URLSearchParams({ register_id: registerId });
+  const response = await httpRequest<{ data: CashSession | null }>(
+    `/cash-sessions/active?${params.toString()}`,
+  );
+  return response.data;
+}
+
+export async function openCashSession(payload: {
+  register_id: string;
+  opening_balance: number;
+  opened_at?: string;
+}) {
+  return httpRequest<{ message: string; data: CashSession }>('/cash-sessions/open', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function closeCashSession(
+  cashSessionId: string,
+  payload: {
+    closing_balance: number;
+    note?: string;
+    closed_at?: string;
+    report_snapshot?: Record<string, unknown>;
+  },
+) {
+  return httpRequest<{ message: string; data: CashSession }>(`/cash-sessions/${cashSessionId}/close`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

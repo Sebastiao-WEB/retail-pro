@@ -63,6 +63,41 @@ export async function fetchProducts(page = 1, perPage = 10, search = '') {
   };
 }
 
+export async function fetchAllProducts(filters: { source_location_id?: string; search?: string } = {}) {
+  const perPage = 50;
+  let page = 1;
+  let lastPage = 1;
+  const all: Product[] = [];
+
+  do {
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+    });
+    if (filters.search?.trim()) params.set('search', filters.search.trim());
+    if (filters.source_location_id) params.set('source_location_id', filters.source_location_id);
+
+    const response = await httpRequest<{ data: Product[]; meta: ProductsListResponse['meta'] }>(
+      `/products?${params.toString()}`,
+    );
+    all.push(...response.data);
+    lastPage = response.meta?.last_page || 1;
+    page += 1;
+  } while (page <= lastPage);
+
+  return all;
+}
+
+export async function fetchProductByBarcode(
+  barcode: string,
+  filters: { source_location_id?: string } = {},
+) {
+  const params = new URLSearchParams({ barcode: barcode.trim() });
+  if (filters.source_location_id) params.set('source_location_id', filters.source_location_id);
+  const response = await httpRequest<{ data: Product[] }>(`/products?${params.toString()}`);
+  return response.data?.[0] ?? null;
+}
+
 export async function updateProduct(id: string, payload: ProductUpdatePayload) {
   return httpRequest<{ message: string; data: { id: string } }>(`/products/${id}`, {
     method: 'PUT',

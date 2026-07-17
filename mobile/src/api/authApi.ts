@@ -4,6 +4,34 @@ import type { LoginResponse, MeResponse } from '../types/auth';
 
 export { ApiError };
 
+export async function posLogin(username: string, password: string, registerCode?: string) {
+  try {
+    const response = await httpRequest<LoginResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        username,
+        password,
+        register_code: registerCode || undefined,
+      }),
+    });
+
+    if (response.access_token) {
+      await saveTokens(response.access_token, response.refresh_token);
+    }
+
+    return response;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 422 && error.payload?.requires_two_factor) {
+      return {
+        requires_two_factor: true,
+        two_factor_token: String(error.payload.two_factor_token ?? ''),
+        client: 'pos' as const,
+      };
+    }
+    throw error;
+  }
+}
+
 export async function adminLogin(username: string, password: string) {
   try {
     const response = await httpRequest<LoginResponse>('/auth/admin-login', {

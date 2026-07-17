@@ -8,6 +8,19 @@ export type AuthUser = {
   permissions?: string[];
   caixa_atribuido?: string | null;
   registers?: Array<{ id: string; code: string; name: string }>;
+  register?: {
+    id: string;
+    code: string;
+    name: string;
+    source_location?: SourceLocation | null;
+  };
+  source_location?: SourceLocation | null;
+};
+
+export type SourceLocation = {
+  id: string;
+  code: string;
+  name: string;
 };
 
 export type LoginResponse = {
