@@ -1,13 +1,17 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SessionState } from '../store/sessionStore';
+import { getDatabase } from './database/db';
 
 const SESSION_KEY = 'retailpro:sessao';
 
 export async function loadSessionState(): Promise<Partial<SessionState> | null> {
   try {
-    const raw = await AsyncStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Partial<SessionState>;
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_kv WHERE key = ?',
+      SESSION_KEY,
+    );
+    if (!row?.value) return null;
+    return JSON.parse(row.value) as Partial<SessionState>;
   } catch {
     return null;
   }
@@ -29,9 +33,17 @@ export async function saveSessionState(state: SessionState) {
     openingBalance: state.openingBalance,
     openedAt: state.openedAt,
   };
-  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO app_kv (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    SESSION_KEY,
+    JSON.stringify(payload),
+  );
 }
 
 export async function clearSessionState() {
-  await AsyncStorage.removeItem(SESSION_KEY);
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM app_kv WHERE key = ?', SESSION_KEY);
 }

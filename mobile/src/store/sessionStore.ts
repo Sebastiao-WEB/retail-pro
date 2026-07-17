@@ -6,6 +6,7 @@ import { hasCatalogOffline } from '../services/offline/catalogCache';
 import { closeCashSession, fetchActiveCashSession, openCashSession } from '../api/cashSessionsApi';
 import { generateUuid } from '../utils/generateId';
 import type { AuthUser } from '../types/auth';
+import { debugLog } from '../utils/debugLog';
 
 export type SessionState = {
   hydrated: boolean;
@@ -201,7 +202,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   syncRemoteShift: async () => {
     const state = get();
-    if (!state.registerId) return;
+    if (!state.registerId) {
+      debugLog('Session', 'syncRemoteShift ignorado: sem registerId');
+      return;
+    }
+    debugLog('Session', `syncRemoteShift registerId=${state.registerId}`);
     try {
       const active = await fetchActiveCashSession(state.registerId);
       if (!active) {
@@ -217,7 +222,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         openedAt: active.openedAt || state.openedAt,
       });
       await get().persist();
-    } catch {
+      debugLog('Session', `syncRemoteShift turno aberto sessionId=${active.id}`);
+    } catch (error) {
+      debugLog('Session', `syncRemoteShift falhou: ${error instanceof Error ? error.message : String(error)}`);
       // Mantém estado local quando offline.
     }
   },

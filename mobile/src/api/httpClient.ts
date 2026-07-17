@@ -1,5 +1,6 @@
 import { apiConfig } from './config';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '../services/tokenStorage';
+import { debugLog } from '../utils/debugLog';
 
 export class ApiError extends Error {
   status: number;
@@ -48,11 +49,16 @@ async function tryRefreshToken() {
 export async function httpRequest<T = unknown>(
   path: string,
   options: RequestInit = {},
-  context: { refreshTried?: boolean } = {},
+  context: { refreshTried?: boolean; timeoutMs?: number } = {},
 ): Promise<T> {
   const token = await getAccessToken();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), apiConfig.timeoutMs);
+  const timeoutMs = context.timeoutMs ?? apiConfig.timeoutMs;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const method = options.method ?? 'GET';
+  const started = Date.now();
+
+  debugLog('HTTP', `${method} ${path} (timeout ${timeoutMs}ms)`);
 
   try {
     const response = await fetch(`${apiConfig.baseUrl}${path}`, {
@@ -84,19 +90,26 @@ export async function httpRequest<T = unknown>(
     }
 
     if (!response.ok) {
+      debugLog('HTTP', `${method} ${path} → ${response.status} (${Date.now() - started}ms)`);
       throw new ApiError(String(json?.message ?? 'Erro na API.'), response.status, json);
     }
 
+    debugLog('HTTP', `${method} ${path} → ${response.status} (${Date.now() - started}ms)`);
     return json as T;
   } catch (error) {
     if (error instanceof ApiError) {
+      if (error.status) {
+        debugLog('HTTP', `${method} ${path} falhou: ${error.status} ${error.message}`);
+      } else {
+        debugLog('HTTP', `${method} ${path} falhou: ${error.message}`);
+      }
       throw error;
     }
     if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiError('Tempo de ligação ao servidor esgotado.', 0);
     }
     throw new ApiError(
-      `Sem ligação ao servidor (${apiConfig.baseUrl}). Confirme que o backend está activo com php artisan serve --host=0.0.0.0 --port=8000.`,
+      `Sem ligação ao servidor (${apiConfig.baseUrl}). Verifique internet/Wi‑Fi e a URL em mobile/.env.`,
       0,
     );
   } finally {

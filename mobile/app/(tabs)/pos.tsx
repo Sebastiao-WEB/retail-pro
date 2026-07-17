@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,7 @@ import {
   soldByWeight,
 } from '@/src/utils/productQuantity';
 import { looksLikeBarcode } from '@/src/utils/productSearch';
+import { debugLog, debugTimed } from '@/src/utils/debugLog';
 
 type Section = 'venda' | 'caixa';
 
@@ -46,7 +47,14 @@ function formatarData(valor: string | null | undefined) {
 }
 
 export default function PosScreen() {
-  const session = useSessionStore();
+  const sourceLocationId = useSessionStore((state) => state.sourceLocationId);
+  const assignedRegister = useSessionStore((state) => state.assignedRegister);
+  const registerCode = useSessionStore((state) => state.registerCode);
+  const operator = useSessionStore((state) => state.operator);
+  const openingBalance = useSessionStore((state) => state.openingBalance);
+  const openedAt = useSessionStore((state) => state.openedAt);
+  const shiftOpen = useSessionStore((state) => state.shiftOpen);
+
   const productStore = useProductStore();
   const cart = useCartStore();
   const offline = useOfflineStore();
@@ -64,48 +72,84 @@ export default function PosScreen() {
   const [reversalSale, setReversalSale] = useState<SaleDetail | null>(null);
   const [detailSale, setDetailSale] = useState<SaleDetail | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [bootError, setBootError] = useState('');
+  const [bootStep, setBootStep] = useState('A iniciar…');
 
   const catalogFilters = useMemo(
     () =>
-      session.sourceLocationId
-        ? { source_location_id: session.sourceLocationId }
+      sourceLocationId
+        ? { source_location_id: sourceLocationId }
         : ({} as Record<string, string>),
-    [session.sourceLocationId],
+    [sourceLocationId],
   );
 
   const metrics = useMemo(
-    () => shiftSales.getMetrics(session.openingBalance),
-    [shiftSales.sales, session.openingBalance, shiftSales.getMetrics],
+    () => shiftSales.getMetrics(openingBalance),
+    [shiftSales.sales, openingBalance, shiftSales.getMetrics],
   );
 
   const shiftSalesList = shiftSales.getShiftSales();
+  const bootingRef = useRef(false);
 
   const bootstrap = useCallback(async () => {
+    if (bootingRef.current) {
+      debugLog('POS', 'bootstrap ignorado (já em execução)');
+      return;
+    }
+    bootingRef.current = true;
+    debugLog('POS', `bootstrap início filters=${JSON.stringify(catalogFilters)}`);
     setBooting(true);
+    setBootError('');
     try {
-      if (!session.hydrated) await session.hydrate();
-      if (!productStore.loaded) await productStore.loadCatalog(catalogFilters);
-      await session.syncRemoteShift();
+      setBootStep('A carregar sessão…');
+      const sessionState = useSessionStore.getState();
+      if (!sessionState.hydrated) {
+        await debugTimed('POS', 'session.hydrate', () => sessionState.hydrate());
+      }
+
+      setBootStep('A carregar catálogo de produtos…');
+      await debugTimed('POS', 'productStore.loadCatalog', () =>
+        useProductStore.getState().loadCatalog(catalogFilters),
+      );
+
+      setBootStep('A sincronizar turno de caixa…');
+      await debugTimed('POS', 'session.syncRemoteShift', () =>
+        useSessionStore.getState().syncRemoteShift(),
+      );
+
       if (!useSessionStore.getState().shiftOpen) {
+        debugLog('POS', 'turno fechado → modal abertura');
         setOpenShiftVisible(true);
       } else {
-        await shiftSales.load();
+        setBootStep('A carregar vendas do turno…');
+        await debugTimed('POS', 'shiftSales.load', () => useShiftSalesStore.getState().load());
       }
+      debugLog('POS', 'bootstrap concluído com sucesso');
     } catch (error) {
-      Alert.alert(
-        'Erro ao carregar POS',
-        error instanceof Error ? error.message : 'Não foi possível preparar o terminal.',
-      );
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : 'Não foi possível preparar o terminal.';
+      debugLog('POS', `bootstrap falhou: ${message}`);
+      setBootError(message);
     } finally {
+      bootingRef.current = false;
       setBooting(false);
+      setBootStep('');
     }
-  }, [catalogFilters, productStore, session, shiftSales]);
+  }, [catalogFilters]);
 
   useEffect(() => {
-    const unsubscribe = offline.init();
+    debugLog('POS', 'ecrã montado');
+    const unsubscribe = useOfflineStore.getState().init();
     void bootstrap();
-    return unsubscribe;
-  }, [bootstrap, offline]);
+    return () => {
+      debugLog('POS', 'ecrã desmontado');
+      unsubscribe();
+    };
+  }, [bootstrap]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -116,7 +160,7 @@ export default function PosScreen() {
 
   async function handleOpenShift(openingBalance: number) {
     setProcessing(true);
-    const result = await session.openShift(openingBalance);
+    const result = await useSessionStore.getState().openShift(openingBalance);
     setProcessing(false);
     if (!result.ok) {
       Alert.alert('Abertura de caixa', result.error || 'Não foi possível abrir o turno.');
@@ -135,7 +179,7 @@ export default function PosScreen() {
     reportSnapshot: Record<string, unknown>;
   }) {
     setProcessing(true);
-    const result = await session.closeShift({
+    const result = await useSessionStore.getState().closeShift({
       closingBalance: payload.closingBalance,
       note: payload.note,
       reportSnapshot: payload.reportSnapshot,
@@ -152,7 +196,7 @@ export default function PosScreen() {
   }
 
   function tryAddProduct(product: Product) {
-    if (!session.shiftOpen) {
+    if (!shiftOpen) {
       Alert.alert('Caixa fechado', 'Abra o turno antes de registar vendas.');
       setOpenShiftVisible(true);
       return;
@@ -193,7 +237,7 @@ export default function PosScreen() {
   }
 
   async function handleCheckout(payload: { cliente: string; valorPago: number; troco: number }) {
-    if (!session.shiftOpen) return;
+    if (!shiftOpen) return;
     setProcessing(true);
     try {
       const itens = cart.items.map((item) => ({
@@ -280,6 +324,23 @@ export default function PosScreen() {
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={brand.gold} />
         <Text style={styles.loaderText}>A preparar terminal de vendas…</Text>
+        {bootStep ? <Text style={styles.loaderStep}>{bootStep}</Text> : null}
+      </View>
+    );
+  }
+
+  if (bootError) {
+    return (
+      <View style={styles.loader}>
+        <Text style={styles.errorTitle}>Erro ao carregar POS</Text>
+        <Text style={styles.errorText}>{bootError}</Text>
+        <Text style={styles.errorHint}>
+          Confirme que o telemóvel tem internet (Wi‑Fi ou dados) e que o ficheiro mobile/.env aponta para
+          o servidor correcto. Reinicie o Expo após alterar o .env.
+        </Text>
+        <Pressable style={styles.retryBtn} onPress={() => void bootstrap()}>
+          <Text style={styles.retryBtnText}>Tentar novamente</Text>
+        </Pressable>
       </View>
     );
   }
@@ -295,7 +356,7 @@ export default function PosScreen() {
           </Text>
         </View>
         <Text style={styles.statusText}>
-          {session.assignedRegister || session.registerCode || 'Caixa'} · {session.operator || '—'}
+          {assignedRegister || registerCode || 'Caixa'} · {operator || '—'}
         </Text>
       </View>
 
@@ -360,7 +421,7 @@ export default function PosScreen() {
               <Pressable
                 style={[styles.cartBtn, cart.items.length === 0 && styles.cartBtnDisabled]}
                 onPress={() => setCheckoutVisible(true)}
-                disabled={cart.items.length === 0 || !session.shiftOpen}
+                disabled={cart.items.length === 0 || !shiftOpen}
               >
                 <Text style={styles.cartBtnText}>Finalizar</Text>
               </Pressable>
@@ -369,7 +430,7 @@ export default function PosScreen() {
         </>
       ) : (
         <View style={styles.cashPanel}>
-          {!session.shiftOpen ? (
+          {!shiftOpen ? (
             <View style={styles.closedBox}>
               <Text style={styles.closedTitle}>Turno fechado</Text>
               <Text style={styles.closedText}>Abra o caixa para consultar métricas e vendas do turno.</Text>
@@ -444,9 +505,9 @@ export default function PosScreen() {
         visible={closeShiftVisible}
         loading={processing}
         metrics={metrics}
-        operatorName={session.operator || ''}
-        registerName={session.assignedRegister || session.registerCode}
-        openedAt={session.openedAt}
+        operatorName={operator || ''}
+        registerName={assignedRegister || registerCode}
+        openedAt={openedAt}
         onConfirm={handleCloseShift}
         onClose={() => setCloseShiftVisible(false)}
       />
@@ -490,8 +551,20 @@ export default function PosScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: brand.background },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 24 },
   loaderText: { color: brand.muted },
+  loaderStep: { color: brand.dark, fontWeight: '600', fontSize: 13 },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: brand.dark, textAlign: 'center' },
+  errorText: { color: brand.danger, textAlign: 'center', lineHeight: 20 },
+  errorHint: { color: brand.muted, textAlign: 'center', fontSize: 13, lineHeight: 18 },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: brand.gold,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  retryBtnText: { fontWeight: '700', color: brand.dark },
   statusBar: {
     backgroundColor: brand.dark,
     paddingHorizontal: 16,

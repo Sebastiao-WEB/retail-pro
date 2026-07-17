@@ -1,17 +1,27 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/src/store/authStore';
+import { initDatabase } from '@/src/services/database/db';
 import { brand } from '@/src/theme/brand';
 
 export default function RootLayout() {
   const { hydrate, hydrated } = useAuthStore();
+  const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    void initDatabase()
+      .catch(() => {
+        // A app continua; operações offline falham até a DB estar disponível.
+      })
+      .finally(() => setDbReady(true));
+  }, []);
 
-  if (!hydrated) {
+  useEffect(() => {
+    if (dbReady) hydrate();
+  }, [dbReady, hydrate]);
+
+  if (!dbReady || !hydrated) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: brand.dark }}>
         <ActivityIndicator color={brand.gold} size="large" />

@@ -1,4 +1,5 @@
 import { httpRequest } from './httpClient';
+import { debugLog } from '../utils/debugLog';
 
 export type SaleUnit = 'UN' | 'KG';
 
@@ -70,6 +71,9 @@ export async function fetchAllProducts(filters: { source_location_id?: string; s
   let page = 1;
   let lastPage = 1;
   const all: Product[] = [];
+  const started = Date.now();
+
+  debugLog('Catalog', `fetchAllProducts início filters=${JSON.stringify(filters)}`);
 
   do {
     const params = new URLSearchParams({
@@ -79,14 +83,19 @@ export async function fetchAllProducts(filters: { source_location_id?: string; s
     if (filters.search?.trim()) params.set('search', filters.search.trim());
     if (filters.source_location_id) params.set('source_location_id', filters.source_location_id);
 
+    debugLog('Catalog', `página ${page}/${lastPage}…`);
     const response = await httpRequest<{ data: Product[]; meta: ProductsListResponse['meta'] }>(
       `/products?${params.toString()}`,
+      {},
+      { timeoutMs: 45000 },
     );
     all.push(...response.data);
     lastPage = response.meta?.last_page || 1;
+    debugLog('Catalog', `página ${page} ok: +${response.data.length} (total ${all.length})`);
     page += 1;
   } while (page <= lastPage);
 
+  debugLog('Catalog', `fetchAllProducts concluído: ${all.length} produtos (${Date.now() - started}ms)`);
   return all;
 }
 

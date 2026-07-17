@@ -1,11 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Product } from '../../api/productsApi';
+import { getDatabase } from '../database/db';
 
-const PREFIX = 'retailpro:offline:catalog:';
-
-function catalogKey(filters: { source_location_id?: string; location_id?: string } = {}) {
-  const location = filters.source_location_id || filters.location_id || 'global';
-  return `${PREFIX}${location}`;
+function catalogLocationKey(filters: { source_location_id?: string; location_id?: string } = {}) {
+  return filters.source_location_id || filters.location_id || 'global';
 }
 
 export async function saveCatalogOffline(
@@ -13,22 +10,50 @@ export async function saveCatalogOffline(
   products: Product[],
 ) {
   if (!Array.isArray(products) || !products.length) return;
-  await AsyncStorage.setItem(
-    catalogKey(filters),
-    JSON.stringify({
-      updatedAt: new Date().toISOString(),
-      products,
-    }),
+
+  const db = await getDatabase();
+  const locationKey = catalogLocationKey(filters);
+  const updatedAt = new Date().toISOString();
+
+  await db.runAsync(
+    `INSERT INTO offline_catalogs (location_key, updated_at, products_json)
+     VALUES (?, ?, ?)
+     ON CONFLICT(location_key) DO UPDATE SET
+       updated_at = excluded.updated_at,
+       products_json = excluded.products_json`,
+    locationKey,
+    updatedAt,
+    JSON.stringify(products),
   );
 }
 
 export async function loadCatalogOffline(filters: { source_location_id?: string; location_id?: string } = {}) {
+  const primary = await readCatalogEntry(catalogLocationKey(filters));
+  if (primary) return primary;
+
+  if (filters.source_location_id || filters.location_id) {
+    return readCatalogEntry('global');
+  }
+
+  return null;
+}
+
+async function readCatalogEntry(locationKey: string) {
   try {
-    const raw = await AsyncStorage.getItem(catalogKey(filters));
-    if (!raw) return null;
-    const data = JSON.parse(raw) as { products?: Product[] };
-    if (!Array.isArray(data?.products)) return null;
-    return data;
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ updated_at: string; products_json: string }>(
+      'SELECT updated_at, products_json FROM offline_catalogs WHERE location_key = ?',
+      locationKey,
+    );
+    if (!row?.products_json) return null;
+
+    const products = JSON.parse(row.products_json) as Product[];
+    if (!Array.isArray(products) || !products.length) return null;
+
+    return {
+      updatedAt: row.updated_at,
+      products,
+    };
   } catch {
     return null;
   }
@@ -40,9 +65,6 @@ export async function hasCatalogOffline(filters: { source_location_id?: string; 
 }
 
 export async function clearCatalogsOffline() {
-  const keys = await AsyncStorage.getAllKeys();
-  const catalogKeys = keys.filter((key) => key.startsWith(PREFIX));
-  if (catalogKeys.length) {
-    await Promise.all(catalogKeys.map((key) => AsyncStorage.removeItem(key)));
-  }
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM offline_catalogs');
 }

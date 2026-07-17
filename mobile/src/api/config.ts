@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { debugLog } from '../utils/debugLog';
 
 const extra = Constants.expoConfig?.extra ?? {};
 
@@ -50,3 +51,5 @@ export const apiConfig = {
   baseUrl: resolveBaseUrl(),
   timeoutMs: 15000,
 };
+
+debugLog('API', `baseUrl=${apiConfig.baseUrl} platform=${Platform.OS}`);

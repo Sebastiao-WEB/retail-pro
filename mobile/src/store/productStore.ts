@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import type { Product } from '../api/productsApi';
 import { fetchAllProducts, fetchProductByBarcode } from '../api/productsApi';
 import { saveCatalogOffline, loadCatalogOffline, hasCatalogOffline } from '../services/offline/catalogCache';
-import { canTryOfflineOperation } from '../services/offline/networkError';
+import { canTryOfflineOperation, formatRequestError } from '../services/offline/networkError';
 import { mapProductForSale } from '../utils/taxItem';
 import { normalizeSaleQuantity, normalizeSaleUnit, productControlsStock } from '../utils/productQuantity';
 import { resolveProductByBarcode, searchProductsInCatalog } from '../utils/productSearch';
+import { debugLog } from '../utils/debugLog';
 
 type ProductStore = {
   products: Product[];
@@ -49,8 +50,10 @@ export const useProductStore = create<ProductStore>((set, get) => ({
   catalogFilters: {},
 
   loadCatalog: async (filters = {}) => {
+    debugLog('Catalog', `loadCatalog início filters=${JSON.stringify(filters)}`);
     try {
       const products = (await fetchAllProducts(filters)).map(normalizeProduct);
+      debugLog('Catalog', `loadCatalog remoto: ${products.length} produtos`);
       set({
         products,
         searchResults: products.slice(0, 40),
@@ -59,16 +62,35 @@ export const useProductStore = create<ProductStore>((set, get) => ({
         barcodeIndex: rebuildBarcodeIndex(products),
         catalogFilters: filters,
       });
-      await saveCatalogOffline(filters, products);
+      try {
+        await saveCatalogOffline(filters, products);
+      } catch (storageError) {
+        debugLog(
+          'Catalog',
+          `cache local não gravado (vendas online OK): ${storageError instanceof Error ? storageError.message : String(storageError)}`,
+        );
+      }
     } catch (error) {
-      const cached = await loadCatalogOffline(filters);
+      debugLog('Catalog', 'loadCatalog remoto falhou, a tentar cache…');
+      let cached = null;
+      try {
+        cached = await loadCatalogOffline(filters);
+      } catch (storageError) {
+        debugLog(
+          'Catalog',
+          `cache local indisponível: ${storageError instanceof Error ? storageError.message : String(storageError)}`,
+        );
+      }
       if (!cached?.products?.length) {
         if (canTryOfflineOperation(error)) {
-          throw new Error('Sem catálogo offline. Ligue-se à internet para carregar produtos.');
+          throw new Error(
+            `Não foi possível carregar o catálogo. ${formatRequestError(error, 'Verifique a ligação à internet e tente novamente.')}`,
+          );
         }
         throw error;
       }
       const products = cached.products.map(normalizeProduct);
+      debugLog('Catalog', `loadCatalog cache: ${products.length} produtos`);
       set({
         products,
         searchResults: products.slice(0, 40),

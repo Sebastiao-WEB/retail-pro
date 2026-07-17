@@ -1,7 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDatabase } from '../database/db';
 import { generateUuid } from '../../utils/generateId';
-
-const QUEUE_KEY = 'retailpro:offline:fila';
 
 export type PendingQueueType = 'cash_open' | 'sale' | 'cash_close';
 
@@ -14,18 +12,55 @@ export type PendingQueueItem = {
   payload: Record<string, unknown>;
 };
 
+type QueueRow = {
+  id: string;
+  tipo: string;
+  criado_em: string;
+  tentativas: number;
+  ultimo_erro: string;
+  payload_json: string;
+};
+
+function rowToItem(row: QueueRow): PendingQueueItem {
+  return {
+    id: row.id,
+    tipo: row.tipo as PendingQueueType,
+    criadoEm: row.criado_em,
+    tentativas: row.tentativas,
+    ultimoErro: row.ultimo_erro,
+    payload: JSON.parse(row.payload_json) as Record<string, unknown>,
+  };
+}
+
 async function readQueue(): Promise<PendingQueueItem[]> {
   try {
-    const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list : [];
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<QueueRow>(
+      'SELECT id, tipo, criado_em, tentativas, ultimo_erro, payload_json FROM pending_queue',
+    );
+    return rows.map(rowToItem);
   } catch {
     return [];
   }
 }
 
 async function writeQueue(list: PendingQueueItem[]) {
-  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(list));
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM pending_queue');
+    for (const item of list) {
+      await db.runAsync(
+        `INSERT INTO pending_queue (id, tipo, criado_em, tentativas, ultimo_erro, payload_json)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        item.id,
+        item.tipo,
+        item.criadoEm,
+        item.tentativas,
+        item.ultimoErro,
+        JSON.stringify(item.payload),
+      );
+    }
+  });
 }
 
 export async function listPendingQueue() {
@@ -40,12 +75,12 @@ export async function listPendingQueue() {
 }
 
 export async function countPendingQueue() {
-  const queue = await readQueue();
-  return queue.length;
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ total: number }>('SELECT COUNT(*) AS total FROM pending_queue');
+  return Number(row?.total || 0);
 }
 
 export async function addPendingQueueItem(item: Partial<PendingQueueItem> & { tipo: PendingQueueType; payload: Record<string, unknown> }) {
-  const queue = await readQueue();
   const record: PendingQueueItem = {
     id: item.id || generateUuid(),
     tipo: item.tipo,
@@ -54,20 +89,31 @@ export async function addPendingQueueItem(item: Partial<PendingQueueItem> & { ti
     ultimoErro: String(item.ultimoErro || ''),
     payload: item.payload,
   };
-  queue.push(record);
-  await writeQueue(queue);
+
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO pending_queue (id, tipo, criado_em, tentativas, ultimo_erro, payload_json)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    record.id,
+    record.tipo,
+    record.criadoEm,
+    record.tentativas,
+    record.ultimoErro,
+    JSON.stringify(record.payload),
+  );
   return record;
 }
 
 export async function removePendingQueueItem(id: string) {
-  const queue = await readQueue();
-  await writeQueue(queue.filter((item) => item.id !== id));
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM pending_queue WHERE id = ?', id);
 }
 
 export async function updatePendingQueueItem(id: string, patch: Partial<PendingQueueItem>) {
   const queue = await readQueue();
   const index = queue.findIndex((item) => item.id === id);
   if (index === -1) return null;
+
   queue[index] = { ...queue[index], ...patch };
   await writeQueue(queue);
   return queue[index];
