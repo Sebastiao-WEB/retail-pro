@@ -17,7 +17,7 @@ import CheckoutModal from '@/src/components/pos/CheckoutModal';
 import CloseShiftModal from '@/src/components/pos/CloseShiftModal';
 import OpenShiftModal from '@/src/components/pos/OpenShiftModal';
 import RequestReversalModal from '@/src/components/pos/RequestReversalModal';
-import WeightQuantityModal, { productNeedsWeightModal } from '@/src/components/pos/WeightQuantityModal';
+import WeightQuantityModal from '@/src/components/pos/WeightQuantityModal';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
 import { useCartStore } from '@/src/store/cartStore';
 import { useOfflineStore } from '@/src/store/offlineStore';
@@ -28,6 +28,7 @@ import { useShiftSalesStore } from '@/src/store/shiftSalesStore';
 import { brand, formatMt } from '@/src/theme/brand';
 import {
   formatStockDisplay,
+  normalizeSaleUnit,
   productControlsStock,
   soldByWeight,
 } from '@/src/utils/productQuantity';
@@ -68,7 +69,7 @@ export default function PosScreen() {
   const [closeShiftVisible, setCloseShiftVisible] = useState(false);
   const [checkoutVisible, setCheckoutVisible] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
-  const [weightProduct, setWeightProduct] = useState<Product | null>(null);
+  const [quantityProduct, setQuantityProduct] = useState<Product | null>(null);
   const [reversalSale, setReversalSale] = useState<SaleDetail | null>(null);
   const [detailSale, setDetailSale] = useState<SaleDetail | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -87,6 +88,21 @@ export default function PosScreen() {
     () => shiftSales.getMetrics(openingBalance),
     [shiftSales.sales, openingBalance, shiftSales.getMetrics],
   );
+
+  const cartQuantities = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of cart.items) {
+      map.set(item.produtoId, item.quantidade);
+    }
+    return map;
+  }, [cart.items]);
+
+  function formatCartQuantity(quantity: number, unit: string) {
+    if (normalizeSaleUnit(unit) === 'KG') {
+      return `${quantity.toLocaleString('pt-MZ', { maximumFractionDigits: 3 })} kg`;
+    }
+    return `${Math.floor(quantity)} un`;
+  }
 
   const shiftSalesList = shiftSales.getShiftSales();
   const bootingRef = useRef(false);
@@ -205,11 +221,7 @@ export default function PosScreen() {
       Alert.alert('Sem stock', `${product.nome} não está disponível.`);
       return;
     }
-    if (productNeedsWeightModal(product)) {
-      setWeightProduct(product);
-      return;
-    }
-    cart.addProduct(product, 1);
+    setQuantityProduct(product);
   }
 
   async function handleBarcode(code: string) {
@@ -310,19 +322,31 @@ export default function PosScreen() {
     const stockLabel = productControlsStock(item)
       ? formatStockDisplay(Number(item.stock || 0), item.unidadeVenda)
       : 'Sob pedido';
+    const cartQuantity = cartQuantities.get(item.id);
+    const inCart = cartQuantity !== undefined;
 
     return (
-      <Pressable style={styles.productCard} onPress={() => tryAddProduct(item)}>
+      <Pressable
+        style={[styles.productCard, inCart && styles.productCardSelected]}
+        onPress={() => tryAddProduct(item)}
+      >
         <View style={styles.productHeader}>
-          <Text style={styles.productName} numberOfLines={2}>
+          <Text style={[styles.productName, inCart && styles.productNameSelected]} numberOfLines={2}>
             {item.nome}
           </Text>
-          <Text style={styles.productPrice}>{formatMt(price)}</Text>
+          <Text style={[styles.productPrice, inCart && styles.productPriceSelected]}>{formatMt(price)}</Text>
         </View>
-        <Text style={styles.productMeta}>
+        <Text style={[styles.productMeta, inCart && styles.productMetaSelected]}>
           {item.codigoBarras || 'Sem código'} · Stock: {stockLabel}
           {soldByWeight(item) ? ' · KG' : ''}
         </Text>
+        {inCart ? (
+          <View style={styles.inCartBadge}>
+            <Text style={styles.inCartBadgeText}>
+              No carrinho · {formatCartQuantity(cartQuantity, item.unidadeVenda)}
+            </Text>
+          </View>
+        ) : null}
       </Pressable>
     );
   }
@@ -535,13 +559,13 @@ export default function PosScreen() {
       />
 
       <WeightQuantityModal
-        visible={!!weightProduct}
-        product={weightProduct}
+        visible={!!quantityProduct}
+        product={quantityProduct}
         onConfirm={(quantity) => {
-          if (weightProduct) cart.addProduct(weightProduct, quantity);
-          setWeightProduct(null);
+          if (quantityProduct) cart.addProduct(quantityProduct, quantity);
+          setQuantityProduct(null);
         }}
-        onClose={() => setWeightProduct(null)}
+        onClose={() => setQuantityProduct(null)}
       />
 
       <RequestReversalModal
@@ -629,10 +653,27 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+  productCardSelected: {
+    backgroundColor: '#FFF9E8',
+    borderColor: brand.gold,
+    borderWidth: 2,
+  },
   productHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   productName: { flex: 1, fontWeight: '700', color: brand.dark },
+  productNameSelected: { color: brand.dark },
   productPrice: { fontWeight: '700', color: brand.dark },
+  productPriceSelected: { color: '#9A6B00' },
   productMeta: { color: brand.muted, fontSize: 12, marginTop: 4 },
+  productMetaSelected: { color: '#7C6A3A' },
+  inCartBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    backgroundColor: brand.gold,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  inCartBadgeText: { fontSize: 11, fontWeight: '700', color: brand.dark },
   empty: { color: brand.muted, textAlign: 'center', marginTop: 24 },
   cartBar: {
     position: 'absolute',

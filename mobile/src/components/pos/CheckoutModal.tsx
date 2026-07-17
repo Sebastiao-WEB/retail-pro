@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -63,6 +64,21 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
     cart.setQuantity(productId, parsed);
   }
 
+  function confirmRemoveProduct(productId: string, productName: string) {
+    Alert.alert(
+      'Remover produto',
+      `Deseja remover "${productName}" do carrinho?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: () => cart.removeProduct(productId),
+        },
+      ],
+    );
+  }
+
   function handleConfirm() {
     if (!canConfirm) return;
     onConfirm({
@@ -101,7 +117,7 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
                   </Text>
                   <Pressable
                     style={styles.removeBtn}
-                    onPress={() => cart.removeProduct(item.produtoId)}
+                    onPress={() => confirmRemoveProduct(item.produtoId, item.nome)}
                     disabled={loading}
                   >
                     <Text style={styles.removeBtnText}>Remover</Text>

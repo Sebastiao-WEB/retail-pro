@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -20,6 +20,17 @@ type Props = {
 
 export default function WeightQuantityModal({ visible, product, onConfirm, onClose }: Props) {
   const [value, setValue] = useState('');
+  const isWeight = product ? soldByWeight(product) : false;
+
+  useEffect(() => {
+    if (visible && product) {
+      setValue(isWeight ? '' : '1');
+      return;
+    }
+    if (!visible) {
+      setValue('');
+    }
+  }, [visible, product, isWeight]);
 
   function handleConfirm() {
     if (!product) return;
@@ -33,15 +44,18 @@ export default function WeightQuantityModal({ visible, product, onConfirm, onClo
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={styles.title}>Quantidade em kg</Text>
+          <Text style={styles.title}>
+            {isWeight ? 'Quantidade em kg' : 'Quantidade em unidades'}
+          </Text>
           <Text style={styles.subtitle}>{product?.nome}</Text>
           <TextInput
             value={value}
             onChangeText={setValue}
-            keyboardType="decimal-pad"
+            keyboardType={isWeight ? 'decimal-pad' : 'number-pad'}
             style={styles.input}
-            placeholder="0.250"
+            placeholder={isWeight ? '0.250' : '1'}
             autoFocus
+            selectTextOnFocus
           />
           <View style={styles.actions}>
             <Pressable style={[styles.btn, styles.cancel]} onPress={onClose}>
@@ -57,6 +71,11 @@ export default function WeightQuantityModal({ visible, product, onConfirm, onClo
   );
 }
 
+export function productNeedsQuantityModal(_product: Product) {
+  return true;
+}
+
+/** @deprecated Use productNeedsQuantityModal */
 export function productNeedsWeightModal(product: Product) {
   return soldByWeight(product);
 }
