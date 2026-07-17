@@ -69,6 +69,36 @@ class AuthApiAdminLoginTest extends TestCase
             ]);
     }
 
+    public function test_auth_me_admin_com_caixa_atribuido_continua_admin(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        Role::findOrCreate('ADMIN', 'web');
+
+        $admin = User::query()->create([
+            'name' => 'Admin Com Caixa',
+            'username' => 'admin_com_caixa',
+            'email' => 'admin_com_caixa@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'ADMIN',
+            'is_active' => true,
+            'register_id' => $ambiente['register']->id,
+        ]);
+        $admin->syncRoles(['ADMIN']);
+        $admin->registers()->sync([$ambiente['register']->id]);
+
+        $token = $this->loginApiAdmin($admin);
+
+        $this->getJson('/api/v1/auth/me', $this->authHeaders($token))
+            ->assertOk()
+            ->assertJson([
+                'client' => 'admin',
+                'user' => [
+                    'id' => $admin->id,
+                    'username' => $admin->username,
+                ],
+            ]);
+    }
+
     private function criarUtilizadorAdminApi(): User
     {
         Role::findOrCreate('ADMIN', 'web');

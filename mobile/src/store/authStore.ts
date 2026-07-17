@@ -8,6 +8,7 @@ import {
   ApiError,
   type RegisterOption,
 } from '../api/authApi';
+import { clearAuthClient, getAuthClient, saveAuthClient } from '../services/authClientStorage';
 import { getAccessToken } from '../services/tokenStorage';
 import type { AuthUser } from '../types/auth';
 import { useSessionStore } from './sessionStore';
@@ -47,6 +48,13 @@ async function finishPosSession(user: AuthUser) {
   }
 }
 
+async function applySession(user: AuthUser | null, client: 'admin' | 'pos') {
+  await saveAuthClient(client);
+  if (client === 'pos' && user) {
+    await finishPosSession(user);
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   client: null,
@@ -62,15 +70,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const token = await getAccessToken();
       if (!token) {
+        await clearAuthClient();
         set({ user: null, client: null, hydrated: true });
         return;
       }
-      const me = await fetchMe();
-      set({ user: me.user, client: me.client, hydrated: true });
-      if (me.client === 'pos' && me.user) {
+
+      const [me, storedClient] = await Promise.all([fetchMe(), getAuthClient()]);
+      // Preferir cliente persistido no login: evita /me antigo tratar admin com caixa como POS.
+      const client = storedClient ?? me.client ?? 'admin';
+      if (storedClient !== client) {
+        await saveAuthClient(client);
+      }
+
+      set({ user: me.user, client, hydrated: true });
+      if (client === 'pos' && me.user) {
         await finishPosSession(me.user);
       }
     } catch {
+      await clearAuthClient().catch(() => undefined);
       set({ user: null, client: null, hydrated: true });
     }
   },
@@ -122,9 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           pendingClient: null,
           loading: false,
         });
-        if (user) {
-          await finishPosSession(user);
-        }
+        await applySession(user, 'pos');
         return;
       }
 
@@ -137,13 +152,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
         return;
       }
+      const user = 'user' in response ? (response.user ?? null) : null;
+      const client = response.client ?? 'admin';
       set({
-        user: 'user' in response ? (response.user ?? null) : null,
-        client: response.client ?? 'admin',
+        user,
+        client,
         twoFactorToken: null,
         pendingClient: null,
         loading: false,
       });
+      await applySession(user, client);
     } catch (error) {
       set({ loading: false, pendingClient: null });
       throw error;
@@ -166,9 +184,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         pendingClient: null,
         loading: false,
       });
-      if (client === 'pos' && user) {
-        await finishPosSession(user);
-      }
+      await applySession(user, client);
     } catch (error) {
       set({ loading: false });
       throw error;
@@ -179,6 +195,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     await apiLogout();
+    await clearAuthClient().catch(() => undefined);
     await useSessionStore.getState().clear();
     set({
       user: null,

@@ -115,7 +115,7 @@ export default function MoreScreen() {
             <ReadOnlyField label="Utilizador" value={dados?.username || '—'} />
             <ReadOnlyField label="Email" value={dados?.email || '—'} />
             <ReadOnlyField label="Perfil" value={traduzirPerfil(dados?.role)} />
-            <ReadOnlyField label="Caixa(s)" value={caixas} />
+            {client === 'pos' ? <ReadOnlyField label="Caixa(s)" value={caixas} /> : null}
             <ReadOnlyField label="Sessão" value={client === 'admin' ? 'Mobile admin' : 'POS'} />
           </View>
 

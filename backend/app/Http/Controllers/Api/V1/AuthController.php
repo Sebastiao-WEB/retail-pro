@@ -100,16 +100,36 @@ class AuthController extends Controller
 
         $user->loadMissing(['registers.stockLocations', 'register.stockLocations', 'sourceLocation']);
 
+        $clientClaim = $this->tokenClientClaim();
         $registers = $user->assignedRegisters();
-        $selectedRegister = $user->register_id
-            ? $registers->firstWhere('id', $user->register_id) ?? Register::query()->find($user->register_id)
-            : null;
 
-        if ($selectedRegister instanceof Register) {
+        // Sessão admin (login mobile admin): nunca tratar como POS só porque tem caixa atribuído.
+        if ($clientClaim === 'admin') {
             return response()->json([
-                'user' => $this->serializeUser($user, $selectedRegister, $registers),
-                'client' => 'pos',
+                'user' => $this->serializeAdminUser($user),
+                'client' => 'admin',
             ]);
+        }
+
+        if ($clientClaim === 'pos') {
+            $selectedRegister = $this->resolveRegisterFromToken($user, $registers);
+            if ($selectedRegister instanceof Register) {
+                return response()->json([
+                    'user' => $this->serializeUser($user, $selectedRegister, $registers),
+                    'client' => 'pos',
+                ]);
+            }
+        }
+
+        // Tokens antigos sem claim `client`: operadores → POS; gestão → admin.
+        if ($clientClaim === null && $user->isCashier()) {
+            $selectedRegister = $this->resolveRegisterFromToken($user, $registers);
+            if ($selectedRegister instanceof Register) {
+                return response()->json([
+                    'user' => $this->serializeUser($user, $selectedRegister, $registers),
+                    'client' => 'pos',
+                ]);
+            }
         }
 
         return response()->json([
@@ -345,7 +365,7 @@ class AuthController extends Controller
 
     private function issueAdminTokenResponse(User $user)
     {
-        $token = auth('api')->login($user);
+        $token = auth('api')->claims(['client' => 'admin'])->login($user);
         $ttl = config('jwt.ttl', 60) * 60;
 
         return response()->json([
@@ -356,6 +376,70 @@ class AuthController extends Controller
             'client' => 'admin',
             'user' => $this->serializeAdminUser($user),
         ]);
+    }
+
+    private function issueTokenResponse(User $user, Register $selectedRegister, $allRegisters)
+    {
+        $user->applyActiveRegister($selectedRegister);
+        $user->save();
+
+        $token = auth('api')->claims([
+            'client' => 'pos',
+            'register_id' => $selectedRegister->id,
+        ])->login($user);
+        $ttl = config('jwt.ttl', 60) * 60;
+
+        return response()->json([
+            'access_token' => $token,
+            'refresh_token' => $token,
+            'token_type' => 'Bearer',
+            'expires_in' => $ttl,
+            'client' => 'pos',
+            'user' => $this->serializeUser($user, $selectedRegister, $allRegisters),
+        ]);
+    }
+
+    private function tokenClientClaim(): ?string
+    {
+        try {
+            $client = auth('api')->payload()->get('client');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($client === 'admin' || $client === 'pos') {
+            return $client;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Register>  $registers
+     */
+    private function resolveRegisterFromToken(User $user, $registers): ?Register
+    {
+        $claimRegisterId = null;
+        try {
+            $claimRegisterId = auth('api')->payload()->get('register_id');
+        } catch (\Throwable) {
+            $claimRegisterId = null;
+        }
+
+        if (filled($claimRegisterId)) {
+            $fromClaim = $registers->firstWhere('id', $claimRegisterId)
+                ?? Register::query()->find($claimRegisterId);
+            if ($fromClaim instanceof Register) {
+                return $fromClaim;
+            }
+        }
+
+        if (! $user->register_id) {
+            return null;
+        }
+
+        return $registers->firstWhere('id', $user->register_id)
+            ?? Register::query()->find($user->register_id);
     }
 
     private function userCanAccessMobileAdmin(User $user): bool
@@ -390,23 +474,6 @@ class AuthController extends Controller
             'caixa_atribuido' => $user->caixa_atribuido,
             'registers' => $this->serializeRegisters($registers),
         ];
-    }
-
-    private function issueTokenResponse(User $user, Register $selectedRegister, $allRegisters)
-    {
-        $user->applyActiveRegister($selectedRegister);
-        $user->save();
-
-        $token = auth('api')->login($user);
-        $ttl = config('jwt.ttl', 60) * 60;
-
-        return response()->json([
-            'access_token' => $token,
-            'refresh_token' => $token,
-            'token_type' => 'Bearer',
-            'expires_in' => $ttl,
-            'user' => $this->serializeUser($user, $selectedRegister, $allRegisters),
-        ]);
     }
 
     private function findRegisterByCode($registers, string $code): ?Register
