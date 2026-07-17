@@ -43,6 +43,6 @@ export async function clearCatalogsOffline() {
   const keys = await AsyncStorage.getAllKeys();
   const catalogKeys = keys.filter((key) => key.startsWith(PREFIX));
   if (catalogKeys.length) {
-    await AsyncStorage.multiRemove(catalogKeys);
+    await Promise.all(catalogKeys.map((key) => AsyncStorage.removeItem(key)));
   }
 }

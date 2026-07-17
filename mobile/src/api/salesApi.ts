@@ -26,20 +26,21 @@ export type SaleDetail = {
   descontoAplicado: number;
   valorPago?: number;
   troco?: number;
+  userId?: string | null;
+  registerId?: string | null;
+  cashSessionId?: string | null;
   itens: SaleItem[];
 };
 
-export type RecentSalesResponse = {
-  items: SaleDetail[];
-  meta: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-  };
-};
-
 export type SalesPeriod = 'today' | '7d' | '30d' | 'month';
+
+export type FetchSalesOptions = {
+  page?: number;
+  perPage?: number;
+  period?: SalesPeriod;
+  cashSessionId?: string;
+  registerId?: string;
+};
 
 export type SalesListResponse = {
   items: SaleDetail[];
@@ -52,12 +53,25 @@ export type SalesListResponse = {
   };
 };
 
-export async function fetchSales(page = 1, perPage = 10, period: SalesPeriod = '7d') {
+export type RecentSalesResponse = {
+  items: SaleDetail[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+};
+
+export async function fetchSalesList(options: FetchSalesOptions = {}) {
   const params = new URLSearchParams({
-    page: String(page),
-    per_page: String(perPage),
-    period,
+    page: String(options.page ?? 1),
+    per_page: String(options.perPage ?? 10),
   });
+  if (options.period) params.set('period', options.period);
+  if (options.cashSessionId) params.set('cash_session_id', options.cashSessionId);
+  if (options.registerId) params.set('register_id', options.registerId);
+
   const response = await httpRequest<{ data: SaleDetail[]; meta: SalesListResponse['meta'] }>(
     `/sales?${params.toString()}`,
   );
@@ -66,6 +80,10 @@ export async function fetchSales(page = 1, perPage = 10, period: SalesPeriod = '
     items: response.data,
     meta: response.meta,
   };
+}
+
+export async function fetchSales(page = 1, perPage = 10, period: SalesPeriod = '7d') {
+  return fetchSalesList({ page, perPage, period });
 }
 
 export type CreateSalePayload = {

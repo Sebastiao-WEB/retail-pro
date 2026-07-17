@@ -4,7 +4,30 @@ import type { LoginResponse, MeResponse } from '../types/auth';
 
 export { ApiError };
 
-export async function posLogin(username: string, password: string, registerCode?: string) {
+export type RegisterOption = {
+  id: string;
+  code: string;
+  name: string;
+};
+
+export type PosLoginResult =
+  | LoginResponse
+  | {
+      requires_two_factor: true;
+      two_factor_token: string;
+      client: 'pos';
+    }
+  | {
+      requires_register_selection: true;
+      registers: RegisterOption[];
+      message?: string;
+    };
+
+export async function posLogin(
+  username: string,
+  password: string,
+  registerCode?: string,
+): Promise<PosLoginResult> {
   try {
     const response = await httpRequest<LoginResponse>('/auth/login', {
       method: 'POST',
@@ -19,14 +42,24 @@ export async function posLogin(username: string, password: string, registerCode?
       await saveTokens(response.access_token, response.refresh_token);
     }
 
-    return response;
+    return { ...response, client: response.client ?? 'pos' };
   } catch (error) {
-    if (error instanceof ApiError && error.status === 422 && error.payload?.requires_two_factor) {
-      return {
-        requires_two_factor: true,
-        two_factor_token: String(error.payload.two_factor_token ?? ''),
-        client: 'pos' as const,
-      };
+    if (error instanceof ApiError && error.status === 422) {
+      if (error.payload?.requires_two_factor) {
+        return {
+          requires_two_factor: true,
+          two_factor_token: String(error.payload.two_factor_token ?? ''),
+          client: 'pos',
+        };
+      }
+      if (error.payload?.requires_register_selection) {
+        const registers = Array.isArray(error.payload.registers) ? error.payload.registers : [];
+        return {
+          requires_register_selection: true,
+          registers: registers as RegisterOption[],
+          message: error.message,
+        };
+      }
     }
     throw error;
   }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Redirect } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +14,7 @@ import { ApiError } from '@/src/api/httpClient';
 import type { SaleDetail } from '@/src/api/salesApi';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
+import { useAuthStore } from '@/src/store/authStore';
 import { brand, formatMt } from '@/src/theme/brand';
 
 const periods = [
@@ -33,6 +35,7 @@ function formatarData(valor: string | null | undefined) {
 }
 
 export default function DashboardScreen() {
+  const client = useAuthStore((state) => state.client);
   const [period, setPeriod] = useState<(typeof periods)[number]['key']>('7d');
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [salesPage, setSalesPage] = useState(1);
@@ -78,6 +81,10 @@ export default function DashboardScreen() {
 
   const salesData = data?.recentSales ?? null;
   const totalPaginas = salesData?.meta.last_page ?? 1;
+
+  if (client === 'pos') {
+    return <Redirect href="/(tabs)/pos" />;
+  }
 
   return (
     <>

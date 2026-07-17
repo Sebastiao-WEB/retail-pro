@@ -33,7 +33,7 @@ export default function RootLayout() {
 function AuthGate() {
   const router = useRouter();
   const segments = useSegments();
-  const { user, twoFactorToken } = useAuthStore();
+  const { user, client, twoFactorToken } = useAuthStore();
 
   useEffect(() => {
     const inAuth = segments[0] === '(auth)';
@@ -44,9 +44,9 @@ function AuthGate() {
     }
 
     if (user && inAuth) {
-      router.replace('/(tabs)');
+      router.replace(client === 'pos' ? '/(tabs)/pos' : '/(tabs)');
     }
-  }, [user, twoFactorToken, segments, router]);
+  }, [user, client, twoFactorToken, segments, router]);
 
   return null;
 }

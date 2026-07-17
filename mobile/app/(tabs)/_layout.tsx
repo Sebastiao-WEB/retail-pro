@@ -36,10 +36,12 @@ function podeVerFechosCaixa(user: AuthUser | null) {
 }
 
 export default function TabLayout() {
-  const { user } = useAuthStore();
-  const mostrarUtilizadores = podeGerirUtilizadores(user);
-  const mostrarStock = podeGerirStock(user);
-  const mostrarFechos = podeVerFechosCaixa(user);
+  const { user, client } = useAuthStore();
+  const modoPos = client === 'pos';
+  const mostrarUtilizadores = !modoPos && podeGerirUtilizadores(user);
+  const mostrarStock = !modoPos && podeGerirStock(user);
+  const mostrarFechos = !modoPos && podeVerFechosCaixa(user);
+  const mostrarGestao = !modoPos;
 
   if (!user) {
     return <Redirect href="/login" />;
@@ -58,9 +60,20 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="pos"
+        options={{
+          title: 'POS',
+          href: modoPos ? undefined : null,
+          tabBarIcon: ({ color }) => (
+            <SymbolView name={{ ios: 'barcode.viewfinder', android: 'qr_code_scanner', web: 'qr_code_scanner' }} tintColor={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: 'Dashboard',
+          href: mostrarGestao ? undefined : null,
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'chart.bar', android: 'bar_chart', web: 'bar_chart' }} tintColor={color} size={24} />
           ),
@@ -78,7 +91,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sales"
         options={{
-          title: 'Vendas',
+          title: modoPos ? 'Histórico' : 'Vendas',
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'cart', android: 'shopping_cart', web: 'shopping_cart' }} tintColor={color} size={24} />
           ),
@@ -98,6 +111,7 @@ export default function TabLayout() {
         name="products"
         options={{
           title: 'Produtos',
+          href: mostrarGestao ? undefined : null,
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'shippingbox', android: 'inventory_2', web: 'inventory_2' }} tintColor={color} size={24} />
           ),

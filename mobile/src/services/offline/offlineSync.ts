@@ -1,6 +1,6 @@
-import { createSale, fetchSaleById } from '../api/salesApi';
-import { closeCashSession, openCashSession } from '../api/cashSessionsApi';
-import { ApiError } from '../api/httpClient';
+import { createSale, fetchSaleById } from '../../api/salesApi';
+import { closeCashSession, openCashSession } from '../../api/cashSessionsApi';
+import { ApiError } from '../../api/httpClient';
 import {
   listPendingQueue,
   removePendingQueueItem,
@@ -9,7 +9,7 @@ import {
   type PendingQueueItem,
 } from './pendingQueue';
 import { isBusinessSaleError, isNetworkError, networkAvailable } from './networkError';
-import { useSessionStore } from '../store/sessionStore';
+import { useSessionStore } from '../../store/sessionStore';
 
 function sumSaleUnits(payload: Record<string, unknown>) {
   const items = Array.isArray(payload.itens) ? payload.itens : [];

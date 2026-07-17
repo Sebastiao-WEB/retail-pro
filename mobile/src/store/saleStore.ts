@@ -36,7 +36,6 @@ export const useSaleStore = create<SaleStore>(() => ({
     const referencia = buildReference();
     const payload: CreateSalePayload = {
       id: saleId,
-      referencia,
       cliente: input.cliente,
       caixa: session.assignedRegister || session.registerCode,
       operador: session.operator || undefined,

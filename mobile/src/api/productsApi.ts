@@ -18,6 +18,8 @@ export type Product = {
   stock: number;
   controlaEstoque: boolean;
   isActive: boolean;
+  precoVendaComIva?: number;
+  valorIvaUnitario?: number;
 };
 
 export type ProductsListResponse = {

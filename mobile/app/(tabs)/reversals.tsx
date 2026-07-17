@@ -10,14 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import {
-  fetchReversalRequests,
-  updateReversalRequest,
-  type ReversalRequest,
-  type ReversalRequestsResponse,
-} from '@/src/api/reversalsApi';
+import { fetchReversalRequests, updateReversalRequest, type ReversalRequest, type ReversalRequestsResponse } from '@/src/api/reversalsApi';
 import { ApiError } from '@/src/api/httpClient';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
+import { useAuthStore } from '@/src/store/authStore';
 import { brand, formatMt } from '@/src/theme/brand';
 
 const PER_PAGE = 10;
@@ -47,6 +43,8 @@ function corEstado(status: string) {
 }
 
 export default function ReversalsScreen() {
+  const { client } = useAuthStore();
+  const modoPos = client === 'pos';
   const [data, setData] = useState<ReversalRequestsResponse | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -131,6 +129,9 @@ export default function ReversalsScreen() {
           <Text style={styles.section}>
             {data ? `${data.meta.total} reversão(ões)` : 'Reversões'}
           </Text>
+          {modoPos ? (
+            <Text style={styles.sectionMeta}>Pedidos do seu caixa · aguardam aprovação da gerência</Text>
+          ) : null}
           {data ? (
             <Text style={styles.sectionMeta}>
               {pendentes} pendente(s) nesta página · {PER_PAGE} por página
@@ -170,7 +171,7 @@ export default function ReversalsScreen() {
               {item.sale ? <Text style={styles.tapHint}>Toque para ver detalhes</Text> : null}
             </Pressable>
 
-            {item.status === 'PENDING' ? (
+            {item.status === 'PENDING' && !modoPos ? (
               <View style={styles.actions}>
                 <Pressable
                   style={[styles.btn, styles.reject, submitting && styles.btnDisabled]}

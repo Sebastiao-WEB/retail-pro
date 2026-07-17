@@ -12,14 +12,18 @@ import { ApiError } from '@/src/api/authApi';
 import { useAuthStore } from '@/src/store/authStore';
 import { brand } from '@/src/theme/brand';
 
+function destinoAposLogin(client: 'admin' | 'pos' | null) {
+  return client === 'pos' ? '/(tabs)/pos' : '/(tabs)';
+}
+
 export default function TwoFactorScreen() {
-  const { user, hydrated, loading, twoFactorToken, confirmTwoFactor, cancelTwoFactor } = useAuthStore();
+  const { user, client, hydrated, loading, twoFactorToken, confirmTwoFactor, cancelTwoFactor } = useAuthStore();
   const [code, setCode] = useState('');
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [error, setError] = useState('');
 
   if (hydrated && user) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href={destinoAposLogin(client)} />;
   }
 
   if (!twoFactorToken) {
@@ -30,7 +34,7 @@ export default function TwoFactorScreen() {
     setError('');
     try {
       await confirmTwoFactor(code.trim(), recoveryMode);
-      router.replace('/(tabs)');
+      router.replace(destinoAposLogin(useAuthStore.getState().client));
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Código inválido.';
       setError(message);

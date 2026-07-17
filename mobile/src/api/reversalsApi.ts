@@ -30,6 +30,13 @@ export async function fetchReversalRequests(page = 1, perPage = 10) {
   return response.data;
 }
 
+export async function createReversalRequest(saleId: string, reason = '') {
+  return httpRequest<{ message: string; data: ReversalRequest }>('/sale-reversal-requests', {
+    method: 'POST',
+    body: JSON.stringify({ sale_id: saleId, reason }),
+  });
+}
+
 export async function updateReversalRequest(id: string, status: 'APPROVED' | 'REJECTED') {
   return httpRequest(`/sale-reversal-requests/${id}`, {
     method: 'PATCH',

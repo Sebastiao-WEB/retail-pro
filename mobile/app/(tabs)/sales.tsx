@@ -12,6 +12,7 @@ import { ApiError } from '@/src/api/httpClient';
 import { fetchSales, type SaleDetail, type SalesListResponse, type SalesPeriod } from '@/src/api/salesApi';
 import FullScreenLoader from '@/src/components/FullScreenLoader';
 import SaleDetailModal from '@/src/components/SaleDetailModal';
+import { useAuthStore } from '@/src/store/authStore';
 import { brand, formatMt } from '@/src/theme/brand';
 
 const PER_PAGE = 10;
@@ -34,6 +35,8 @@ function formatarData(valor: string | null | undefined) {
 }
 
 export default function SalesScreen() {
+  const { client } = useAuthStore();
+  const modoPos = client === 'pos';
   const [period, setPeriod] = useState<SalesPeriod>('7d');
   const [data, setData] = useState<SalesListResponse | null>(null);
   const [page, setPage] = useState(1);
@@ -111,6 +114,9 @@ export default function SalesScreen() {
           <Text style={styles.section}>
             {data ? `${data.meta.total} venda(s)` : 'Vendas'}
           </Text>
+          {modoPos ? (
+            <Text style={styles.sectionMeta}>Apenas vendas do seu caixa e operador</Text>
+          ) : null}
           {data ? (
             <Text style={styles.sectionMeta}>
               Mais recentes primeiro · {PER_PAGE} por página
