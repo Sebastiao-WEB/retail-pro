@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useCartStore } from '../../store/cartStore';
 import { brand, formatMt } from '../../theme/brand';
+import { parseQuantityText } from '../../utils/productQuantity';
 import { roundMoney } from '../../utils/saleShift';
 
 type Props = {
@@ -23,6 +24,13 @@ type Props = {
   }) => void;
   onClose: () => void;
 };
+
+function formatQuantityLabel(quantity: number, unit: 'UN' | 'KG') {
+  if (unit === 'KG') {
+    return quantity.toLocaleString('pt-MZ', { maximumFractionDigits: 3 });
+  }
+  return String(Math.floor(quantity));
+}
 
 export default function CheckoutModal({ visible, loading = false, onConfirm, onClose }: Props) {
   const cart = useCartStore();
@@ -44,6 +52,15 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
     const value = Number(String(discountInput).replace(',', '.'));
     if (!Number.isFinite(value)) return;
     cart.setDiscount('valor', value);
+  }
+
+  function handleQuantityBlur(productId: string, text: string, unit: 'UN' | 'KG') {
+    const parsed = parseQuantityText(text, unit);
+    if (!parsed) {
+      cart.removeProduct(productId);
+      return;
+    }
+    cart.setQuantity(productId, parsed);
   }
 
   function handleConfirm() {
@@ -77,11 +94,53 @@ export default function CheckoutModal({ visible, loading = false, onConfirm, onC
 
           <ScrollView contentContainerStyle={styles.scroll}>
             {cart.items.map((item) => (
-              <View key={item.produtoId} style={styles.line}>
-                <Text style={styles.lineName} numberOfLines={1}>
-                  {item.quantidade}× {item.nome}
-                </Text>
-                <Text style={styles.lineTotal}>{formatMt(item.subtotal)}</Text>
+              <View key={item.produtoId} style={styles.lineCard}>
+                <View style={styles.lineHeader}>
+                  <Text style={styles.lineName} numberOfLines={2}>
+                    {item.nome}
+                  </Text>
+                  <Pressable
+                    style={styles.removeBtn}
+                    onPress={() => cart.removeProduct(item.produtoId)}
+                    disabled={loading}
+                  >
+                    <Text style={styles.removeBtnText}>Remover</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.lineFooter}>
+                  <View style={styles.qtyRow}>
+                    <Pressable
+                      style={styles.qtyBtn}
+                      onPress={() => cart.decreaseQuantity(item.produtoId)}
+                      disabled={loading}
+                    >
+                      <Text style={styles.qtyBtnText}>−</Text>
+                    </Pressable>
+                    <TextInput
+                      value={formatQuantityLabel(item.quantidade, item.unidadeVenda)}
+                      onChangeText={(text) => {
+                        const parsed = parseQuantityText(text, item.unidadeVenda);
+                        if (parsed) cart.setQuantity(item.produtoId, parsed);
+                      }}
+                      onBlur={(event) =>
+                        handleQuantityBlur(item.produtoId, event.nativeEvent.text, item.unidadeVenda)
+                      }
+                      keyboardType={item.unidadeVenda === 'KG' ? 'decimal-pad' : 'number-pad'}
+                      style={styles.qtyInput}
+                      selectTextOnFocus
+                    />
+                    <Pressable
+                      style={styles.qtyBtn}
+                      onPress={() => cart.increaseQuantity(item.produtoId)}
+                      disabled={loading}
+                    >
+                      <Text style={styles.qtyBtnText}>+</Text>
+                    </Pressable>
+                    <Text style={styles.qtyUnit}>{item.unidadeVenda === 'KG' ? 'kg' : 'un'}</Text>
+                  </View>
+                  <Text style={styles.lineTotal}>{formatMt(item.subtotal)}</Text>
+                </View>
               </View>
             ))}
 
@@ -197,9 +256,49 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '700', color: brand.dark, marginBottom: 8 },
   scroll: { gap: 8, paddingBottom: 8 },
-  line: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  lineName: { flex: 1, color: brand.dark },
-  lineTotal: { fontWeight: '600', color: brand.dark },
+  lineCard: {
+    borderWidth: 1,
+    borderColor: brand.border,
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  lineHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' },
+  lineName: { flex: 1, color: brand.dark, fontWeight: '600' },
+  removeBtn: {
+    borderWidth: 1,
+    borderColor: brand.danger,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  removeBtnText: { color: brand.danger, fontSize: 12, fontWeight: '700' },
+  lineFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  qtyBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: brand.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: brand.background,
+  },
+  qtyBtnText: { fontSize: 18, fontWeight: '700', color: brand.dark, lineHeight: 20 },
+  qtyInput: {
+    minWidth: 56,
+    borderWidth: 1,
+    borderColor: brand.border,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    textAlign: 'center',
+    fontWeight: '700',
+    color: brand.dark,
+  },
+  qtyUnit: { color: brand.muted, fontSize: 12, fontWeight: '600' },
+  lineTotal: { fontWeight: '700', color: brand.dark },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { color: brand.muted },
   summaryValue: { fontWeight: '600', color: brand.dark },

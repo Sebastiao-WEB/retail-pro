@@ -221,6 +221,14 @@ export default function PosScreen() {
     tryAddProduct(product);
   }
 
+  async function resolveBarcodeForScanner(code: string) {
+    return productStore.resolveBarcode(code);
+  }
+
+  function handleScannerConfirm(product: Product) {
+    tryAddProduct(product);
+  }
+
   async function handleSearchSubmit() {
     const term = search.trim();
     if (!term) return;
@@ -521,8 +529,9 @@ export default function PosScreen() {
 
       <BarcodeScannerModal
         visible={scannerVisible}
-        onScan={handleBarcode}
         onClose={() => setScannerVisible(false)}
+        resolveBarcode={resolveBarcodeForScanner}
+        onConfirmAdd={handleScannerConfirm}
       />
 
       <WeightQuantityModal
