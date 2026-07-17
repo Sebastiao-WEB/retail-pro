@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { brand } from '../../theme/brand';
+import { brand } from '@/src/theme/brand';
 
 const SCANNER_RED = '#FF2D2D';
 const VIEWFINDER_HEIGHT = 168;
