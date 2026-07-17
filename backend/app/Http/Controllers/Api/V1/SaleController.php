@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesApiClient;
 use App\Http\Controllers\Concerns\ResolvesAssignedRegister;
 use App\Models\CashSession;
 use App\Models\Product;
@@ -21,6 +22,7 @@ use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
+    use ResolvesApiClient;
     use ResolvesAssignedRegister;
 
     public function __construct(private readonly DashboardSummaryService $dashboardSummary) {}
@@ -50,6 +52,14 @@ class SaleController extends Controller
             ->where('register_id', $registerId)
             ->latest('created_at')
             ->latest('data');
+
+        // Operador de caixa: só as suas vendas (não as de outros no mesmo caixa).
+        if ($this->isPosApiClient()) {
+            $userId = auth('api')->id();
+            if ($userId) {
+                $query->where('user_id', $userId);
+            }
+        }
 
         if (! empty($dados['cash_session_id'])) {
             $query->where('cash_session_id', $dados['cash_session_id']);

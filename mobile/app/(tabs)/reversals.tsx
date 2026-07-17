@@ -130,7 +130,7 @@ export default function ReversalsScreen() {
             {data ? `${data.meta.total} reversão(ões)` : 'Reversões'}
           </Text>
           {modoPos ? (
-            <Text style={styles.sectionMeta}>Pedidos do seu caixa · aguardam aprovação da gerência</Text>
+            <Text style={styles.sectionMeta}>Pedidos solicitados por si · aguardam aprovação da gerência</Text>
           ) : null}
           {data ? (
             <Text style={styles.sectionMeta}>

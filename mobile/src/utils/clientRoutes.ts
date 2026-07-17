@@ -13,7 +13,8 @@ export const ADMIN_ONLY_SCREENS = new Set([
 export const POS_ONLY_SCREENS = new Set(['pos']);
 
 export function homeForClient(client: AppClient | null | undefined) {
-  return client === 'pos' ? '/(tabs)/pos' : '/(tabs)/index';
+  // Expo Router: o ecrã index das tabs é "/" (não "/(tabs)/index").
+  return client === 'pos' ? '/(tabs)/pos' : '/';
 }
 
 export function isScreenAllowedForClient(

@@ -115,7 +115,7 @@ export default function SalesScreen() {
             {data ? `${data.meta.total} venda(s)` : 'Vendas'}
           </Text>
           {modoPos ? (
-            <Text style={styles.sectionMeta}>Apenas vendas do seu caixa e operador</Text>
+            <Text style={styles.sectionMeta}>Apenas as suas vendas neste caixa</Text>
           ) : null}
           {data ? (
             <Text style={styles.sectionMeta}>

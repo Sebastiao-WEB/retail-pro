@@ -6,6 +6,7 @@ use App\Models\CashSession;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\StockBalance;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Concerns\ApiTestHelpers;
@@ -405,6 +406,57 @@ class SaleApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.referencia', 'VD-HOJE');
+    }
+
+    public function test_operador_pos_so_ve_as_suas_vendas(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $ambiente['user']->registers()->sync([$ambiente['register']->id]);
+
+        $outro = User::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Outro Operador',
+            'username' => 'outro_operador',
+            'email' => 'outro_operador@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'CASHIER',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'is_active' => true,
+        ]);
+        $outro->registers()->sync([$ambiente['register']->id]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-MINHA',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 50,
+            'total' => 50,
+            'data' => now(),
+        ]);
+
+        Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-OUTRO',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $outro->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 80,
+            'total' => 80,
+            'data' => now(),
+        ]);
+
+        $token = $this->loginApi($ambiente['user']);
+        $resposta = $this->getJson('/api/v1/sales?period=today&page=1&per_page=10', $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.referencia', 'VD-MINHA');
     }
 
     public function test_rejeita_reenvio_com_mesmo_id_e_conteudo_diferente(): void

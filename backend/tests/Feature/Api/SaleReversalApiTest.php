@@ -136,4 +136,74 @@ class SaleReversalApiTest extends TestCase
             ->assertJsonPath('data.items.0.sale.referencia', 'VD-REV-LIST')
             ->assertJsonPath('data.items.0.sale.itens.0.nome', 'Produto Teste');
     }
+
+    public function test_operador_pos_so_ve_as_suas_solicitacoes_de_reversao(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $ambiente['user']->registers()->sync([$ambiente['register']->id]);
+
+        $outro = \App\Models\User::query()->create([
+            'id' => (string) Str::uuid(),
+            'name' => 'Outro Operador',
+            'username' => 'outro_operador_rev',
+            'email' => 'outro_operador_rev@retailpro.local',
+            'password' => bcrypt('123456'),
+            'role' => 'CASHIER',
+            'register_id' => $ambiente['register']->id,
+            'source_location_id' => $ambiente['location']->id,
+            'is_active' => true,
+        ]);
+        $outro->registers()->sync([$ambiente['register']->id]);
+
+        $vendaMinha = Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-REV-MINHA',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $ambiente['user']->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 100,
+            'total' => 100,
+            'data' => now(),
+        ]);
+
+        $vendaOutro = Sale::query()->create([
+            'id' => (string) Str::uuid(),
+            'referencia' => 'VD-REV-OUTRO',
+            'register_id' => $ambiente['register']->id,
+            'user_id' => $outro->id,
+            'cliente' => 'Cliente Geral',
+            'metodo_pagamento' => 'Dinheiro',
+            'subtotal' => 200,
+            'total' => 200,
+            'data' => now(),
+        ]);
+
+        SaleReversalRequest::query()->create([
+            'id' => (string) Str::uuid(),
+            'sale_id' => $vendaMinha->id,
+            'requested_by' => $ambiente['user']->id,
+            'status' => 'PENDING',
+            'reason' => 'Minha solicitação',
+            'requested_at' => now(),
+        ]);
+
+        SaleReversalRequest::query()->create([
+            'id' => (string) Str::uuid(),
+            'sale_id' => $vendaOutro->id,
+            'requested_by' => $outro->id,
+            'status' => 'PENDING',
+            'reason' => 'Solicitação de outro',
+            'requested_at' => now(),
+        ]);
+
+        $token = $this->loginApi($ambiente['user']);
+        $resposta = $this->getJson('/api/v1/sale-reversal-requests?page=1&per_page=10', $this->authHeaders($token));
+
+        $resposta
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 1)
+            ->assertJsonPath('data.items.0.reason', 'Minha solicitação')
+            ->assertJsonPath('data.items.0.sale.referencia', 'VD-REV-MINHA');
+    }
 }

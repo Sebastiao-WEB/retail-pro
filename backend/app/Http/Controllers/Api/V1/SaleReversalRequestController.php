@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesApiClient;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SaleReversalRequest;
@@ -14,6 +15,8 @@ use Illuminate\Support\Str;
 
 class SaleReversalRequestController extends Controller
 {
+    use ResolvesApiClient;
+
     public function __construct(private readonly SaleReversalService $reversalService) {}
 
     /**
@@ -24,8 +27,18 @@ class SaleReversalRequestController extends Controller
         $page = max(1, (int) $request->query('page', 1));
         $perPage = min(20, max(1, (int) $request->query('per_page', 10)));
 
-        $paginado = SaleReversalRequest::query()
-            ->with(['sale.itens.product', 'requestedByUser', 'approvedByUser'])
+        $query = SaleReversalRequest::query()
+            ->with(['sale.itens.product', 'requestedByUser', 'approvedByUser']);
+
+        // Operador de caixa: só as reversões que ele solicitou.
+        if ($this->isPosApiClient()) {
+            $userId = auth('api')->id();
+            if ($userId) {
+                $query->where('requested_by', $userId);
+            }
+        }
+
+        $paginado = $query
             ->latest('requested_at')
             ->paginate($perPage, ['*'], 'page', $page);
 
