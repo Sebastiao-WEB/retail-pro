@@ -155,6 +155,37 @@ class ProductApiTest extends TestCase
         $this->assertArrayHasKey('isActive', $resposta->json('data.0'));
     }
 
+    public function test_cria_produto_por_api(): void
+    {
+        $ambiente = $this->criarAmbienteApi();
+        $token = $this->loginApi($ambiente['user']);
+
+        $resposta = $this->postJson('/api/v1/products', [
+            'nome' => 'Produto Novo Mobile',
+            'codigoBarras' => '8888888888888',
+            'categoria' => 'Padaria',
+            'unidadeVenda' => 'UN',
+            'precoCompra' => 5,
+            'precoVenda' => 12.5,
+            'ivaTipo' => 'PERCENTUAL',
+            'ivaPercentual' => 16,
+            'ivaValor' => 0,
+            'stock' => 20,
+            'controlaEstoque' => true,
+        ], $this->authHeaders($token));
+
+        $resposta->assertCreated()->assertJsonPath('data.id', fn ($id) => filled($id));
+
+        $this->assertDatabaseHas('products', [
+            'nome' => 'Produto Novo Mobile',
+            'codigo_barras' => '8888888888888',
+            'iva_tipo' => 'PERCENTUAL',
+            'iva_percentual' => 16,
+            'stock' => 20,
+            'is_active' => true,
+        ]);
+    }
+
     public function test_actualiza_produto_por_api(): void
     {
         $ambiente = $this->criarAmbienteApi();

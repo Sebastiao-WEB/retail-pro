@@ -119,6 +119,7 @@ class ProductController extends Controller
             'controla_estoque' => array_key_exists('controlaEstoque', $dados)
                 ? (bool) $dados['controlaEstoque']
                 : true,
+            'is_active' => true,
         ]);
 
         return response()->json([

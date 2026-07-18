@@ -1,10 +1,4 @@
-function toggleIvaFields(form) {
-    const tipo = form.querySelector('[name="iva_tipo"]')?.value || 'ISENTO';
-
-    form.querySelectorAll('[data-iva-panel]').forEach((panel) => {
-        panel.classList.toggle('hidden', panel.dataset.ivaPanel !== tipo);
-    });
-}
+import { initIvaFields, toggleIvaFields } from './iva-fields.js';
 
 export default function init() {
     const form = document.getElementById('product-edit-form');
@@ -12,5 +6,10 @@ export default function init() {
         return;
     }
 
-    form.querySelector('[name="iva_tipo"]')?.addEventListener('change', () => toggleIvaFields(form));
+    initIvaFields(form);
+
+    form.addEventListener('submit', () => {
+        // Antes do POST nativo, sincroniza painéis (ex.: valor visível correcto).
+        toggleIvaFields(form);
+    });
 }

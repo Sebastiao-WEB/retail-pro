@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -163,6 +165,11 @@ export default function ProductEditModal({
       return;
     }
 
+    if (venda <= 0) {
+      setError('Informe um preço de venda maior que zero.');
+      return;
+    }
+
     if (ivaTipo === 'PERCENTUAL' && (!Number.isFinite(ivaPerc) || ivaPerc <= 0)) {
       setError('Informe um IVA percentual maior que zero.');
       return;
@@ -195,6 +202,8 @@ export default function ProductEditModal({
           controlaEstoque,
         });
         Alert.alert('Sucesso', 'Produto criado com sucesso.');
+        onSaved();
+        onClose();
       } else if (product) {
         await updateProduct(product.id, {
           nome: nome.trim(),
@@ -210,10 +219,9 @@ export default function ProductEditModal({
           controlaEstoque,
         });
         Alert.alert('Sucesso', 'Produto actualizado com sucesso.');
+        onSaved();
+        onClose();
       }
-
-      onSaved();
-      onClose();
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -230,7 +238,10 @@ export default function ProductEditModal({
   return (
     <>
       <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.sheet}>
             <View style={styles.header}>
               <Text style={styles.title}>{isCreate ? 'Novo produto' : 'Editar produto'}</Text>
@@ -430,7 +441,7 @@ export default function ProductEditModal({
               </Pressable>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <BarcodeCaptureModal

@@ -169,7 +169,7 @@
                         <input name="iva_valor" type="number" step="0.01" class="rp-input" placeholder="5.00">
                         <p data-field-error="iva_valor" class="mt-1 hidden text-xs text-red-600"></p>
                     </div>
-                    <div data-iva-panel="ISENTO" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <div data-iva-panel="ISENTO" class="hidden rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 md:col-span-2">
                         {{ __('pages.products.iva_exempt_note') }}
                     </div>
                     <div class="md:col-span-2" data-stock-create-panel>

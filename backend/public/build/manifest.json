@@ -7,8 +7,8 @@
     "file": "assets/routes-CoarHjMD.js",
     "name": "routes"
   },
-  "_utils-K7eC73UA.js": {
-    "file": "assets/utils-K7eC73UA.js",
+  "_utils-1noYewmB.js": {
+    "file": "assets/utils-1noYewmB.js",
     "name": "utils",
     "imports": [
       "resources/js/admin.js"
@@ -24,7 +24,7 @@
     "isEntry": true
   },
   "resources/js/admin.js": {
-    "file": "assets/admin-C_gKgP8Q.js",
+    "file": "assets/admin-DjM8MYKs.js",
     "name": "admin",
     "src": "resources/js/admin.js",
     "isEntry": true,
@@ -57,29 +57,29 @@
     ]
   },
   "resources/js/admin/balance-sheets-show.js": {
-    "file": "assets/balance-sheets-show-BZ1WUCy3.js",
+    "file": "assets/balance-sheets-show-B50VbFfE.js",
     "name": "balance-sheets-show",
     "src": "resources/js/admin/balance-sheets-show.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
       "_routes-CoarHjMD.js",
-      "_utils-K7eC73UA.js"
+      "_utils-1noYewmB.js"
     ]
   },
   "resources/js/admin/balance-sheets.js": {
-    "file": "assets/balance-sheets-DW28Aohw.js",
+    "file": "assets/balance-sheets-BHIZhin0.js",
     "name": "balance-sheets",
     "src": "resources/js/admin/balance-sheets.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
       "_routes-CoarHjMD.js",
-      "_utils-K7eC73UA.js"
+      "_utils-1noYewmB.js"
     ]
   },
   "resources/js/admin/company-settings.js": {
-    "file": "assets/company-settings-D3wUBMGN.js",
+    "file": "assets/company-settings-CTNhKlZU.js",
     "name": "company-settings",
     "src": "resources/js/admin/company-settings.js",
     "isDynamicEntry": true,
@@ -89,7 +89,7 @@
     ]
   },
   "resources/js/admin/customers-edit.js": {
-    "file": "assets/customers-edit-B_GfdtzH.js",
+    "file": "assets/customers-edit-BVLveek_.js",
     "name": "customers-edit",
     "src": "resources/js/admin/customers-edit.js",
     "isDynamicEntry": true,
@@ -98,14 +98,14 @@
     ]
   },
   "resources/js/admin/customers.js": {
-    "file": "assets/customers-BRE3Vr1X.js",
+    "file": "assets/customers-BkdL7lIM.js",
     "name": "customers",
     "src": "resources/js/admin/customers.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
       "_routes-CoarHjMD.js",
-      "_utils-K7eC73UA.js"
+      "_utils-1noYewmB.js"
     ]
   },
   "resources/js/admin/dashboard.js": {
@@ -121,13 +121,16 @@
     "isDynamicEntry": true
   },
   "resources/js/admin/products-edit.js": {
-    "file": "assets/products-edit-Bgt0-Dfy.js",
+    "file": "assets/products-edit-1mvhumEF.js",
     "name": "products-edit",
     "src": "resources/js/admin/products-edit.js",
-    "isDynamicEntry": true
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/admin.js"
+    ]
   },
   "resources/js/admin/products.js": {
-    "file": "assets/products-MbUR0rmU.js",
+    "file": "assets/products-DCpHh-qM.js",
     "name": "products",
     "src": "resources/js/admin/products.js",
     "isDynamicEntry": true,
@@ -137,7 +140,7 @@
     ]
   },
   "resources/js/admin/registers-edit.js": {
-    "file": "assets/registers-edit-DzvRb66j.js",
+    "file": "assets/registers-edit-BUKvB5Mm.js",
     "name": "registers-edit",
     "src": "resources/js/admin/registers-edit.js",
     "isDynamicEntry": true,
@@ -146,18 +149,18 @@
     ]
   },
   "resources/js/admin/registers.js": {
-    "file": "assets/registers-QrPLNwCV.js",
+    "file": "assets/registers-D2_9IYJm.js",
     "name": "registers",
     "src": "resources/js/admin/registers.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
       "_routes-CoarHjMD.js",
-      "_utils-K7eC73UA.js"
+      "_utils-1noYewmB.js"
     ]
   },
   "resources/js/admin/reversals.js": {
-    "file": "assets/reversals-Br8wgeDQ.js",
+    "file": "assets/reversals-DlYG6ilm.js",
     "name": "reversals",
     "src": "resources/js/admin/reversals.js",
     "isDynamicEntry": true,
@@ -167,7 +170,7 @@
     ]
   },
   "resources/js/admin/roles-permissions.js": {
-    "file": "assets/roles-permissions-Bqo3Radf.js",
+    "file": "assets/roles-permissions-Bx6em_gH.js",
     "name": "roles-permissions",
     "src": "resources/js/admin/roles-permissions.js",
     "isDynamicEntry": true,
@@ -177,7 +180,7 @@
     ]
   },
   "resources/js/admin/sales.js": {
-    "file": "assets/sales-CfjamLxx.js",
+    "file": "assets/sales-B4loaQPX.js",
     "name": "sales",
     "src": "resources/js/admin/sales.js",
     "isDynamicEntry": true,
@@ -196,7 +199,7 @@
     ]
   },
   "resources/js/admin/stock-locations-edit.js": {
-    "file": "assets/stock-locations-edit-BWV5IY14.js",
+    "file": "assets/stock-locations-edit-D09GdW0s.js",
     "name": "stock-locations-edit",
     "src": "resources/js/admin/stock-locations-edit.js",
     "isDynamicEntry": true,
@@ -205,7 +208,7 @@
     ]
   },
   "resources/js/admin/stock-locations-stock.js": {
-    "file": "assets/stock-locations-stock-BoQi18kn.js",
+    "file": "assets/stock-locations-stock-Brj2_ZzZ.js",
     "name": "stock-locations-stock",
     "src": "resources/js/admin/stock-locations-stock.js",
     "isDynamicEntry": true,
@@ -214,18 +217,18 @@
     ]
   },
   "resources/js/admin/stock-locations.js": {
-    "file": "assets/stock-locations-CVbdbahf.js",
+    "file": "assets/stock-locations-DZON2kdv.js",
     "name": "stock-locations",
     "src": "resources/js/admin/stock-locations.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
       "_routes-CoarHjMD.js",
-      "_utils-K7eC73UA.js"
+      "_utils-1noYewmB.js"
     ]
   },
   "resources/js/admin/stock-reload-adjust.js": {
-    "file": "assets/stock-reload-adjust-BSOoNuuR.js",
+    "file": "assets/stock-reload-adjust-D4zjEBJq.js",
     "name": "stock-reload-adjust",
     "src": "resources/js/admin/stock-reload-adjust.js",
     "isDynamicEntry": true,
@@ -234,7 +237,7 @@
     ]
   },
   "resources/js/admin/stock-transfers.js": {
-    "file": "assets/stock-transfers-BTc5xXub.js",
+    "file": "assets/stock-transfers-vnLNpCIq.js",
     "name": "stock-transfers",
     "src": "resources/js/admin/stock-transfers.js",
     "isDynamicEntry": true,
@@ -250,14 +253,14 @@
     "isDynamicEntry": true
   },
   "resources/js/admin/users.js": {
-    "file": "assets/users-DW-RBudn.js",
+    "file": "assets/users-CgV7qnAo.js",
     "name": "users",
     "src": "resources/js/admin/users.js",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/admin.js",
       "_routes-CoarHjMD.js",
-      "_utils-K7eC73UA.js"
+      "_utils-1noYewmB.js"
     ]
   },
   "resources/js/app.js": {

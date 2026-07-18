@@ -1,5 +1,6 @@
 import { bindDisableConfirmHandlers, bindModalDismiss } from './admin/modal.js';
 import { bindAutoSubmitForms, showStoredToast } from './admin/form.js';
+import { bindIvaTipoToggle } from './admin/iva-fields.js';
 import { bindAdminPreloader, markAdminPageReady } from './admin/preloader.js';
 
 const pageModules = {
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bindDisableConfirmHandlers();
     bindModalDismiss();
     bindAutoSubmitForms();
+    bindIvaTipoToggle();
     showStoredToast();
 
     const page = document.body.dataset.adminPage;

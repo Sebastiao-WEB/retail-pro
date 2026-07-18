@@ -14,6 +14,22 @@ export class ApiError extends Error {
   }
 }
 
+function firstValidationMessage(payload: Record<string, unknown> | null): string | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const errors = payload.errors;
+  if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return null;
+
+  for (const value of Object.values(errors as Record<string, unknown>)) {
+    if (Array.isArray(value) && value.length > 0 && value[0] != null) {
+      return String(value[0]);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+  return null;
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 async function tryRefreshToken() {
@@ -102,7 +118,12 @@ export async function httpRequest<T = unknown>(
 
     if (!response.ok) {
       debugLog('HTTP', `${method} ${path} → ${response.status} (${Date.now() - started}ms)`);
-      throw new ApiError(String(json?.message ?? 'Erro na API.'), response.status, json);
+      const validationMessage = firstValidationMessage(json);
+      throw new ApiError(
+        String(validationMessage ?? json?.message ?? 'Erro na API.'),
+        response.status,
+        json,
+      );
     }
 
     debugLog('HTTP', `${method} ${path} → ${response.status} (${Date.now() - started}ms)`);

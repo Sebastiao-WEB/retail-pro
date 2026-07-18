@@ -1,17 +1,10 @@
 import { openModal } from './modal.js';
 import { submitJson } from './form.js';
+import { initIvaFields, toggleIvaFields } from './iva-fields.js';
 import { route } from './routes.js';
 
 const MODAL_ID = 'product-form-modal';
 const FORM_ID = 'product-form';
-
-function toggleIvaFields(form) {
-    const tipo = form.querySelector('[name="iva_tipo"]')?.value || 'ISENTO';
-
-    form.querySelectorAll('[data-iva-panel]').forEach((panel) => {
-        panel.classList.toggle('hidden', panel.dataset.ivaPanel !== tipo);
-    });
-}
 
 function resetProductForm(form) {
     form.reset();
@@ -48,7 +41,7 @@ export default function init() {
         return;
     }
 
-    form.querySelector('[name="iva_tipo"]')?.addEventListener('change', () => toggleIvaFields(form));
+    initIvaFields(form);
     form.querySelector('[name="controla_estoque"]')?.addEventListener('change', () => toggleStockCreatePanel(form));
 
     const note = form.querySelector('[data-stock-create-note]');
@@ -59,6 +52,7 @@ export default function init() {
 
     form.addEventListener('submit', (event) => {
         event.preventDefault();
+        toggleIvaFields(form);
 
         submitJson(form, {
             method: 'POST',
@@ -74,5 +68,7 @@ export default function init() {
 
         resetProductForm(form);
         openModal(MODAL_ID);
+        // Garante painéis correctos após o modal estar visível.
+        requestAnimationFrame(() => toggleIvaFields(form));
     });
 }

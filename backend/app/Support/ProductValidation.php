@@ -44,11 +44,15 @@ final class ProductValidation
      */
     public static function regrasCodigoBarras(?string $ignorarProductId = null, bool $sometimes = false): array
     {
+        $unique = Rule::unique('products', 'codigo_barras')
+            ->whereNull('deleted_at')
+            ->ignore($ignorarProductId);
+
         $regras = [
             'nullable',
             'string',
             'max:255',
-            Rule::unique('products', 'codigo_barras')->ignore($ignorarProductId),
+            $unique,
         ];
 
         if ($sometimes) {

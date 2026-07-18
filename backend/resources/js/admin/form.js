@@ -249,6 +249,7 @@ async function ajaxFilterSubmit(form) {
         bindAutoSubmitForms();
         restoreTextFieldValues(typedValues);
         restoreFocusState(focusState);
+        window.dispatchEvent(new CustomEvent('rp:admin-content-updated'));
     } catch (error) {
         if (isRequestCanceled(error) || seq !== autoSubmitSeq) {
             return;
